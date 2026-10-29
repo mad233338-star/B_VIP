@@ -1,0 +1,12 @@
+{
+  "name": "b-vip-server",
+  "version": "1.0.0",
+  "description": "B_VIP Remote Repair Server",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
