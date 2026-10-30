@@ -45,6 +45,17 @@ async function initDatabase() {
 }
 initDatabase();
 
+// دالة لإنشاء توكن JWT نظامي يقرأه .NET بدون أخطاء
+function generateValidJwt(payload, secret) {
+    const base64url = (str) => Buffer.from(str).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+    const header = { alg: 'HS256', typ: 'JWT' };
+    const encodedHeader = base64url(JSON.stringify(header));
+    const encodedPayload = base64url(JSON.stringify(payload));
+    const signature = crypto.createHmac('sha256', secret).update(`${encodedHeader}.${encodedPayload}`).digest('base64')
+        .replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+    return `${encodedHeader}.${encodedPayload}.${signature}`;
+}
+
 // -------------------------------------------------------------
 // 2. معالجة طلبات التراخيص وتسجيل الدخول (API)
 // -------------------------------------------------------------
@@ -62,7 +73,6 @@ const server = http.createServer(async (req, res) => {
     const expiryDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
     const defaultGuid = "c7b3a1d9-4e2f-4a8b-9c0d-1e2f3a4b5c6d";
 
-    // استعلام فحص السيرفر
     if (req.method === 'GET') {
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify({
@@ -78,7 +88,6 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
-    // تسجيل الدخول
     if (req.method === 'POST') {
         let rawBody = '';
         req.on('data', chunk => { rawBody += chunk; });
@@ -96,7 +105,7 @@ const server = http.createServer(async (req, res) => {
                     }
                 }
 
-                const username = data.username || data.Username || data.user || data.User || 'maher';
+                const username = data.username || data.Username || data.user || data.User || 'Admin';
                 const password = data.password || data.Password || data.pass || '';
                 const hwid = data.hwid || data.Hwid || data.HWID || 'DEV_HOST';
                 const userId = defaultGuid;
@@ -115,9 +124,55 @@ const server = http.createServer(async (req, res) => {
                     }
                 }
 
-                const token = crypto.createHash('sha256').update(username + SIGNING_KEY + Date.now()).digest('hex');
+                // مصفوفات الصلاحيات لتغذية دوال LINQ و C#
+                const rolesList = ['Admin', 'User', 'Technician'];
+                const permissionsList = ['All', 'Admin', 'RemoteControl', 'ScreenShare', 'CurtainMode', 'Bypass', 'FRP', 'iCloud', 'Repair', 'Flash'];
+                const claimsList = [
+                    { type: 'http://schemas.microsoft.com/ws/2008/06/identity/claims/role', value: 'Admin' },
+                    { type: 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name', value: username },
+                    { type: 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier', value: userId },
+                    { type: 'role', value: 'Admin' },
+                    { type: 'name', value: username },
+                    { type: 'sub', value: userId }
+                ];
 
-                // حزمة بيانات متوافقة مع UserSummaryDto الخاص بـ C#
+                // إنشاء توكن JWT حقيقي وصحيح
+                const jwtPayload = {
+                    sub: userId,
+                    nameid: userId,
+                    unique_name: username,
+                    name: username,
+                    role: 'Admin',
+                    roles: rolesList,
+                    permissions: permissionsList,
+                    nbf: Math.floor(Date.now() / 1000) - 60,
+                    exp: Math.floor(Date.now() / 1000) + (365 * 24 * 60 * 60),
+                    iss: 'B_VIP_Server',
+                    aud: 'B_VIP_Client'
+                };
+                const token = generateValidJwt(jwtPayload, SIGNING_KEY);
+
+                // كائن الاشتراك المفرد والمصفوفة
+                const singleSubscription = {
+                    id: userId,
+                    Id: userId,
+                    name: 'VIP Full Access',
+                    Name: 'VIP Full Access',
+                    isActive: true,
+                    IsActive: true,
+                    status: 'Active',
+                    Status: 'Active',
+                    expiresAt: expiryDate,
+                    ExpiresAt: expiryDate,
+                    daysRemaining: 365,
+                    DaysRemaining: 365,
+                    features: permissionsList,
+                    Features: permissionsList
+                };
+
+                const subscriptionsList = [singleSubscription];
+
+                // كائن ملخص المستخدم مع جميع المصفوفات غير الفارغة
                 const userSummary = {
                     id: userId,
                     Id: userId,
@@ -127,8 +182,16 @@ const server = http.createServer(async (req, res) => {
                     Email: `${username}@b-vip.com`,
                     role: 'Admin',
                     Role: 'Admin',
-                    roles: ['Admin'],
-                    Roles: ['Admin'],
+                    roles: rolesList,
+                    Roles: rolesList,
+                    permissions: permissionsList,
+                    Permissions: permissionsList,
+                    claims: claimsList,
+                    Claims: claimsList,
+                    features: permissionsList,
+                    Features: permissionsList,
+                    subscriptions: subscriptionsList,
+                    Subscriptions: subscriptionsList,
                     isActive: true,
                     IsActive: true,
                     hwid: hwid,
@@ -139,6 +202,7 @@ const server = http.createServer(async (req, res) => {
                     CreatedAt: new Date().toISOString()
                 };
 
+                // الحزمة الرئيسية التي تدعم كلاً من الاستجابة المباشرة وغلاف Data
                 const responsePayload = {
                     success: true,
                     Success: true,
@@ -150,37 +214,41 @@ const server = http.createServer(async (req, res) => {
                     Token: token,
                     accessToken: token,
                     AccessToken: token,
+                    refreshToken: token,
+                    RefreshToken: token,
                     userId: userId,
                     UserId: userId,
                     user: userSummary,
                     User: userSummary,
-                    subscription: {
-                        id: userId,
-                        isActive: true,
-                        status: 'Active',
-                        expiresAt: expiryDate,
-                        daysRemaining: 365
-                    },
-                    Subscription: {
-                        Id: userId,
-                        IsActive: true,
-                        Status: 'Active',
-                        ExpiresAt: expiryDate,
-                        DaysRemaining: 365
-                    }
+                    data: userSummary,
+                    Data: userSummary,
+                    roles: rolesList,
+                    Roles: rolesList,
+                    permissions: permissionsList,
+                    Permissions: permissionsList,
+                    claims: claimsList,
+                    Claims: claimsList,
+                    features: permissionsList,
+                    Features: permissionsList,
+                    subscription: singleSubscription,
+                    Subscription: singleSubscription,
+                    subscriptions: subscriptionsList,
+                    Subscriptions: subscriptionsList,
+                    expiresAt: expiryDate,
+                    ExpiresAt: expiryDate,
+                    daysRemaining: 365,
+                    DaysRemaining: 365,
+                    isActive: true,
+                    IsActive: true
                 };
 
                 res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
                 res.end(JSON.stringify(responsePayload));
-                console.log(`B_VIP Login Approved for: ${username}`);
+                console.log(`B_VIP Login Fully Authorized for: ${username}`);
             } catch (err) {
                 console.error('Login POST error:', err);
                 res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-                res.end(JSON.stringify({
-                    success: true,
-                    token: 'B_VIP_EMERGENCY_PASS',
-                    user: { id: defaultGuid, username: 'maher', role: 'Admin' }
-                }));
+                res.end(JSON.stringify({ success: true, message: 'Fallback Success' }));
             }
         });
         return;
