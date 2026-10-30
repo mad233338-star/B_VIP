@@ -7,7 +7,7 @@ const DB_URL = process.env.ConnectionStrings__DefaultConnection || process.env.D
 const SIGNING_KEY = process.env.Auth__SigningKey || 'B-VIP-SIGNING-KEY-2026-bashir-alfarhan-9f4c2e7a1b8d6350';
 
 // -------------------------------------------------------------
-// 1. الاتصال بقاعدة البيانات وإعداد الجداول تلقائياً
+// 1. الاتصال بقاعدة البيانات PostgreSQL
 // -------------------------------------------------------------
 let pool = null;
 try {
@@ -28,7 +28,7 @@ async function initDatabase() {
     try {
         await pool.query(`
             CREATE TABLE IF NOT EXISTS users (
-                id SERIAL PRIMARY KEY,
+                id VARCHAR(100) PRIMARY KEY,
                 username VARCHAR(100) UNIQUE NOT NULL,
                 password VARCHAR(255) NOT NULL,
                 hwid VARCHAR(255),
@@ -60,8 +60,9 @@ const server = http.createServer(async (req, res) => {
     }
 
     const expiryDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+    const defaultGuid = "c7b3a1d9-4e2f-4a8b-9c0d-1e2f3a4b5c6d";
 
-    // الاستجابة لأي فحص فوري أو استعلام GET
+    // استعلام فحص السيرفر
     if (req.method === 'GET') {
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify({
@@ -69,20 +70,15 @@ const server = http.createServer(async (req, res) => {
             service: 'B_VIP Software Licensing & Remote Server',
             developer: 'Bashir Al-Farhan',
             success: true,
-            Success: true,
             isActive: true,
-            IsActive: true,
             isSubscribed: true,
-            IsSubscribed: true,
             daysRemaining: 365,
-            DaysRemaining: 365,
-            expiresAt: expiryDate,
-            ExpiresAt: expiryDate
+            expiresAt: expiryDate
         }));
         return;
     }
 
-    // معالجة تسجيل الدخول POST
+    // تسجيل الدخول
     if (req.method === 'POST') {
         let rawBody = '';
         req.on('data', chunk => { rawBody += chunk; });
@@ -93,7 +89,6 @@ const server = http.createServer(async (req, res) => {
                     try {
                         data = JSON.parse(rawBody);
                     } catch (_) {
-                        // دعم صيغة Form URL Encoded إن أرسلها التطبيق
                         const params = new URLSearchParams(rawBody);
                         for (const [k, v] of params.entries()) {
                             data[k] = v;
@@ -101,31 +96,49 @@ const server = http.createServer(async (req, res) => {
                     }
                 }
 
-                console.log('Login request received with body:', rawBody);
+                const username = data.username || data.Username || data.user || data.User || 'maher';
+                const password = data.password || data.Password || data.pass || '';
+                const hwid = data.hwid || data.Hwid || data.HWID || 'DEV_HOST';
+                const userId = defaultGuid;
 
-                // استخراج اسم المستخدم والباسوورد بجميع الصيغ المحتملة
-                const username = data.username || data.Username || data.user || data.User || data.login || data.Login || 'mahhher';
-                const password = data.password || data.Password || data.pass || data.Pass || data.passwordHash || data.PasswordHash || '';
-                const hwid = data.hwid || data.Hwid || data.HWID || data.deviceId || 'DEV_HOST';
-
-                // حفظ أو تحديث المستخدم في قاعدة البيانات تلقائياً
                 if (pool) {
                     try {
                         await pool.query(
-                            `INSERT INTO users (username, password, hwid, role, is_active, expires_at)
-                             VALUES ($1, $2, $3, 'Admin', true, NOW() + INTERVAL '365 days')
+                            `INSERT INTO users (id, username, password, hwid, role, is_active, expires_at)
+                             VALUES ($1, $2, $3, $4, 'Admin', true, NOW() + INTERVAL '365 days')
                              ON CONFLICT (username) 
                              DO UPDATE SET password = EXCLUDED.password, hwid = COALESCE(users.hwid, EXCLUDED.hwid);`,
-                            [username, password, hwid]
+                            [userId, username, password, hwid]
                         );
                     } catch (dbErr) {
-                        console.error('Auto-sync user DB error:', dbErr.message);
+                        console.error('DB query error:', dbErr.message);
                     }
                 }
 
                 const token = crypto.createHash('sha256').update(username + SIGNING_KEY + Date.now()).digest('hex');
 
-                // حزمة بيانات شاملة تلبي كافة نماذج C# و WPF
+                // حزمة بيانات متوافقة مع UserSummaryDto الخاص بـ C#
+                const userSummary = {
+                    id: userId,
+                    Id: userId,
+                    username: username,
+                    Username: username,
+                    email: `${username}@b-vip.com`,
+                    Email: `${username}@b-vip.com`,
+                    role: 'Admin',
+                    Role: 'Admin',
+                    roles: ['Admin'],
+                    Roles: ['Admin'],
+                    isActive: true,
+                    IsActive: true,
+                    hwid: hwid,
+                    Hwid: hwid,
+                    expiresAt: expiryDate,
+                    ExpiresAt: expiryDate,
+                    createdAt: new Date().toISOString(),
+                    CreatedAt: new Date().toISOString()
+                };
+
                 const responsePayload = {
                     success: true,
                     Success: true,
@@ -137,42 +150,19 @@ const server = http.createServer(async (req, res) => {
                     Token: token,
                     accessToken: token,
                     AccessToken: token,
-                    jwt: token,
-                    username: username,
-                    Username: username,
-                    role: 'Admin',
-                    Role: 'Admin',
-                    isActive: true,
-                    IsActive: true,
-                    isSubscribed: true,
-                    IsSubscribed: true,
-                    expiresAt: expiryDate,
-                    ExpiresAt: expiryDate,
-                    expiryDate: expiryDate,
-                    ExpiryDate: expiryDate,
-                    daysRemaining: 365,
-                    DaysRemaining: 365,
-                    user: {
-                        id: 1,
-                        username: username,
-                        role: 'Admin',
-                        isActive: true,
-                        expiresAt: expiryDate
-                    },
-                    User: {
-                        Id: 1,
-                        Username: username,
-                        Role: 'Admin',
-                        IsActive: true,
-                        ExpiresAt: expiryDate
-                    },
+                    userId: userId,
+                    UserId: userId,
+                    user: userSummary,
+                    User: userSummary,
                     subscription: {
+                        id: userId,
                         isActive: true,
                         status: 'Active',
                         expiresAt: expiryDate,
                         daysRemaining: 365
                     },
                     Subscription: {
+                        Id: userId,
                         IsActive: true,
                         Status: 'Active',
                         ExpiresAt: expiryDate,
@@ -182,15 +172,14 @@ const server = http.createServer(async (req, res) => {
 
                 res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
                 res.end(JSON.stringify(responsePayload));
-                console.log(`B_VIP Login approved successfully for: ${username}`);
+                console.log(`B_VIP Login Approved for: ${username}`);
             } catch (err) {
-                console.error('Error handling login POST:', err);
+                console.error('Login POST error:', err);
                 res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
                 res.end(JSON.stringify({
                     success: true,
-                    Success: true,
-                    message: 'Login approved',
-                    token: 'B_VIP_EMERGENCY_PASS'
+                    token: 'B_VIP_EMERGENCY_PASS',
+                    user: { id: defaultGuid, username: 'maher', role: 'Admin' }
                 }));
             }
         });
