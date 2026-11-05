@@ -19,6 +19,7 @@ const {
     createPostgresStore,
     migrateUsersTable,
     seedMasterAdmin,
+    demoteStubAccounts,
     MASTER_ADMIN
 } = require('../../server.js');
 
@@ -45,9 +46,18 @@ async function createDatabase(options = {}) {
         `);
     }
 
+    if (options.stubRow) {
+        // Exactly what the previous login endpoint wrote for any typed user name.
+        await pool.query(
+            `INSERT INTO users (id, username, password, hwid, role)
+             VALUES (1, $1, $2, 'DEV_HOST', 'Admin')`,
+            [options.stubRow, 'TypedPassword1']);
+    }
+
     const store = createPostgresStore(pool);
     await migrateUsersTable(pool, () => {});
     await seedMasterAdmin(store, pool, () => {});
+    await demoteStubAccounts(pool, () => {});
     return { pool, store };
 }
 
@@ -115,6 +125,28 @@ test('a legacy integer users.id is widened so GUID identifiers can be stored', a
         role: 'technician'
     });
     assert.equal(created.id, 'c7b3a1d9-4e2f-4a8b-9c0d-1e2f3a4b5c6d');
+});
+
+test('accounts the old stub stored as administrators are demoted, not left as back doors', async () => {
+    const { store } = await createDatabase({ legacyTable: true, stubRow: 'zzz.random' });
+
+    const demoted = await store.findByLogin('zzz.random');
+    assert.ok(demoted, 'the row written by the stub still exists');
+    assert.equal(demoted.role, 'technician');
+    assert.equal(demoted.isVerified, false);
+
+    const api = await startApi(store);
+    try {
+        // Its password was the typed text, so it must not open a session any more either.
+        const attempt = await api.post('/api/auth/login', {
+            userName: 'zzz.random', password: 'TypedPassword1', deviceFingerprint: 'PC-1'
+        });
+        assert.equal(attempt.status, 403);
+        assert.equal(attempt.json.error.code, 'email-not-verified');
+        assert.equal(attempt.json.tokens, undefined);
+    } finally {
+        await api.close();
+    }
 });
 
 test('the master admin signs in over HTTP against the real store', async () => {

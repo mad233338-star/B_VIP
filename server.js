@@ -525,6 +525,34 @@ async function seedMasterAdmin(store, pool, log) {
     log('Master administrator record created.');
 }
 
+/*
+ * The previous build inserted a row for *every* user name typed into the login form, always with
+ * the role 'Admin', the typed text as the password and no e-mail address. Left alone those rows
+ * would be administrator back doors, so they are demoted on start. A genuine administrator always
+ * has an e-mail address, and the master account is excluded by name.
+ */
+async function demoteStubAccounts(pool, log) {
+    if (!pool) {
+        return 0;
+    }
+
+    const result = await pool.query(
+        `UPDATE users
+         SET role = 'technician', is_verified = FALSE, is_active = TRUE
+         WHERE role ILIKE '%admin%'
+           AND email IS NULL
+           AND lower(username) <> lower($1)
+         RETURNING username`,
+        [MASTER_ADMIN.username]);
+
+    const count = result.rows ? result.rows.length : 0;
+    if (count > 0) {
+        log(`Demoted ${count} account(s) that the previous build stored as administrators without an e-mail address.`);
+    }
+
+    return count;
+}
+
 // -------------------------------------------------------------
 // 4. E-mail (OTP) delivery
 // -------------------------------------------------------------
@@ -1189,6 +1217,7 @@ async function startServer() {
             await migrateUsersTable(pool, log);
             log('PostgreSQL connected; user schema verified.');
             await seedMasterAdmin(store, pool, log);
+            await demoteStubAccounts(pool, log);
         } catch (error) {
             console.error('Database start-up failed:', error.message);
             store = {
@@ -1294,6 +1323,7 @@ module.exports = {
     createPostgresStore,
     migrateUsersTable,
     seedMasterAdmin,
+    demoteStubAccounts,
     createMailer,
     hashPassword,
     verifyPassword,
