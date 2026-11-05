@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>B_VIP.Backend</RootNamespace>
+    <Description>B_VIP Tool backend (ASP.NET Core Web API).</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../B_VIP.Core/B_VIP.Core.csproj" />
+    <ProjectReference Include="../B_VIP.Contracts/B_VIP.Contracts.csproj" />
+    <ProjectReference Include="../B_VIP.Application/B_VIP.Application.csproj" />
+    <ProjectReference Include="../B_VIP.Infrastructure/B_VIP.Infrastructure.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+    <PackageReference Include="Serilog.AspNetCore" Version="8.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.8">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+</Project>

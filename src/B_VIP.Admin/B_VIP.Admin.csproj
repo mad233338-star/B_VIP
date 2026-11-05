@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>B_VIP.Admin</RootNamespace>
+    <AssemblyName>B_VIP.Admin</AssemblyName>
+    <Description>B_VIP Tool administration console (WPF views).</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../B_VIP.Contracts/B_VIP.Contracts.csproj" />
+    <ProjectReference Include="../B_VIP.CloudClient/B_VIP.CloudClient.csproj" />
+  </ItemGroup>
+</Project>

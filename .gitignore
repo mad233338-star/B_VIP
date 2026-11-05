@@ -1,0 +1,22 @@
+# Build output
+**/bin/
+**/obj/
+.vs/
+*.user
+*.suo
+
+# Local publish output, scratch probes and bundled tools
+artifacts/
+.tmp/
+.tools/
+
+# Local databases and logs
+*.db
+*.db-shm
+*.db-wal
+*.log
+
+# Editor / agent metadata
+.idea/
+.vscode/
+.freebuff/

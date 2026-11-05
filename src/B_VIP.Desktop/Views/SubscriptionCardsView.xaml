@@ -1,0 +1,43 @@
+<UserControl x:Class="B_VIP.Desktop.Views.SubscriptionCardsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:B_VIP.Desktop.ViewModels"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:PlansPanelViewModel}">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <ItemsControl ItemsSource="{Binding Cards}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <WrapPanel Orientation="Horizontal" />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Border Width="240" Margin="0,0,12,12" Padding="16" CornerRadius="8"
+                            Background="{StaticResource Brush.Card}"
+                            BorderThickness="1"
+                            BorderBrush="{StaticResource Brush.Border}">
+                        <StackPanel>
+                            <TextBlock Text="{Binding Name}" Foreground="{StaticResource Brush.Text}"
+                                       FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap" />
+                            <TextBlock Text="{Binding Billing}" Style="{StaticResource Text.Kicker}" Margin="0,4,0,8" />
+                            <TextBlock Text="{Binding PriceText}" Foreground="{StaticResource Brush.Accent}"
+                                       FontSize="22" FontWeight="Bold" />
+                            <TextBlock Text="{Binding DurationText}" Style="{StaticResource Text.Muted}" Margin="0,2,0,6" />
+                            <TextBlock Text="{Binding Features}" Style="{StaticResource Text.Muted}"
+                                       TextWrapping="Wrap" Margin="0,0,0,8" />
+                            <TextBlock Text="{Binding DevicesText}" Foreground="{StaticResource Brush.AccentSoft}"
+                                       FontSize="11.5" TextWrapping="Wrap" Margin="0,0,0,10" />
+                            <Button Content="Select this plan" Style="{StaticResource Button.Outline}"
+                                    Command="{Binding DataContext.SelectCommand,
+                                              RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                    CommandParameter="{Binding}" />
+                        </StackPanel>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+    </ScrollViewer>
+</UserControl>

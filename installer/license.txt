@@ -1,0 +1,35 @@
+B_VIP Software — License Agreement
+Brand: Bashir Al-Farhan
+
+1. Grant of use
+   B_VIP Software is licensed, not sold. The license holder may install and use the software
+   on the number of computers and for the period recorded in their license record, for the
+   purpose of mobile phone repair, diagnostics and GSM service work.
+
+2. Activation
+   Each installation must be activated against the B_VIP backend with a valid license key.
+   Activation binds the license to the machine identifier reported by the client. Transfers
+   require deactivation of the previous machine or a deactivation performed by support.
+
+3. Restrictions
+   The license holder may not resell, sublicense, rent or distribute the software, its
+   activation keys or access credentials to third parties, and may not remove or bypass
+   license checks, signatures or audit logging.
+
+4. Data and privacy
+   The client keeps diagnostic reports and device logs on the local machine unless the user
+   explicitly uploads them to the support centre. Account, license and audit records are kept
+   on the configured backend.
+
+5. Warranty and liability
+   The software is provided "as is". Repair operations that write, flash or erase a device can
+   destroy data; the operator is responsible for backups and for confirming every destructive
+   operation. To the maximum extent permitted by law, the author is not liable for indirect or
+   consequential damages, including data loss, loss of profit or device damage resulting from
+   misuse, unsupported device models or interrupted operations.
+
+6. Support
+   Support is provided through the support centre inside the application and through the
+   contact channel stated in your license record.
+
+By continuing the installation you confirm that you have read and accept these terms.

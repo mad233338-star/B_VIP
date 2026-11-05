@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>B_VIP.UnitTests</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.0" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/B_VIP.CloudClient/B_VIP.CloudClient.csproj" />
+    <ProjectReference Include="../../src/B_VIP.Core/B_VIP.Core.csproj" />
+    <ProjectReference Include="../../src/B_VIP.Contracts/B_VIP.Contracts.csproj" />
+    <ProjectReference Include="../../src/B_VIP.Application/B_VIP.Application.csproj" />
+    <ProjectReference Include="../../src/B_VIP.Hardware/B_VIP.Hardware.csproj" />
+    <ProjectReference Include="../../src/B_VIP.Modules/B_VIP.Modules.csproj" />
+    <ProjectReference Include="../../src/B_VIP.CloudClient/B_VIP.CloudClient.csproj" />
+  </ItemGroup>
+</Project>

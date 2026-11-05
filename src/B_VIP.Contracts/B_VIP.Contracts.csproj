@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>B_VIP.Contracts</RootNamespace>
+    <Description>Shared API contracts (DTOs) between B_VIP Backend, Desktop and Admin.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../B_VIP.Core/B_VIP.Core.csproj" />
+  </ItemGroup>
+</Project>

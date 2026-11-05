@@ -1,0 +1,64 @@
+# Render blueprint for the B_VIP Tool backend.
+#
+# Apply from the Render dashboard: New -> Blueprint -> pick the repository that contains this file.
+# Render then creates the PostgreSQL instance and the web service below, wires the connection
+# string automatically, and generates the token signing key.
+#
+# The service name determines the public hostname, so a service named "b-vip" answers on
+# https://b-vip.onrender.com. If that hostname is still held by the demo responder, replace the
+# demo service's source repository instead of adding a second one (see deploy/RENDER.md).
+
+databases:
+  - name: b-vip-postgres
+    databaseName: b_vip
+    user: b_vip
+    plan: free
+    region: frankfurt
+
+services:
+  - type: web
+    name: b-vip
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: frankfurt
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+
+      # Always use PostgreSQL in production: without this the backend silently falls back to a
+      # throw-away SQLite file, which is wiped on every deploy.
+      - key: Database__Provider
+        value: postgres
+      - key: ConnectionStrings__Default
+        fromDatabase:
+          name: b-vip-postgres
+          property: connectionString
+
+      # Must be at least 32 characters; generated once and kept across deploys.
+      - key: Auth__SigningKey
+        generateValue: true
+
+      - key: Cors__AllowedOrigins__0
+        value: https://b-vip.onrender.com
+      - key: Email__PublicBaseUrl
+        value: https://b-vip.onrender.com
+
+      # Transactional e-mail for the technician OTP. Fill these in under Environment after the
+      # first deploy (never commit real credentials here).
+      - key: Email__Host
+        sync: false
+      - key: Email__Port
+        value: "587"
+      - key: Email__UserName
+        sync: false
+      - key: Email__Password
+        sync: false
+      - key: Email__From
+        sync: false
+      - key: Email__FromName
+        value: B_VIP Tool
+      - key: Email__EnableSsl
+        value: "true"

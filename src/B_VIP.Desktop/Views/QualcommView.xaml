@@ -1,0 +1,103 @@
+<UserControl x:Class="B_VIP.Desktop.Views.QualcommView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:B_VIP.Desktop.ViewModels"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:QualcommViewModel}">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <DockPanel Grid.Row="0" Margin="0,0,0,12">
+            <Border DockPanel.Dock="Right" Style="{StaticResource Badge.Accent}" VerticalAlignment="Center">
+                <TextBlock Text="QUALCOMM · SAHARA / FIREHOSE / 9008" FontSize="10" FontWeight="SemiBold"
+                           Foreground="{StaticResource Brush.Accent}" />
+            </Border>
+            <TextBlock Text="Qualcomm EDL" Style="{StaticResource Text.PageTitle}" Margin="0" />
+        </DockPanel>
+
+        <Border Grid.Row="1" Style="{StaticResource Panel.Card}" Margin="0,0,0,12">
+            <StackPanel>
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Left" Text="Interfaces" Style="{StaticResource Text.Label}"
+                               VerticalAlignment="Center" Margin="0,0,10,0" />
+                    <Button DockPanel.Dock="Right" Content="Refresh" Style="{StaticResource Button.Outline}"
+                            Command="{Binding RefreshPortsCommand}" Margin="8,0,0,0" VerticalAlignment="Center" />
+                    <Button DockPanel.Dock="Right" Content="Read info" Style="{StaticResource Button.Primary}"
+                            Command="{Binding ReadInfoCommand}" VerticalAlignment="Center"
+                            ToolTip="Enumerates the Qualcomm USB interfaces and reads the platform over adb when a handset is booted." />
+                </DockPanel>
+
+                <Border Margin="0,10,0,0" Background="{StaticResource Brush.Surface}" CornerRadius="4"
+                        BorderBrush="{StaticResource Brush.Border}" BorderThickness="1" Height="96">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="8,6">
+                        <ItemsControl ItemsSource="{Binding Ports}" Focusable="False">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Style="{StaticResource Text.Muted}" Text="{Binding Summary}"
+                                               FontFamily="Consolas" Margin="0,1" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Border>
+
+                <DockPanel Margin="0,12,0,0">
+                    <Button DockPanel.Dock="Right" Content="Browse…" Style="{StaticResource Button.Outline}"
+                            Command="{Binding BrowseFirehoseCommand}" Margin="8,0,0,0" VerticalAlignment="Center"
+                            ToolTip="The programmer (prog_firehose_*.elf / .mbn) that matches this SoC." />
+                    <TextBlock DockPanel.Dock="Left" Text="Programmer" Style="{StaticResource Text.Label}"
+                               VerticalAlignment="Center" Margin="0,0,10,0" />
+                    <TextBox Style="{StaticResource Input.Text}" VerticalAlignment="Center"
+                             Text="{Binding FirehosePath, UpdateSourceTrigger=PropertyChanged}"
+                             ToolTip="Path of the Firehose programmer the Sahara stage uploads." />
+                </DockPanel>
+
+                <DockPanel Margin="0,8,0,0">
+                    <TextBlock DockPanel.Dock="Left" Text="Firehose port" Style="{StaticResource Text.Label}"
+                               VerticalAlignment="Center" Margin="0,0,10,0" />
+                    <ComboBox Style="{StaticResource Input.Select}" Width="220" HorizontalAlignment="Left"
+                              ItemsSource="{Binding PortChoices}" SelectedItem="{Binding SelectedFirehosePort}"
+                              ToolTip="Normally the same COM port; some SoCs re-enumerate as 900E once the programmer runs." />
+                </DockPanel>
+
+                <WrapPanel Margin="0,12,0,0">
+                    <Button Content="Sahara handshake" Style="{StaticResource Button.Outline}"
+                            Command="{Binding SaharaCommand}" Margin="0,0,8,8"
+                            ToolTip="Answers the boot ROM HELLO and uploads the selected programmer." />
+                    <Button Content="Read GPT" Style="{StaticResource Button.Outline}"
+                            Command="{Binding GptCommand}" Margin="0,0,8,8"
+                            ToolTip="Sends the Firehose read command for LBA 0 and parses the partition table." />
+                    <Button Content="Reset FRP" Style="{StaticResource Button.Outline}"
+                            Command="{Binding ResetFrpCommand}" Margin="0,0,8,8"
+                            ToolTip="Reads the GPT, then erases exactly the 'frp' (or 'config') partition range." />
+                    <Button Content="Factory format" Style="{StaticResource Button.Outline}"
+                            Command="{Binding FactoryResetCommand}" Margin="0,0,8,8"
+                            ToolTip="Erases userdata and cache only; modemst1, modemst2, fsg and persist are protected." />
+                    <ComboBox Style="{StaticResource Input.Select}" Width="120" Margin="0,0,8,8"
+                              VerticalAlignment="Center" ItemsSource="{Binding PowerTargets}"
+                              SelectedItem="{Binding SelectedPowerTarget}"
+                              ToolTip="reset = reboot to system, off = power down, edl = stay in emergency download mode." />
+                    <Button Content="Power command" Style="{StaticResource Button.Outline}"
+                            Command="{Binding RebootCommand}" Margin="0,0,8,8" />
+                </WrapPanel>
+
+                <TextBlock Style="{StaticResource Text.Muted}" TextWrapping="Wrap" Margin="0,8,0,0"
+                           Text="Every erase re-reads the partition table first and refuses calibration partitions (modemst1, modemst2, fsg, persist). The Sahara stage needs the programmer matching the SoC; without it the boot ROM will not hand over storage." />
+            </StackPanel>
+        </Border>
+
+        <DataGrid Grid.Row="2" Style="{StaticResource Grid.Data}" ItemsSource="{Binding Rows}">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Check" Binding="{Binding Name}" Width="*" />
+                <DataGridTextColumn Header="Result" Binding="{Binding Status}" Width="90" />
+                <DataGridTextColumn Header="Details" Binding="{Binding Detail}" Width="2*" />
+            </DataGrid.Columns>
+        </DataGrid>
+    </Grid>
+</UserControl>

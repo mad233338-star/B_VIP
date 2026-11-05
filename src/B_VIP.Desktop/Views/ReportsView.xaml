@@ -1,0 +1,50 @@
+<UserControl x:Class="B_VIP.Desktop.Views.ReportsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:B_VIP.Desktop.ViewModels"
+             xmlns:loc="clr-namespace:B_VIP.Desktop.Localization"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:ReportsViewModel}">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <DockPanel Grid.Row="0" Margin="0,0,0,12">
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                <Button Content="{Binding [common.search], Source={x:Static loc:Localizer.Instance}}"
+                        Style="{StaticResource Button.Outline}" Command="{Binding SearchCommand}" Margin="8,0,0,0" />
+                <Button Content="{Binding [reports.export], Source={x:Static loc:Localizer.Instance}}"
+                        Style="{StaticResource Button.Gold}" Command="{Binding ExportCommand}" />
+            </StackPanel>
+            <TextBlock Text="{Binding [reports.title], Source={x:Static loc:Localizer.Instance}}"
+                       Style="{StaticResource Text.PageTitle}" />
+        </DockPanel>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*" />
+                <ColumnDefinition Width="3*" />
+            </Grid.ColumnDefinitions>
+
+            <DataGrid Grid.Column="0" Style="{StaticResource Grid.Data}" ItemsSource="{Binding Reports}"
+                      SelectedItem="{Binding SelectedReport}" Margin="0,0,10,0">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Title" Binding="{Binding Title}" Width="*" />
+                    <DataGridTextColumn Header="Module" Binding="{Binding Module}" Width="130" />
+                    <DataGridTextColumn Header="Created" Binding="{Binding CreatedUtc, StringFormat=MM-dd HH:mm}" Width="120" />
+                    <DataGridTextColumn Header="User" Binding="{Binding UserName}" Width="110" />
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <Border Grid.Column="1" Style="{StaticResource Panel.Card}">
+                <TextBox Style="{StaticResource Input.Text}" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True"
+                         VerticalScrollBarVisibility="Auto" FontFamily="Consolas" FontSize="12"
+                         Text="{Binding ReportContent, Mode=OneWay}" />
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

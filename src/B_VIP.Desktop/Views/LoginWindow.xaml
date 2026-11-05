@@ -1,0 +1,79 @@
+<Window x:Class="B_VIP.Desktop.Views.LoginWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:B_VIP.Desktop.ViewModels"
+        xmlns:views="clr-namespace:B_VIP.Desktop.Views"
+        xmlns:loc="clr-namespace:B_VIP.Desktop.Localization"
+        mc:Ignorable="d"
+        d:DataContext="{d:DesignInstance Type=vm:AuthFlowViewModel}"
+        Title="B_VIP Tool"
+        Width="1080" Height="760"
+        WindowStartupLocation="CenterScreen"
+        WindowState="Maximized"
+        Background="{StaticResource Brush.Canvas}"
+        FlowDirection="{Binding IsRightToLeft, Source={x:Static loc:Localizer.Instance}, Converter={StaticResource FlowDirection}}"
+        ResizeMode="NoResize">
+    <Window.Resources>
+        <!-- The four onboarding states render inside one container; no second window is opened. -->
+        <DataTemplate DataType="{x:Type vm:SignInPanelViewModel}">
+            <views:SignInPanelView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:RegisterPanelViewModel}">
+            <views:RegisterPanelView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:VerifyPanelViewModel}">
+            <views:VerifyPanelView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:PlansPanelViewModel}">
+            <views:PlansPanelView />
+        </DataTemplate>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="1.05*" />
+            <ColumnDefinition Width="1.35*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- Brand side -->
+        <Border Grid.Column="0" Background="{StaticResource Brush.Panel}" BorderBrush="{StaticResource Brush.Border}"
+                BorderThickness="0,0,1,0" Padding="48">
+            <StackPanel VerticalAlignment="Center" MaxWidth="420" HorizontalAlignment="Left">
+                <Border Width="56" Height="56" CornerRadius="14" Background="{StaticResource Brush.AccentTint}"
+                        BorderBrush="{StaticResource Brush.Accent}" BorderThickness="1" Margin="0,0,0,22">
+                    <TextBlock Text="&#xE950;" FontFamily="Segoe MDL2 Assets" FontSize="24"
+                               Foreground="{StaticResource Brush.Accent}"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+
+                <TextBlock Text="{Binding [app.name], Source={x:Static loc:Localizer.Instance}}"
+                           FontSize="34" FontWeight="Bold" Foreground="{StaticResource Brush.Text}" />
+                <TextBlock Text="Mobile device service platform" Foreground="{StaticResource Brush.Accent}"
+                           FontSize="13" FontWeight="SemiBold" Margin="0,6,0,20" />
+                <TextBlock Style="{StaticResource Text.Muted}" TextWrapping="Wrap" FontSize="13"
+                           Text="ADB, Fastboot, Samsung, Xiaomi, Infinix, Tecno, MediaTek, Qualcomm and SPREADTRUM maintenance in one technician workspace." />
+
+                <Border Height="1" Background="{StaticResource Brush.Line}" Margin="0,26,0,20" />
+
+                <TextBlock Text="TECHNICIAN ACCESS" Style="{StaticResource Text.Kicker}" />
+                <TextBlock Style="{StaticResource Text.Muted}" TextWrapping="Wrap" Margin="0,6,0,0"
+                           Text="Every workstation is bound to its hardware fingerprint. Accounts, subscriptions and activation keys are issued by the administrator." />
+
+                <TextBlock Text="Bashir Al-Farhan" Style="{StaticResource Text.Muted}" FontSize="11"
+                           Margin="0,28,0,0" />
+            </StackPanel>
+        </Border>
+
+        <!-- Onboarding panels -->
+        <Grid Grid.Column="1">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <Grid Margin="56,44,56,28" MaxWidth="640" HorizontalAlignment="Left">
+                    <ContentControl Content="{Binding CurrentPanel}" />
+                </Grid>
+            </ScrollViewer>
+
+        </Grid>
+    </Grid>
+</Window>

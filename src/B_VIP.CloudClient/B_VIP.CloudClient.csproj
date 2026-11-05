@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>B_VIP.CloudClient</RootNamespace>
+    <description>Typed HTTP client for the B_VIP Backend.</description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../B_VIP.Contracts/B_VIP.Contracts.csproj" />
+    <ProjectReference Include="../B_VIP.Core/B_VIP.Core.csproj" />
+  </ItemGroup>
+</Project>

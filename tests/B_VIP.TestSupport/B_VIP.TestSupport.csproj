@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>B_VIP.TestSupport</RootNamespace>
+    <Description>Shared fixtures for B_VIP backend tests (host factory + PostgreSQL).</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.8" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/B_VIP.Backend/B_VIP.Backend.csproj" />
+    <ProjectReference Include="../../src/B_VIP.Infrastructure/B_VIP.Infrastructure.csproj" />
+    <ProjectReference Include="../../src/B_VIP.Contracts/B_VIP.Contracts.csproj" />
+    <ProjectReference Include="../../src/B_VIP.Application/B_VIP.Application.csproj" />
+    <ProjectReference Include="../../src/B_VIP.Core/B_VIP.Core.csproj" />
+  </ItemGroup>
+</Project>

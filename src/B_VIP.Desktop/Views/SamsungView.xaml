@@ -1,0 +1,84 @@
+<UserControl x:Class="B_VIP.Desktop.Views.SamsungView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:B_VIP.Desktop.ViewModels"
+             xmlns:loc="clr-namespace:B_VIP.Desktop.Localization"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:SamsungViewModel}">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <DockPanel Grid.Row="0" Margin="0,0,0,12">
+            <Border DockPanel.Dock="Right" Style="{StaticResource Badge.Accent}" VerticalAlignment="Center">
+                <TextBlock Text="SAMSUNG · MTP / TEST MODE" FontSize="10" FontWeight="SemiBold"
+                           Foreground="{StaticResource Brush.Accent}" />
+            </Border>
+            <TextBlock Text="Samsung" Style="{StaticResource Text.PageTitle}" Margin="0" />
+        </DockPanel>
+
+        <Border Grid.Row="1" Style="{StaticResource Panel.Card}" Margin="0,0,0,12">
+            <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="{Binding [devices.title], Source={x:Static loc:Localizer.Instance}}"
+                               Style="{StaticResource Text.Label}" VerticalAlignment="Center" Margin="0,0,10,0" />
+                    <ComboBox Style="{StaticResource Input.Select}" Width="280" VerticalAlignment="Center"
+                              ItemsSource="{Binding Devices}" SelectedItem="{Binding SelectedDevice}"
+                              DisplayMemberPath="Serial" Margin="0,0,8,0" />
+                    <Button Content="{Binding [devices.scan], Source={x:Static loc:Localizer.Instance}}"
+                            Style="{StaticResource Button.Outline}" Command="{Binding ScanCommand}"
+                            VerticalAlignment="Center" />
+                </StackPanel>
+
+                <WrapPanel Margin="0,12,0,0">
+                    <Button Content="Read Info (MTP)" Style="{StaticResource Button.Primary}"
+                            Command="{Binding ReadInfoCommand}" Margin="0,0,8,8"
+                            ToolTip="MTP identity plus firmware, CSC and Android version when adb is authorized." />
+                    <Button Content="Reboot to Download" Style="{StaticResource Button.Outline}"
+                            Command="{Binding RebootDownloadCommand}" Margin="0,0,8,8"
+                            ToolTip="adb reboot download: Samsung Download (Odin) mode." />
+                    <Button Content="Reboot to System" Style="{StaticResource Button.Outline}"
+                            Command="{Binding RebootSystemCommand}" Margin="0,0,8,8" />
+                </WrapPanel>
+
+                <DockPanel Margin="0,4,0,0">
+                    <TextBlock DockPanel.Dock="Left" Text="Open on device" Style="{StaticResource Text.Label}"
+                               VerticalAlignment="Center" Margin="0,0,10,0" />
+                    <Button DockPanel.Dock="Right" Content="Open browser" Style="{StaticResource Button.Outline}"
+                            Command="{Binding OpenBrowserCommand}" Margin="8,0,0,0" VerticalAlignment="Center" />
+                    <ComboBox Style="{StaticResource Input.Select}" Width="170" VerticalAlignment="Center"
+                              ItemsSource="{Binding BrowserChoices}" SelectedItem="{Binding SelectedBrowser}"
+                              DisplayMemberPath="Label" Margin="0,0,8,0" />
+                    <TextBox Style="{StaticResource Input.Text}" VerticalAlignment="Center"
+                             IsEnabled="{Binding CanEditCustomUrl}"
+                             Text="{Binding CustomUrl, UpdateSourceTrigger=PropertyChanged}"
+                             ToolTip="Only used by the Custom URL entry." />
+                </DockPanel>
+
+                <DockPanel Margin="0,10,0,0">
+                    <Button Content="Reset FRP (*#0*# / ADB)" Style="{StaticResource Button.Outline}"
+                            Command="{Binding ResetFrpCommand}" VerticalAlignment="Center" />
+                    <TextBlock Style="{StaticResource Text.Muted}" TextWrapping="Wrap" Margin="12,0,0,0"
+                               VerticalAlignment="Center"
+                               Text="Handshakes the Samsung modem at 115200 baud, waits for an authorized adb connection, then clears the setup flags and reboots." />
+                </DockPanel>
+
+                <TextBlock Style="{StaticResource Text.Muted}" TextWrapping="Wrap" Margin="0,8,0,0"
+                           Text="MTP exposes model and manufacturer only; it has no reboot or URL verb. Serial, firmware and CSC are read over an authorized adb connection." />
+            </StackPanel>
+        </Border>
+
+        <DataGrid Grid.Row="2" Style="{StaticResource Grid.Data}" ItemsSource="{Binding Rows}">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Check" Binding="{Binding Name}" Width="*" />
+                <DataGridTextColumn Header="Result" Binding="{Binding Status}" Width="90" />
+                <DataGridTextColumn Header="Details" Binding="{Binding Detail}" Width="2*" />
+            </DataGrid.Columns>
+        </DataGrid>
+    </Grid>
+</UserControl>

@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>B_VIP.Hardware</RootNamespace>
+    <Description>Device discovery and external tool execution (ADB, Fastboot, platform tools).</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../B_VIP.Core/B_VIP.Core.csproj" />
+    <ProjectReference Include="../B_VIP.Contracts/B_VIP.Contracts.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- USB / COM monitoring through WMI (Win32_PnPEntity), Windows only and guarded at runtime. -->
+    <PackageReference Include="System.Management" Version="8.0.0" />
+    <PackageReference Include="System.IO.Ports" Version="8.0.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The port watcher takes a device-enumeration delegate so tests can drive change detection. -->
+    <InternalsVisibleTo Include="B_VIP.HardwareTests" />
+  </ItemGroup>
+</Project>

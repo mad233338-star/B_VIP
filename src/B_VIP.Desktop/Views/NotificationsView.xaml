@@ -1,0 +1,51 @@
+<UserControl x:Class="B_VIP.Desktop.Views.NotificationsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:B_VIP.Desktop.ViewModels"
+             xmlns:loc="clr-namespace:B_VIP.Desktop.Localization"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:NotificationsViewModel}">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <DockPanel Grid.Row="0" Margin="0,0,0,12">
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                <CheckBox Content="{Binding [notifications.unreadOnly], Source={x:Static loc:Localizer.Instance}}"
+                          IsChecked="{Binding UnreadOnly}" Foreground="{StaticResource Brush.White}"
+                          VerticalAlignment="Center" Margin="0,0,12,0" />
+                <Button Content="{Binding [notifications.markAll], Source={x:Static loc:Localizer.Instance}}"
+                        Style="{StaticResource Button.Outline}" Command="{Binding MarkAllCommand}" Margin="0,0,8,0" />
+                <Button Content="{Binding [common.refresh], Source={x:Static loc:Localizer.Instance}}"
+                        Style="{StaticResource Button.Gold}" Command="{Binding RefreshCommand}" />
+            </StackPanel>
+            <TextBlock Text="{Binding [notifications.title], Source={x:Static loc:Localizer.Instance}}"
+                       Style="{StaticResource Text.PageTitle}" />
+        </DockPanel>
+
+        <ItemsControl Grid.Row="1" ItemsSource="{Binding Items}">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Border Style="{StaticResource Panel.Card}" Margin="0,0,0,10">
+                        <DockPanel>
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top">
+                                <TextBlock Text="{Binding CreatedUtc, StringFormat=yyyy-MM-dd HH:mm}"
+                                           Style="{StaticResource Text.Muted}" Margin="0,0,12,0" VerticalAlignment="Center" />
+                                <Button Content="✓" Style="{StaticResource Button.Outline}"
+                                        Command="{Binding DataContext.MarkReadCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                        CommandParameter="{Binding}" Padding="8,2" />
+                            </StackPanel>
+                            <TextBlock Text="{Binding Title}" Foreground="{StaticResource Brush.GoldSoft}"
+                                       FontWeight="SemiBold" TextWrapping="Wrap" />
+                            <TextBlock Text="{Binding Body}" Style="{StaticResource Text.Body}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                        </DockPanel>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+    </Grid>
+</UserControl>

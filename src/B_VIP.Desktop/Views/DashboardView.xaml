@@ -1,0 +1,176 @@
+<UserControl x:Class="B_VIP.Desktop.Views.DashboardView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:B_VIP.Desktop.ViewModels"
+             xmlns:loc="clr-namespace:B_VIP.Desktop.Localization"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:DashboardViewModel}">
+    <Grid>
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <DockPanel Margin="0,0,0,14">
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                        <Button Content="{Binding [common.refresh], Source={x:Static loc:Localizer.Instance}}"
+                                Style="{StaticResource Button.Outline}" Command="{Binding RefreshCommand}" Margin="8,0,0,0" />
+                        <Button Content="{Binding [devices.scan], Source={x:Static loc:Localizer.Instance}}"
+                                Style="{StaticResource Button.Gold}" Command="{Binding ScanCommand}" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding WelcomeMessage}" Style="{StaticResource Text.PageTitle}" />
+                </DockPanel>
+
+                <!-- A lapsed trial or subscription is stated up front, with a direct renewal path. -->
+                <Border Background="#1AEF4444" BorderBrush="{StaticResource Brush.Danger}" BorderThickness="1"
+                        CornerRadius="6" Padding="12" Margin="0,0,0,12"
+                        Visibility="{Binding IsLicenseLocked, Converter={StaticResource BoolToVisibility}}">
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Content="Renew / Upgrade plan"
+                                Style="{StaticResource Button.Primary}" Command="{Binding RenewCommand}"
+                                Margin="12,0,0,0" VerticalAlignment="Center" />
+                        <StackPanel>
+                            <TextBlock Text="Device operations are locked" Foreground="{StaticResource Brush.Danger}"
+                                       FontWeight="SemiBold" />
+                            <TextBlock Style="{StaticResource Text.Muted}" TextWrapping="Wrap" Margin="0,4,0,0"
+                                       Text="Your trial or subscription is not active. Renew the plan to unlock ADB, Fastboot and every vendor module." />
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Style="{StaticResource Panel.Card}" Margin="0,0,10,0">
+                        <StackPanel>
+                            <TextBlock Text="{Binding [dashboard.devices], Source={x:Static loc:Localizer.Instance}}" Style="{StaticResource Text.Muted}" />
+                            <TextBlock Text="{Binding DeviceSummary}" Foreground="{StaticResource Brush.Gold}" FontSize="26" FontWeight="Bold" Margin="0,6,0,0" />
+                        </StackPanel>
+                    </Border>
+                    <Border Grid.Column="1" Style="{StaticResource Panel.Card}" Margin="0,0,10,0">
+                        <StackPanel>
+                            <TextBlock Text="{Binding [dashboard.tools], Source={x:Static loc:Localizer.Instance}}" Style="{StaticResource Text.Muted}" />
+                            <TextBlock Text="{Binding ToolSummary}" Foreground="{StaticResource Brush.Gold}" FontSize="26" FontWeight="Bold" Margin="0,6,0,0" />
+                        </StackPanel>
+                    </Border>
+                    <Border Grid.Column="2" Style="{StaticResource Panel.Card}" Margin="0,0,10,0">
+                        <StackPanel>
+                            <TextBlock Text="{Binding [dashboard.operations], Source={x:Static loc:Localizer.Instance}}" Style="{StaticResource Text.Muted}" />
+                            <TextBlock Text="{Binding OperationSummary}" Foreground="{StaticResource Brush.Gold}" FontSize="26" FontWeight="Bold" Margin="0,6,0,0" />
+                        </StackPanel>
+                    </Border>
+                    <Border Grid.Column="3" Style="{StaticResource Panel.Card}">
+                        <StackPanel>
+                            <TextBlock Text="{Binding [dashboard.license], Source={x:Static loc:Localizer.Instance}}" Style="{StaticResource Text.Muted}" />
+                            <TextBlock Text="{Binding LicenseSummary}" Foreground="{StaticResource Brush.GoldSoft}" FontSize="15" FontWeight="SemiBold" Margin="0,6,0,8" TextWrapping="Wrap" />
+                            <Button Content="License &amp; Activation" Style="{StaticResource Button.Outline}"
+                                    Command="{Binding OpenLicenseModalCommand}" HorizontalAlignment="Left" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <Border Style="{StaticResource Panel.Card}" Margin="0,14,0,0">
+                    <StackPanel>
+                        <TextBlock Text="{Binding [dashboard.quick], Source={x:Static loc:Localizer.Instance}}" Style="{StaticResource Text.Section}" />
+                        <WrapPanel Margin="0,8,0,0">
+                            <Button Content="{Binding [devices.title], Source={x:Static loc:Localizer.Instance}}"
+                                    Style="{StaticResource Button.Outline}" Command="{Binding NavigateCommand}"
+                                    CommandParameter="device-manager" Margin="0,0,8,8" />
+                            <Button Content="{Binding [nav.diagnostics], Source={x:Static loc:Localizer.Instance}}"
+                                    Style="{StaticResource Button.Outline}" Command="{Binding NavigateCommand}"
+                                    CommandParameter="android-diagnostics" Margin="0,0,8,8" />
+                            <Button Content="{Binding [nav.adb], Source={x:Static loc:Localizer.Instance}}"
+                                    Style="{StaticResource Button.Outline}" Command="{Binding NavigateCommand}"
+                                    CommandParameter="adb" Margin="0,0,8,8" />
+                            <Button Content="{Binding [nav.fastboot], Source={x:Static loc:Localizer.Instance}}"
+                                    Style="{StaticResource Button.Outline}" Command="{Binding NavigateCommand}"
+                                    CommandParameter="fastboot" Margin="0,0,8,8" />
+                            <Button Content="{Binding [nav.support], Source={x:Static loc:Localizer.Instance}}"
+                                    Style="{StaticResource Button.Outline}" Command="{Binding NavigateCommand}"
+                                    CommandParameter="support-center" Margin="0,0,8,8" />
+                            <Button Content="{Binding [nav.license], Source={x:Static loc:Localizer.Instance}}"
+                                    Style="{StaticResource Button.Outline}" Command="{Binding NavigateCommand}"
+                                    CommandParameter="license-activation" Margin="0,0,8,8" />
+                        </WrapPanel>
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource Panel.Card}" Margin="0,14,0,0">
+                    <StackPanel>
+                        <TextBlock Text="{Binding [operations.title], Source={x:Static loc:Localizer.Instance}}" Style="{StaticResource Text.Section}" />
+                        <ItemsControl ItemsSource="{Binding RecentOperations}" Margin="0,8,0,0">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding}" Style="{StaticResource Text.Body}" Margin="0,2" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Text="{Binding [common.empty], Source={x:Static loc:Localizer.Instance}}"
+                                   Style="{StaticResource Text.Muted}"
+                                   Visibility="{Binding RecentOperations.Count, Converter={StaticResource NullToVisibility}, ConverterParameter=invert}" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- License & activation sheet: current plan, live countdown, bound HWID, renewal -->
+        <Border Background="#C4000000" Visibility="{Binding IsLicenseModalOpen, Converter={StaticResource BoolToVisibility}}">
+            <Border Style="{StaticResource Panel.Card}" Width="520" HorizontalAlignment="Center"
+                    VerticalAlignment="Center" BorderBrush="{StaticResource Brush.Accent}" BorderThickness="1">
+                <StackPanel>
+                    <DockPanel Margin="0,0,0,12">
+                        <Button DockPanel.Dock="Right" Content="✕" Style="{StaticResource Button.Outline}"
+                                Command="{Binding CloseLicenseModalCommand}" Padding="10,2" />
+                        <TextBlock Text="License &amp; activation" Style="{StaticResource Text.Section}" />
+                    </DockPanel>
+
+                    <Border Style="{StaticResource Panel.Tile}" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="{Binding LicensePlanName}" Foreground="{StaticResource Brush.Accent}"
+                                       FontSize="20" FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding LicenseStatusText}" Style="{StaticResource Text.Muted}" Margin="0,4,0,0" />
+                        </StackPanel>
+                    </Border>
+
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Margin="0,0,12,0">
+                            <TextBlock Text="Time remaining" Style="{StaticResource Text.Kicker}" />
+                            <TextBlock Text="{Binding LicenseCountdown}" Foreground="{StaticResource Brush.Text}"
+                                       FontFamily="Consolas" FontSize="13" TextWrapping="Wrap" Margin="0,4,0,0" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="Workstations" Style="{StaticResource Text.Kicker}" />
+                            <TextBlock Text="{Binding LicenseDevicesText}" Style="{StaticResource Text.Muted}"
+                                       TextWrapping="Wrap" Margin="0,4,0,0" />
+                        </StackPanel>
+                    </Grid>
+
+                    <TextBlock Text="Bound hardware ID (HWID)" Style="{StaticResource Text.Kicker}" />
+                    <Border Style="{StaticResource Panel.Tile}" Margin="0,4,0,12">
+                        <TextBlock Text="{Binding LicenseHardwareId}" Foreground="{StaticResource Brush.AccentSoft}"
+                                   FontFamily="Consolas" FontSize="12" TextWrapping="Wrap" />
+                    </Border>
+
+                    <Border Background="#1AEF4444" CornerRadius="4" Padding="10" Margin="0,0,0,10"
+                            Visibility="{Binding HasError, Converter={StaticResource BoolToVisibility}}">
+                        <TextBlock Text="{Binding ErrorMessage}" Foreground="{StaticResource Brush.White}" TextWrapping="Wrap" />
+                    </Border>
+
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Content="Renew / Upgrade plan"
+                                Style="{StaticResource Button.Primary}" Command="{Binding RenewCommand}" MinWidth="180" />
+                        <Button Content="Close" Style="{StaticResource Button.Outline}"
+                                Command="{Binding CloseLicenseModalCommand}" />
+                    </DockPanel>
+                </StackPanel>
+            </Border>
+        </Border>
+    </Grid>
+</UserControl>
