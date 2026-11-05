@@ -10,6 +10,9 @@ artifacts/
 .tmp/
 .tools/
 
+# Node dependencies for the cloud server
+node_modules/
+
 # Local databases and logs
 *.db
 *.db-shm

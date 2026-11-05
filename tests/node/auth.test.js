@@ -1,0 +1,576 @@
+'use strict';
+
+/*
+ * Authentication contract tests for server.js.
+ *
+ * They run against the real request handler with an in-memory user store, so the password
+ * verification, HWID binding, role claims and HTTP status/error codes are the shipped ones.
+ * Run with: npm test   (node --test tests/node)
+ */
+
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const http = require('node:http');
+const crypto = require('node:crypto');
+
+const {
+    createApp,
+    hashPassword,
+    signToken,
+    verifyToken,
+    evaluateLicense,
+    MASTER_ADMIN,
+    ERRORS
+} = require('../../server.js');
+
+const SIGNING_KEY = 'test-signing-key-0123456789-abcdefghijklmnop';
+
+function createMemoryStore() {
+    const users = new Map();
+
+    const store = {
+        users,
+        async findByLogin(identifier) {
+            const needle = String(identifier || '').toLowerCase();
+            for (const user of users.values()) {
+                if (user.userName.toLowerCase() === needle || (user.email || '').toLowerCase() === needle) {
+                    return { ...user };
+                }
+            }
+            return null;
+        },
+        async findById(id) {
+            const user = users.get(id);
+            return user ? { ...user } : null;
+        },
+        async findByIdOrEmail(value) {
+            return store.findByLogin(value);
+        },
+        async createUser(fields) {
+            const user = {
+                id: fields.id,
+                userName: fields.userName,
+                displayName: fields.displayName || fields.userName,
+                email: fields.email,
+                passwordHash: fields.passwordHash,
+                hwid: fields.hwid || null,
+                role: /admin/i.test(String(fields.role || '')) ? 'admin' : 'technician',
+                isActive: fields.isActive !== false,
+                isVerified: fields.isVerified === true,
+                otpCode: fields.otpCode || null,
+                otpExpiresAt: fields.otpExpiresAt || null,
+                licenseType: fields.licenseType || 'trial',
+                licenseStartedAt: fields.licenseStartedAt || new Date(),
+                licenseExpiresAt: fields.licenseExpiresAt || null,
+                hwidResetCount: 0,
+                failedAttempts: 0,
+                lockoutUntil: null,
+                lastLoginAt: null,
+                createdUtc: new Date()
+            };
+            users.set(user.id, user);
+            return { ...user };
+        },
+        async updateUser(id, patch) {
+            const user = users.get(id);
+            assert.ok(user, `user ${id} exists`);
+            Object.assign(user, patch);
+            return { ...user };
+        }
+    };
+
+    return store;
+}
+
+function createUnavailableStore() {
+    const boom = async () => {
+        throw new Error('store-unavailable');
+    };
+    return { findById: boom, findByLogin: boom, findByIdOrEmail: boom, createUser: boom, updateUser: boom };
+}
+
+async function startApi(store, mailer) {
+    const app = createApp({
+        store,
+        signingKey: SIGNING_KEY,
+        mailer: mailer || { configured: false, async sendVerificationCode() { return false; } },
+        log: () => {}
+    });
+
+    const server = http.createServer(app);
+    await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+    const base = `http://127.0.0.1:${server.address().port}`;
+
+    return {
+        base,
+        async post(path, body) {
+            const response = await fetch(base + path, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            return { status: response.status, json: await response.json() };
+        },
+        async get(path, token) {
+            const response = await fetch(base + path, {
+                headers: token ? { Authorization: `Bearer ${token}` } : {}
+            });
+            return { status: response.status, json: await response.json() };
+        },
+        async close() {
+            await new Promise(resolve => server.close(resolve));
+        }
+    };
+}
+
+function decodeJwt(token) {
+    return JSON.parse(Buffer.from(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8'));
+}
+
+async function addUser(store, overrides) {
+    const password = overrides.password || 'Technician!Pass1';
+    const user = await store.createUser({
+        id: crypto.randomUUID(),
+        userName: 'tech.one',
+        email: 'tech.one@example.com',
+        passwordHash: await hashPassword(password),
+        role: 'technician',
+        isActive: true,
+        isVerified: true,
+        licenseType: 'trial',
+        licenseStartedAt: new Date(),
+        licenseExpiresAt: new Date(Date.now() + 3 * 86400000),
+        ...overrides
+    });
+    return { user, password };
+}
+
+// ---------------------------------------------------------------------------
+test('an unknown account is rejected with 401 invalid-credentials', async () => {
+    const api = await startApi(createMemoryStore());
+    try {
+        const result = await api.post('/api/auth/login', { userName: 'nobody', password: 'whatever123' });
+        assert.equal(result.status, 401);
+        assert.equal(result.json.error.code, 'invalid-credentials');
+        assert.equal(result.json.error.message, 'Invalid username or password.');
+    } finally {
+        await api.close();
+    }
+});
+
+test('a wrong password is rejected with 401 and never issues a token', async () => {
+    const store = createMemoryStore();
+    await addUser(store, {});
+    const api = await startApi(store);
+    try {
+        const result = await api.post('/api/auth/login', { userName: 'tech.one', password: 'wrong-password' });
+        assert.equal(result.status, 401);
+        assert.equal(result.json.tokens, undefined);
+        assert.equal(result.json.error.code, 'invalid-credentials');
+    } finally {
+        await api.close();
+    }
+});
+
+test('the master admin signs in with BCrypt password and receives an admin lifetime session', async () => {
+    const store = createMemoryStore();
+    await store.createUser({
+        id: crypto.randomUUID(),
+        userName: MASTER_ADMIN.username,
+        displayName: MASTER_ADMIN.username,
+        email: MASTER_ADMIN.email,
+        passwordHash: await hashPassword(MASTER_ADMIN.password),
+        role: MASTER_ADMIN.role,
+        isActive: true,
+        isVerified: true,
+        licenseType: 'lifetime_admin',
+        licenseStartedAt: new Date(),
+        licenseExpiresAt: null
+    });
+
+    const api = await startApi(store);
+    try {
+        const result = await api.post('/api/auth/login', {
+            userName: MASTER_ADMIN.email,
+            password: MASTER_ADMIN.password
+        });
+
+        assert.equal(result.status, 200);
+        assert.equal(result.json.user.email, MASTER_ADMIN.email);
+        assert.equal(result.json.user.userName, MASTER_ADMIN.username);
+        assert.deepEqual(result.json.user.roles, ['Admin', 'lifetime_admin']);
+        assert.equal(result.json.user.hardwareId, null);
+        assert.equal(result.json.license.status, 'Active');
+        assert.equal(result.json.license.expiresAt, null);
+        assert.ok(result.json.permissions.includes('All'));
+
+        const claims = decodeJwt(result.json.tokens.accessToken);
+        assert.equal(claims.role, 'Admin');
+        assert.deepEqual(claims.roles, ['Admin', 'lifetime_admin']);
+        assert.equal(claims.email, MASTER_ADMIN.email);
+        assert.ok(claims.exp - claims.iat <= 60 * 60);
+        assert.equal(claims.typ, 'access');
+    } finally {
+        await api.close();
+    }
+});
+
+test('administrators are exempt from the HWID binding', async () => {
+    const store = createMemoryStore();
+    await store.createUser({
+        id: crypto.randomUUID(),
+        userName: 'Admin Bashir',
+        email: MASTER_ADMIN.email,
+        passwordHash: await hashPassword(MASTER_ADMIN.password),
+        role: 'admin',
+        isActive: true,
+        isVerified: true,
+        licenseType: 'lifetime_admin'
+    });
+
+    const api = await startApi(store);
+    try {
+        const first = await api.post('/api/auth/login', {
+            userName: MASTER_ADMIN.email, password: MASTER_ADMIN.password, deviceFingerprint: 'PC-A'
+        });
+        const second = await api.post('/api/auth/login', {
+            userName: MASTER_ADMIN.email, password: MASTER_ADMIN.password, deviceFingerprint: 'PC-B'
+        });
+
+        assert.equal(first.status, 200);
+        assert.equal(second.status, 200);
+        const stored = [...store.users.values()][0];
+        assert.equal(stored.hwid, null, 'the admin account is never bound to a machine');
+    } finally {
+        await api.close();
+    }
+});
+
+test('an unverified technician is blocked with email-not-verified', async () => {
+    const store = createMemoryStore();
+    await addUser(store, { isVerified: false });
+    const api = await startApi(store);
+    try {
+        const result = await api.post('/api/auth/login', {
+            userName: 'tech.one', password: 'Technician!Pass1', deviceFingerprint: 'PC-A'
+        });
+        assert.equal(result.status, 403);
+        assert.equal(result.json.error.code, 'email-not-verified');
+    } finally {
+        await api.close();
+    }
+});
+
+test('the first technician login binds the HWID and the same machine is accepted again', async () => {
+    const store = createMemoryStore();
+    const { user } = await addUser(store, {});
+    const api = await startApi(store);
+    try {
+        const first = await api.post('/api/auth/login', {
+            userName: 'tech.one', password: 'Technician!Pass1', deviceFingerprint: 'MACHINE-A'
+        });
+        assert.equal(first.status, 200);
+        assert.equal(first.json.user.hardwareId, 'MACHINE-A');
+        assert.deepEqual(first.json.user.roles, ['Technician']);
+        assert.equal(store.users.get(user.id).hwid, 'MACHINE-A');
+
+        const second = await api.post('/api/auth/login', {
+            userName: 'tech.one', password: 'Technician!Pass1', deviceFingerprint: 'MACHINE-A'
+        });
+        assert.equal(second.status, 200);
+    } finally {
+        await api.close();
+    }
+});
+
+test('a different machine is refused with 403 device-mismatch and the exact message', async () => {
+    const store = createMemoryStore();
+    await addUser(store, { hwid: 'MACHINE-A' });
+    const api = await startApi(store);
+    try {
+        const result = await api.post('/api/auth/login', {
+            userName: 'tech.one', password: 'Technician!Pass1', deviceFingerprint: 'MACHINE-B'
+        });
+        assert.equal(result.status, 403);
+        assert.equal(result.json.error.code, 'device-mismatch');
+        assert.equal(
+            result.json.error.message,
+            'This account is bound to another computer. Please contact administrator to reset HWID.');
+        assert.equal(result.json.tokens, undefined);
+    } finally {
+        await api.close();
+    }
+});
+
+test('an expired subscription still signs in but grants no permissions', async () => {
+    const store = createMemoryStore();
+    await addUser(store, {
+        licenseType: 'trial',
+        licenseStartedAt: new Date(Date.now() - 10 * 86400000),
+        licenseExpiresAt: new Date(Date.now() - 86400000)
+    });
+    const api = await startApi(store);
+    try {
+        const result = await api.post('/api/auth/login', {
+            userName: 'tech.one', password: 'Technician!Pass1', deviceFingerprint: 'MACHINE-A'
+        });
+        assert.equal(result.status, 200);
+        assert.equal(result.json.license.status, 'Expired');
+        assert.deepEqual(result.json.permissions, []);
+        assert.equal(result.json.user.status, 'Expired');
+    } finally {
+        await api.close();
+    }
+});
+
+test('malformed e-mail shaped identifiers are rejected before any lookup', async () => {
+    const store = createMemoryStore();
+    const api = await startApi(store);
+    try {
+        const result = await api.post('/api/auth/login', { userName: 'random.text@', password: 'whatever123' });
+        assert.equal(result.status, 400);
+        assert.equal(result.json.error.code, 'invalid-email');
+    } finally {
+        await api.close();
+    }
+});
+
+test('repeated failures lock the account', async () => {
+    const store = createMemoryStore();
+    const { user } = await addUser(store, {});
+    const api = await startApi(store);
+    try {
+        for (let attempt = 0; attempt < 5; attempt += 1) {
+            const result = await api.post('/api/auth/login', { userName: 'tech.one', password: 'nope-nope-nope' });
+            assert.equal(result.status, 401);
+        }
+
+        const locked = await api.post('/api/auth/login', {
+            userName: 'tech.one', password: 'Technician!Pass1', deviceFingerprint: 'MACHINE-A'
+        });
+        assert.equal(locked.status, 403);
+        assert.equal(locked.json.error.code, 'account-locked');
+        assert.ok(new Date(store.users.get(user.id).lockoutUntil).getTime() > Date.now());
+    } finally {
+        await api.close();
+    }
+});
+
+test('a database outage answers 503 instead of a fake session', async () => {
+    const api = await startApi(createUnavailableStore());
+    try {
+        const result = await api.post('/api/auth/login', { userName: 'tech.one', password: 'Technician!Pass1' });
+        assert.equal(result.status, 503);
+        assert.equal(result.json.error.code, 'database-unavailable');
+        assert.equal(result.json.tokens, undefined);
+        assert.equal(result.json.success, undefined);
+    } finally {
+        await api.close();
+    }
+});
+
+test('registration validates e-mail, password and creates a 15-minute code without a session', async () => {
+    const store = createMemoryStore();
+    let captured = null;
+    const mailer = {
+        configured: true,
+        async sendVerificationCode(to, userName, code) {
+            captured = { to, userName, code };
+            return true;
+        }
+    };
+    const api = await startApi(store, mailer);
+    try {
+        const badEmail = await api.post('/api/auth/register', {
+            userName: 'new.tech', email: 'not-an-email', password: 'LongEnough1', acceptedTerms: true
+        });
+        assert.equal(badEmail.status, 400);
+        assert.equal(badEmail.json.error.code, 'invalid-email');
+
+        const weak = await api.post('/api/auth/register', {
+            userName: 'new.tech', email: 'new.tech@example.com', password: 'short', acceptedTerms: true
+        });
+        assert.equal(weak.status, 400);
+        assert.equal(weak.json.error.code, 'weak-password');
+
+        const ok = await api.post('/api/auth/register', {
+            userName: 'new.tech', email: 'new.tech@example.com', password: 'LongEnough1', acceptedTerms: true
+        });
+        assert.equal(ok.status, 200);
+        assert.equal(ok.json.requiresVerification, true);
+        assert.equal(ok.json.verificationEmailSent, true);
+        assert.equal(ok.json.tokens, undefined);
+
+        assert.ok(captured && /^\d{6}$/.test(captured.code));
+        assert.equal(captured.to, 'new.tech@example.com');
+
+        const created = [...store.users.values()][0];
+        assert.equal(created.isVerified, false);
+        assert.equal(created.licenseType, 'trial');
+        const ttlMinutes = (new Date(created.otpExpiresAt).getTime() - Date.now()) / 60000;
+        assert.ok(ttlMinutes > 14 && ttlMinutes <= 15.1, `OTP TTL was ${ttlMinutes} minutes`);
+
+        const wrong = await api.post('/api/auth/verify-code', {
+            userName: 'new.tech', code: captured.code === '000000' ? '111111' : '000000'
+        });
+        assert.equal(wrong.status, 400);
+        assert.equal(wrong.json.error.code, 'invalid-code');
+
+        const verified = await api.post('/api/auth/verify-code', { userName: 'new.tech', code: captured.code });
+        assert.equal(verified.status, 200);
+        assert.equal(verified.json.verified, true);
+
+        const after = store.users.get(created.id);
+        assert.equal(after.isVerified, true);
+        assert.equal(after.otpCode, null);
+        const trialDays = (new Date(after.licenseExpiresAt).getTime() - Date.now()) / 86400000;
+        assert.ok(trialDays > 2.9 && trialDays <= 3.01, `trial was ${trialDays} days`);
+    } finally {
+        await api.close();
+    }
+});
+
+test('expired verification codes are refused', async () => {
+    const store = createMemoryStore();
+    await addUser(store, {
+        isVerified: false,
+        otpCode: '123456',
+        otpExpiresAt: new Date(Date.now() - 60000)
+    });
+    const api = await startApi(store);
+    try {
+        const result = await api.post('/api/auth/verify-code', { userName: 'tech.one', code: '123456' });
+        assert.equal(result.status, 400);
+        assert.equal(result.json.error.code, 'code-expired');
+    } finally {
+        await api.close();
+    }
+});
+
+test('passwords written verbatim by the previous build are accepted once and re-hashed', async () => {
+    const store = createMemoryStore();
+    await store.createUser({
+        id: crypto.randomUUID(),
+        userName: 'legacy.user',
+        email: 'legacy@example.com',
+        passwordHash: 'PlainText123',
+        role: 'technician',
+        isActive: true,
+        isVerified: true,
+        licenseType: 'active',
+        licenseStartedAt: new Date(),
+        licenseExpiresAt: new Date(Date.now() + 30 * 86400000)
+    });
+    const api = await startApi(store);
+    try {
+        const result = await api.post('/api/auth/login', {
+            userName: 'legacy.user', password: 'PlainText123', deviceFingerprint: 'PC-1'
+        });
+        assert.equal(result.status, 200);
+
+        const stored = [...store.users.values()][0];
+        assert.match(stored.passwordHash, /^\$2[aby]\$/);
+        assert.notEqual(stored.passwordHash, 'PlainText123');
+
+        const again = await api.post('/api/auth/login', {
+            userName: 'legacy.user', password: 'PlainText123', deviceFingerprint: 'PC-1'
+        });
+        assert.equal(again.status, 200);
+    } finally {
+        await api.close();
+    }
+});
+
+test('the bearer token opens /api/auth/me and a tampered token does not', async () => {
+    const store = createMemoryStore();
+    const { user } = await addUser(store, {});
+    const api = await startApi(store);
+    try {
+        const login = await api.post('/api/auth/login', {
+            userName: 'tech.one', password: 'Technician!Pass1', deviceFingerprint: 'MACHINE-A'
+        });
+        const token = login.json.tokens.accessToken;
+
+        const me = await api.get('/api/auth/me', token);
+        assert.equal(me.status, 200);
+        assert.equal(me.json.user.id, user.id);
+        assert.equal(me.json.license.status, 'Trial');
+
+        const tampered = token.slice(0, -3) + (token.endsWith('AAA') ? 'BBB' : 'AAA');
+        const rejected = await api.get('/api/auth/me', tampered);
+        assert.equal(rejected.status, 401);
+    } finally {
+        await api.close();
+    }
+});
+
+test('issued tokens carry role claims and are signed with the configured key', () => {
+    const admin = {
+        id: crypto.randomUUID(),
+        userName: 'Admin Bashir',
+        displayName: 'Admin Bashir',
+        email: MASTER_ADMIN.email,
+        role: 'admin',
+        isActive: true,
+        isVerified: true,
+        licenseType: 'lifetime_admin',
+        hwid: null,
+        hwidResetCount: 0,
+        licenseStartedAt: new Date(),
+        licenseExpiresAt: null
+    };
+    const tech = {
+        id: crypto.randomUUID(),
+        userName: 'tech.two',
+        displayName: 'tech.two',
+        email: 'tech.two@example.com',
+        role: 'technician',
+        isActive: true,
+        isVerified: true,
+        licenseType: 'trial',
+        hwid: 'PC',
+        hwidResetCount: 0,
+        licenseStartedAt: new Date(),
+        licenseExpiresAt: new Date(Date.now() + 2 * 86400000)
+    };
+
+    assert.equal(evaluateLicense(admin).active, true);
+    assert.equal(evaluateLicense(tech).status, 'Trial');
+
+    const now = Math.floor(Date.now() / 1000);
+    const token = signToken({ sub: tech.id, typ: 'access', role: 'Technician', exp: now + 300 }, SIGNING_KEY);
+    const payload = verifyToken(token, SIGNING_KEY, 'access');
+    assert.equal(payload.sub, tech.id);
+
+    // A different key, an expired token and a refresh token are all rejected for API calls.
+    assert.equal(verifyToken(token, 'another-key-0123456789-0123456789-abcdefg', 'access'), null);
+    const expired = signToken({ sub: tech.id, typ: 'access', exp: now - 10 }, SIGNING_KEY);
+    assert.equal(verifyToken(expired, SIGNING_KEY, 'access'), null);
+    const refresh = signToken({ sub: tech.id, typ: 'refresh', exp: now + 300 }, SIGNING_KEY);
+    assert.equal(verifyToken(refresh, SIGNING_KEY, 'access'), null);
+});
+
+test('health reports the database state instead of a canned subscription', async () => {
+    const api = await startApi(createMemoryStore());
+    try {
+        const result = await api.get('/api/health');
+        assert.equal(result.status, 200);
+        assert.equal(result.json.database, 'connected');
+        assert.equal(result.json.status, 'online');
+        assert.equal(result.json.isSubscribed, undefined);
+        assert.equal(result.json.daysRemaining, undefined);
+    } finally {
+        await api.close();
+    }
+});
+
+test('unknown endpoints return a 404 error envelope', async () => {
+    const api = await startApi(createMemoryStore());
+    try {
+        const result = await api.post('/api/does-not-exist', {});
+        assert.equal(result.status, 404);
+        assert.equal(result.json.error.code, ERRORS.notFound.code);
+    } finally {
+        await api.close();
+    }
+});
