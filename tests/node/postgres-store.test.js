@@ -20,6 +20,7 @@ const {
     migrateUsersTable,
     seedMasterAdmin,
     demoteStubAccounts,
+    verifyPassword,
     MASTER_ADMIN
 } = require('../../server.js');
 
@@ -106,6 +107,50 @@ test('the schema migration and master admin seed run on PostgreSQL', async () =>
     assert.equal(admin.licenseType, 'lifetime_admin');
     assert.equal(admin.licenseExpiresAt, null);
     assert.match(admin.passwordHash, /^\$2[aby]\$/);
+});
+
+test('the seeded master administrator keeps its exact credentials, 20 permissions and no HWID', async () => {
+    const { store, pool } = await createDatabase();
+
+    const row = await pool.query(
+        'SELECT username, email, password, role, is_verified, hwid, license_type, license_expires_at FROM users WHERE lower(email) = lower($1)',
+        [MASTER_ADMIN.email]);
+    assert.equal(row.rows.length, 1);
+
+    const stored = row.rows[0];
+    assert.equal(stored.username, 'Admin Bashir');
+    assert.equal(stored.email, 'bviptool@gmail.com');
+    assert.equal(stored.role, 'lifetime_admin');
+    assert.equal(stored.is_verified, true);
+    assert.equal(stored.hwid, null);
+    assert.equal(stored.license_type, 'lifetime_admin');
+    assert.equal(stored.license_expires_at, null);
+
+    // The column holds a BCrypt hash, never the plain password, and hashes that exact password.
+    assert.match(stored.password, /^\$2[aby]\$10\$/);
+    assert.notEqual(stored.password, 'Bashir0935784653AdminB');
+    const check = await verifyPassword('Bashir0935784653AdminB', stored.password);
+    assert.equal(check.ok, true);
+    const wrong = await verifyPassword('Bashir0935784653Admin', stored.password);
+    assert.equal(wrong.ok, false);
+
+    const api = await startApi(store);
+    try {
+        const session = await api.post('/api/auth/login', {
+            userName: 'Admin Bashir',
+            password: 'Bashir0935784653AdminB',
+            deviceFingerprint: 'ANY-WORKSTATION'
+        });
+        assert.equal(session.status, 200);
+        assert.equal(session.json.permissions.length, 20);
+        assert.ok(session.json.permissions.includes('All'));
+        assert.deepEqual(session.json.user.roles, ['Admin', 'lifetime_admin']);
+        assert.equal(session.json.user.hardwareId, null);
+        assert.equal(session.json.license.status, 'Active');
+        assert.equal(session.json.license.expiresAt, null);
+    } finally {
+        await api.close();
+    }
 });
 
 test('a legacy integer users.id is widened so GUID identifiers can be stored', async () => {
