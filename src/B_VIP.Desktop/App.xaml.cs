@@ -16,12 +16,10 @@ namespace B_VIP.Desktop
             // English-only build: the culture is locked regardless of the saved preference.
             Localizer.Instance.SetLanguage(Localizer.English);
 
-            // One tool configuration for the whole process: an operator-chosen folder, otherwise the
-            // bundled platform-tools next to the executable and the development .tools folders.
-            Hardware.ToolLocatorOptions toolOptions = new()
-            {
-                PlatformToolsPath = string.IsNullOrWhiteSpace(settings.PlatformToolsPath) ? null : settings.PlatformToolsPath
-            };
+            // Platform tools are resolved automatically: the bundled platform-tools folder next to
+            // the executable first, then PATH and the development .tools folders. There is no
+            // operator-chosen folder any more.
+            Hardware.ToolLocatorOptions toolOptions = new();
             Modules.ModuleServices.ToolLocatorOptions = toolOptions;
 
             // The cloud endpoint is compiled in (ApiConfiguration); only a development override may

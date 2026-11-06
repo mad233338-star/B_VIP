@@ -57,9 +57,22 @@
                        FontSize="11.5" Foreground="{StaticResource Brush.Muted}" />
         </WrapPanel>
 
+        <!-- Inline links open the full legal text in a modal; the checkbox itself stays a single
+             toggle so the consent flag keeps its straightforward binding. -->
         <CheckBox Style="{StaticResource Check.Cyber}" Margin="0,4,0,14"
-                  IsChecked="{Binding AcceptedTerms}"
-                  Content="{Binding [register.terms], Source={x:Static loc:Localizer.Instance}}" />
+                  IsChecked="{Binding AcceptedTerms}">
+            <TextBlock VerticalAlignment="Center" Foreground="{StaticResource Brush.White}" FontSize="12.5">
+                <Run Text="I accept the " />
+                <Hyperlink Command="{Binding ShowLegalCommand}" CommandParameter="terms">
+                    <Run Text="Terms &amp; Conditions" />
+                </Hyperlink>
+                <Run Text=" and " />
+                <Hyperlink Command="{Binding ShowLegalCommand}" CommandParameter="privacy">
+                    <Run Text="Privacy Policy" />
+                </Hyperlink>
+                <Run Text="." />
+            </TextBlock>
+        </CheckBox>
 
         <Border Background="#1AEF4444" CornerRadius="4" Padding="10" Margin="0,0,0,10"
                 Visibility="{Binding HasError, Converter={StaticResource BoolToVisibility}}">

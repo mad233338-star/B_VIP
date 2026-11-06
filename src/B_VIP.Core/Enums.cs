@@ -300,6 +300,8 @@ namespace B_VIP.Core
         public const string LicenseActivation = "license-activation";
         public const string SupportCenter = "support-center";
         public const string Notifications = "notifications";
+        public const string Terms = "terms";
+        public const string Privacy = "privacy";
         public const string Settings = "settings";
         public const string About = "about";
         public const string AdminDashboard = "admin-dashboard";

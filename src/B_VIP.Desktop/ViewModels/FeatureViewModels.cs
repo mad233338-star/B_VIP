@@ -735,85 +735,137 @@ namespace B_VIP.Desktop.ViewModels
         }
     }
 
+    /// <summary>
+    /// User preferences only. The cloud endpoint is compiled in (<see cref="ApiConfiguration"/>) and
+    /// the platform tools are always resolved from the folder bundled next to the executable, so
+    /// neither is a setting any more.
+    /// </summary>
     public sealed class AppSettings
     {
-        public string ServerUrl { get; set; } = "https://b-vip.onrender.com";
+        public string ServerUrl { get; set; } = ApiConfiguration.ProductionBaseUrl;
 
         public string Language { get; set; } = "en";
 
-        public string PlatformToolsPath { get; set; } = string.Empty;
+        public string Theme { get; set; } = SettingsViewModel.CyberBlueTheme;
     }
 
     public sealed class SettingsViewModel : ViewModelBase
     {
+        public const string CyberBlueTheme = "cyber-blue";
+
         private readonly AppServices _services;
-        private AppSettings _settings;
+        private readonly AppSettings _settings;
+        private string _selectedLanguage;
+        private string _selectedTheme;
+        private bool _isServerOnline;
 
         public SettingsViewModel()
         {
             _services = AppServices.Current;
             _settings = SettingsStore.Load();
-            SaveCommand = new AsyncRelayCommand(_ => SaveAsync(_));
+
+            // English is the only shipped interface; the list stays a dropdown so a future
+            // translation can be added without changing this screen.
+            LanguageOptions = new[] { "English" };
+            ThemeOptions = new[] { "Cyber Blue (dark)" };
+
+            _selectedLanguage = LanguageOptions[0];
+            _selectedTheme = ThemeOptions[0];
         }
 
         public string this[string key] => Localizer.Instance[key];
 
         public bool IsRightToLeft => Localizer.Instance.IsRightToLeft;
 
-        public AsyncRelayCommand SaveCommand { get; }
+        public IReadOnlyList<string> LanguageOptions { get; }
 
-        /// <summary>
-        /// The endpoint is compiled in by <see cref="ApiConfiguration"/>; the screen only shows the
-        /// service host so the operator can confirm which cloud the tool is talking to.
-        /// </summary>
-        public string CloudService => ApiConfiguration.Describe(_services.Api.Options.BaseUrl);
+        public IReadOnlyList<string> ThemeOptions { get; }
 
-        public string PlatformToolsPath
+        /// <summary>Language preference; English is the culture the build is locked to.</summary>
+        public string SelectedLanguage
         {
-            get => _settings.PlatformToolsPath;
+            get => _selectedLanguage;
             set
             {
-                if (_settings.PlatformToolsPath != value)
+                if (SetProperty(ref _selectedLanguage, value) && value == "English" && _settings.Language != "en")
                 {
-                    _settings.PlatformToolsPath = value;
-                    OnPropertyChanged();
+                    _settings.Language = "en";
+                    SettingsStore.Save(_settings);
                 }
             }
         }
 
-        public string CurrentLanguage => Localizer.Instance.CurrentLanguage;
+        /// <summary>Theme preference; the Cyber Blue palette is the only packaged theme.</summary>
+        public string SelectedTheme
+        {
+            get => _selectedTheme;
+            set
+            {
+                if (SetProperty(ref _selectedTheme, value) && _settings.Theme != CyberBlueTheme)
+                {
+                    _settings.Theme = CyberBlueTheme;
+                    SettingsStore.Save(_settings);
+                }
+            }
+        }
 
-        public string BackendVersion { get; private set; } = "—";
+        /// <summary>Live health probe of the compiled-in cloud service.</summary>
+        public bool IsServerOnline
+        {
+            get => _isServerOnline;
+            private set
+            {
+                if (SetProperty(ref _isServerOnline, value))
+                {
+                    OnPropertyChanged(nameof(ServerStatusText));
+                }
+            }
+        }
 
-        public string ServerStatus { get; private set; } = "—";
+        public string ServerStatusText => Localizer.Instance[IsServerOnline ? "settings.status.online" : "settings.status.offline"];
 
         public override async Task OnNavigatedToAsync()
         {
             try
             {
                 var probe = await _services.Api.ProbeHealthAsync();
-                ServerStatus = probe.Healthy ? "Healthy" : $"HTTP {(int)probe.StatusCode}";
-                BackendVersion = (await _services.Api.GetMetaAsync()).Version;
+                IsServerOnline = probe.Healthy;
+                ErrorMessage = probe.Healthy ? null : $"The cloud service answered HTTP {(int)probe.StatusCode}.";
             }
             catch (Exception ex)
             {
-                ServerStatus = "Unreachable";
+                IsServerOnline = false;
                 ErrorMessage = ex.Message;
             }
+        }
+    }
 
-            OnPropertyChanged(nameof(ServerStatus));
-            OnPropertyChanged(nameof(BackendVersion));
+    /// <summary>Backs the Terms &amp; Conditions and Privacy Policy pages in the sidebar.</summary>
+    public abstract class LegalViewModel : ViewModelBase
+    {
+        protected LegalViewModel(string documentKey)
+        {
+            DocumentKey = documentKey;
         }
 
-        private Task SaveAsync(object? _)
+        public string DocumentKey { get; }
+
+        public string Title => Localizer.Instance[DocumentKey == Core.ModuleKeys.Privacy ? "privacy.title" : "terms.title"];
+
+        public string Body => LegalDocuments.For(DocumentKey);
+    }
+
+    public sealed class TermsViewModel : LegalViewModel
+    {
+        public TermsViewModel() : base(Core.ModuleKeys.Terms)
         {
-            SettingsStore.Save(_settings);
-            Modules.ModuleServices.ToolLocatorOptions = new Hardware.ToolLocatorOptions
-            {
-                PlatformToolsPath = string.IsNullOrWhiteSpace(_settings.PlatformToolsPath) ? null : _settings.PlatformToolsPath
-            };
-            StatusMessage = "Settings saved. Restart the application to apply the platform-tools path.";
-            return Task.CompletedTask;
+        }
+    }
+
+    public sealed class PrivacyPolicyViewModel : LegalViewModel
+    {
+        public PrivacyPolicyViewModel() : base(Core.ModuleKeys.Privacy)
+        {
         }
     }
 

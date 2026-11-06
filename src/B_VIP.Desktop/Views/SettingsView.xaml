@@ -12,33 +12,79 @@
             <TextBlock Text="{Binding [settings.title], Source={x:Static loc:Localizer.Instance}}"
                        Style="{StaticResource Text.PageTitle}" Margin="0,0,0,12" />
 
+            <!-- The cloud endpoint and the platform-tools folder are no longer user editable:
+                 the API address is compiled in and adb/fastboot always come from the bundled
+                 platform-tools folder beside the executable. -->
             <Border Style="{StaticResource Panel.Card}">
                 <StackPanel>
-                    <TextBlock Text="{Binding [settings.server], Source={x:Static loc:Localizer.Instance}}" Style="{StaticResource Text.Label}" />
-                    <!-- The endpoint is compiled in; only the host is shown, never a route. -->
-                    <TextBlock Text="{Binding CloudService}" Foreground="{StaticResource Brush.AccentSoft}"
-                               FontFamily="Consolas" FontSize="12.5" Margin="0,4,0,12" />
+                    <TextBlock Text="{Binding [settings.preferences], Source={x:Static loc:Localizer.Instance}}"
+                               Style="{StaticResource Text.Section}" Margin="0,0,0,2" />
+                    <TextBlock Text="{Binding [settings.preferencesHint], Source={x:Static loc:Localizer.Instance}}"
+                               Style="{StaticResource Text.Muted}" Margin="0,0,0,16" />
 
-                    <TextBlock Text="{Binding [settings.platformTools], Source={x:Static loc:Localizer.Instance}}" Style="{StaticResource Text.Label}" />
-                    <TextBox Style="{StaticResource Input.Text}" Margin="0,4,0,12"
-                             Text="{Binding PlatformToolsPath, UpdateSourceTrigger=PropertyChanged}" />
+                    <TextBlock Text="{Binding [settings.language], Source={x:Static loc:Localizer.Instance}}"
+                               Style="{StaticResource Text.Label}" />
+                    <ComboBox Style="{StaticResource Input.Select}" Margin="0,4,0,14"
+                              ItemsSource="{Binding LanguageOptions}"
+                              SelectedItem="{Binding SelectedLanguage, Mode=TwoWay}" />
 
-                    <TextBlock Text="{Binding [settings.language], Source={x:Static loc:Localizer.Instance}}" Style="{StaticResource Text.Label}" />
-                    <TextBlock Text="English" Style="{StaticResource Text.Body}" Margin="0,4,0,12" />
+                    <TextBlock Text="{Binding [settings.theme], Source={x:Static loc:Localizer.Instance}}"
+                               Style="{StaticResource Text.Label}" />
+                    <ComboBox Style="{StaticResource Input.Select}" Margin="0,4,0,16"
+                              ItemsSource="{Binding ThemeOptions}"
+                              SelectedItem="{Binding SelectedTheme, Mode=TwoWay}" />
 
-                    <TextBlock Text="{Binding [settings.theme], Source={x:Static loc:Localizer.Instance}}" Style="{StaticResource Text.Label}" />
-                    <TextBlock Text="{Binding [settings.themeValue], Source={x:Static loc:Localizer.Instance}}"
-                               Style="{StaticResource Text.Body}" Margin="0,4,0,12" />
-
-                    <TextBlock Text="Server status" Style="{StaticResource Text.Label}" />
-                    <StackPanel Orientation="Horizontal" Margin="0,4,0,12">
-                        <TextBlock Text="{Binding ServerStatus}" Foreground="{StaticResource Brush.GoldSoft}" Margin="0,0,16,0" />
-                        <TextBlock Text="{Binding BackendVersion}" Style="{StaticResource Text.Muted}" />
-                    </StackPanel>
-
-                    <Button Content="{Binding [common.save], Source={x:Static loc:Localizer.Instance}}"
-                            Style="{StaticResource Button.Gold}" Command="{Binding SaveCommand}"
-                            HorizontalAlignment="Right" />
+                    <Border BorderBrush="{StaticResource Brush.Line}" BorderThickness="0,1,0,0"
+                            Padding="0,14,0,0">
+                        <DockPanel>
+                            <TextBlock DockPanel.Dock="Left"
+                                       Text="{Binding [settings.serverStatus], Source={x:Static loc:Localizer.Instance}}"
+                                       Style="{StaticResource Text.Label}" VerticalAlignment="Center"
+                                       Margin="0,0,12,0" />
+                            <Border HorizontalAlignment="Left" CornerRadius="10" Padding="12,4"
+                                    BorderThickness="1">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="Background" Value="#1AEF4444" />
+                                        <Setter Property="BorderBrush" Value="{StaticResource Brush.Danger}" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsServerOnline}" Value="True">
+                                                <Setter Property="Background" Value="#1A22C55E" />
+                                                <Setter Property="BorderBrush" Value="{StaticResource Brush.Success}" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <StackPanel Orientation="Horizontal">
+                                    <Ellipse Width="8" Height="8" VerticalAlignment="Center" Margin="0,0,7,0">
+                                        <Ellipse.Style>
+                                            <Style TargetType="Ellipse">
+                                                <Setter Property="Fill" Value="{StaticResource Brush.Danger}" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsServerOnline}" Value="True">
+                                                        <Setter Property="Fill" Value="{StaticResource Brush.Success}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Ellipse.Style>
+                                    </Ellipse>
+                                    <TextBlock Text="{Binding ServerStatusText}" FontSize="12"
+                                               FontWeight="SemiBold" VerticalAlignment="Center">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Foreground" Value="{StaticResource Brush.Danger}" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsServerOnline}" Value="True">
+                                                        <Setter Property="Foreground" Value="{StaticResource Brush.Success}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </StackPanel>
+                            </Border>
+                        </DockPanel>
+                    </Border>
                 </StackPanel>
             </Border>
         </StackPanel>

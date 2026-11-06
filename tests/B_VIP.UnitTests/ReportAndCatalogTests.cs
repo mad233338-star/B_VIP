@@ -178,9 +178,19 @@ namespace B_VIP.UnitTests
         [Fact]
         public void The_catalog_lists_the_brand_and_platform_modules_with_unique_keys()
         {
-            // 21 modules through the Qualcomm phase, plus the Drivers & Prerequisites utility.
-            Assert.Equal(22, ModuleCatalog.All.Count);
-            Assert.Equal(22, ModuleCatalog.All.Select(m => m.Key).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+            // 21 modules through the Qualcomm phase, the Drivers & Prerequisites utility and the
+            // two legal pages (Terms & Conditions and Privacy Policy) in the System group.
+            Assert.Equal(24, ModuleCatalog.All.Count);
+            Assert.Equal(24, ModuleCatalog.All.Select(m => m.Key).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+
+            // Legal pages sit with the other System entries and need no device.
+            foreach (string key in new[] { ModuleKeys.Terms, ModuleKeys.Privacy })
+            {
+                ModuleDefinition? legal = ModuleCatalog.Find(key);
+                Assert.NotNull(legal);
+                Assert.Equal("system", legal!.Group);
+                Assert.False(legal.RequiresDevice);
+            }
 
             // Apple is gone; the dedicated brand and chipset modules are all present.
             Assert.DoesNotContain(ModuleCatalog.All, m => m.Key == "apple");

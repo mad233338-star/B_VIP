@@ -75,5 +75,43 @@
             </ScrollViewer>
 
         </Grid>
+
+        <!-- Consent overlay: the legal texts are drawn over the onboarding panels inside this same
+             window, so reading them never spawns a second OS window. -->
+        <Grid Grid.Column="0" Grid.ColumnSpan="2"
+              Visibility="{Binding IsLegalOpen, Converter={StaticResource BoolToVisibility}}">
+            <Border Background="#D90B132B" />
+
+            <Border Background="#1E293B" BorderBrush="#3B82F6" BorderThickness="1" CornerRadius="10"
+                    MaxWidth="760" MaxHeight="620" Margin="40"
+                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                    Padding="26" Opacity="1">
+                <Border.Effect>
+                    <DropShadowEffect Color="#00D2FF" BlurRadius="24" ShadowDepth="0" Opacity="0.55" />
+                </Border.Effect>
+
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="{Binding LegalTitle}" FontSize="18" FontWeight="Bold"
+                               Foreground="#F8FAFC" Margin="0,0,0,14" />
+
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled" Margin="0,0,0,18">
+                        <TextBlock Text="{Binding LegalBody}" Foreground="#F8FAFC" FontSize="12.5"
+                                   LineHeight="20" TextWrapping="Wrap"
+                                   TextOptions.TextFormattingMode="Display" />
+                    </ScrollViewer>
+
+                    <Button Grid.Row="2" Content="{Binding [legal.close], Source={x:Static loc:Localizer.Instance}}"
+                            Style="{StaticResource Button.Primary}" HorizontalAlignment="Right"
+                            MinWidth="120" Command="{Binding CloseLegalCommand}" />
+                </Grid>
+            </Border>
+        </Grid>
     </Grid>
 </Window>

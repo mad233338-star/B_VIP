@@ -32,6 +32,10 @@ namespace B_VIP.Desktop.ViewModels
     {
         private ViewModelBase _currentPanel;
         private AuthPanel _panel;
+        private bool _isLegalOpen;
+        private string _legalTitle = string.Empty;
+        private string _legalBody = string.Empty;
+        private RelayCommand? _closeLegalCommand;
 
         public AuthFlowViewModel()
         {
@@ -74,6 +78,39 @@ namespace B_VIP.Desktop.ViewModels
         }
 
         public string this[string key] => Localizer.Instance[key];
+
+        /// <summary>True while the consent overlay covers the onboarding panels.</summary>
+        public bool IsLegalOpen
+        {
+            get => _isLegalOpen;
+            private set => SetProperty(ref _isLegalOpen, value);
+        }
+
+        public string LegalTitle
+        {
+            get => _legalTitle;
+            private set => SetProperty(ref _legalTitle, value);
+        }
+
+        public string LegalBody
+        {
+            get => _legalBody;
+            private set => SetProperty(ref _legalBody, value);
+        }
+
+        /// <summary>Dismisses the overlay; the form underneath keeps its typed values.</summary>
+        public RelayCommand CloseLegalCommand => _closeLegalCommand ??= new RelayCommand(_ => IsLegalOpen = false);
+
+        /// <summary>
+        /// Shows one of the embedded legal documents as an in-window overlay. Nothing here opens a
+        /// second OS window: the card is drawn over the onboarding panels inside this same view.
+        /// </summary>
+        internal void OpenLegal(string documentKey)
+        {
+            LegalTitle = LegalDocuments.TitleFor(documentKey);
+            LegalBody = LegalDocuments.For(documentKey);
+            IsLegalOpen = true;
+        }
 
         /// <summary>Sign-in is the entry state; used by the window when it opens.</summary>
         public Task InitializeAsync() => SignIn.InitializeAsync();
@@ -339,11 +376,18 @@ namespace B_VIP.Desktop.ViewModels
 
             SubmitCommand = new AsyncRelayCommand(_ => SubmitAsync(), _ => !IsBusy && CanSubmit);
             BackToSignInCommand = new RelayCommand(_ => _flow.ShowSignIn());
+            ShowLegalCommand = new RelayCommand(ShowLegal);
         }
 
         public AsyncRelayCommand SubmitCommand { get; }
 
         public RelayCommand BackToSignInCommand { get; }
+
+        /// <summary>Opens the Terms or Privacy text in the in-window overlay from the consent line.</summary>
+        public RelayCommand ShowLegalCommand { get; }
+
+        private void ShowLegal(object? parameter)
+            => _flow.OpenLegal(parameter as string ?? Core.ModuleKeys.Terms);
 
         public string UserName
         {

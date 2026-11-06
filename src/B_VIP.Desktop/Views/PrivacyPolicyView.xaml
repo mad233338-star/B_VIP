@@ -1,0 +1,20 @@
+<UserControl x:Class="B_VIP.Desktop.Views.PrivacyPolicyView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:B_VIP.Desktop.ViewModels"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:PrivacyPolicyViewModel}">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <Border Background="#1E293B" BorderBrush="#334155" BorderThickness="1" CornerRadius="8"
+                Padding="24" Margin="0,0,0,16" HorizontalAlignment="Left" MaxWidth="900">
+            <StackPanel>
+                <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="Bold" Foreground="#F8FAFC"
+                           Margin="0,0,0,16" />
+                <TextBlock Text="{Binding Body}" Foreground="#F8FAFC" FontSize="13" LineHeight="21"
+                           TextWrapping="Wrap" TextOptions.TextFormattingMode="Display" />
+            </StackPanel>
+        </Border>
+    </ScrollViewer>
+</UserControl>

@@ -65,6 +65,12 @@
             <DataTemplate DataType="{x:Type vm:NotificationsViewModel}">
                 <views:NotificationsView />
             </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:TermsViewModel}">
+                <views:TermsView />
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:PrivacyPolicyViewModel}">
+                <views:PrivacyPolicyView />
+            </DataTemplate>
             <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
                 <views:SettingsView />
             </DataTemplate>

@@ -33,6 +33,8 @@ namespace B_VIP.Core.Modules
             new(ModuleKeys.SupportCenter, "Support Center", "مركز الدعم", "system", "headset", false, false),
             new(ModuleKeys.Drivers, "Drivers & Prerequisites", "Drivers & Prerequisites", "system", "download", false, false),
             new(ModuleKeys.Notifications, "Notifications", "الإشعارات", "system", "bell", false, false),
+            new(ModuleKeys.Terms, "Terms & Conditions", "الشروط والأحكام", "system", "file-text", false, false),
+            new(ModuleKeys.Privacy, "Privacy Policy", "سياسة الخصوصية", "system", "shield", false, false),
             new(ModuleKeys.Settings, "Settings", "الإعدادات", "system", "settings", false, false),
             new(ModuleKeys.About, "About B_VIP Tool", "حول B_VIP Tool", "system", "info", false, false),
             new(ModuleKeys.AdminDashboard, "Admin Dashboard", "لوحة الإدارة", "admin", "shield", false, false)
