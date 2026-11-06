@@ -74,10 +74,12 @@ async function startApi(store, mailer) {
     const base = `http://127.0.0.1:${server.address().port}`;
 
     return {
-        async post(path, body) {
+        async post(path, body, token) {
             const response = await fetch(base + path, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: token
+                    ? { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
+                    : { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body)
             });
             return { status: response.status, json: await response.json() };
@@ -229,7 +231,7 @@ test('the master admin signs in over HTTP against the real store', async () => {
     }
 });
 
-test('a technician registers, verifies, binds one workstation and is refused on another', async () => {
+test('a technician registers, verifies and signs in from any workstation', async () => {
     const { store, pool } = await createDatabase();
     let code = null;
     const mailer = {
@@ -283,15 +285,17 @@ test('a technician registers, verifies, binds one workstation and is refused on 
         });
         assert.equal(signedIn.status, 200);
         assert.equal(signedIn.json.license.status, 'Trial');
-        assert.equal(signedIn.json.user.hardwareId, 'MACHINE-A');
+        assert.equal(signedIn.json.user.hardwareId, null, 'no machine is bound to the account');
         assert.deepEqual(signedIn.json.user.roles, ['Technician']);
         assert.ok(signedIn.json.permissions.includes('MTK'));
 
-        const hijack = await api.post('/api/auth/login', {
+        // The second machine signs in just as well, and nothing was saved for the first one.
+        const secondMachine = await api.post('/api/auth/login', {
             userName: 'store.tech', password: 'StrongPass1', deviceFingerprint: 'MACHINE-B'
         });
-        assert.equal(hijack.status, 403);
-        assert.equal(hijack.json.error.code, 'device-mismatch');
+        assert.equal(secondMachine.status, 200);
+        const fingerprints = await pool.query('SELECT hwid FROM users WHERE username = $1', ['store.tech']);
+        assert.equal(fingerprints.rows[0].hwid, null);
 
         // ... and a password is still required even from the bound machine.
         const wrongPassword = await api.post('/api/auth/login', {
@@ -327,6 +331,65 @@ test('an expired technician licence grants an empty permission set', async () =>
         assert.equal(result.status, 200);
         assert.equal(result.json.license.status, 'Expired');
         assert.deepEqual(result.json.permissions, []);
+    } finally {
+        await api.close();
+    }
+});
+
+test('the console routes read the real directory and extend a licence in PostgreSQL', async () => {
+    const { store, pool } = await createDatabase();
+    const { hashPassword } = require('../../server.js');
+    await store.createUser({
+        id: 'a1b2c3d4-0000-4000-8000-00000000000a',
+        userName: 'list.tech',
+        email: 'list.tech@example.com',
+        passwordHash: await hashPassword('StrongPass1'),
+        role: 'technician',
+        isVerified: true,
+        licenseType: 'trial',
+        licenseStartedAt: new Date(),
+        licenseExpiresAt: new Date(Date.now() + 2 * 86400000)
+    });
+
+    const api = await startApi(store);
+    try {
+        const login = await api.post('/api/auth/login', {
+            userName: MASTER_ADMIN.email, password: MASTER_ADMIN.password
+        });
+        assert.equal(login.status, 200);
+        const token = login.json.tokens.accessToken;
+
+        const workstations = await api.get('/api/admin/workstations', token);
+        assert.equal(workstations.status, 200);
+        assert.equal(workstations.json.deviceBinding, 'disabled');
+        const listed = workstations.json.items.find(item => item.userName === 'list.tech');
+        assert.ok(listed, 'the technician appears in the directory');
+        assert.equal(listed.hardwareId, null);
+
+        const search = await api.get('/api/admin/technicians?q=list&page=1&pageSize=10', token);
+        assert.equal(search.status, 200);
+        assert.equal(search.json.totalCount, 1);
+        assert.equal(search.json.items[0].userName, 'list.tech');
+
+        const overview = await api.get('/api/admin/overview', token);
+        assert.equal(overview.status, 200);
+        assert.equal(overview.json.totalLicenses, 1);
+        assert.equal(overview.json.activeLicenses, 1);
+
+        const extended = await api.post('/api/admin/extend-license', {
+            userName: 'list.tech', days: 90
+        }, token);
+        assert.equal(extended.status, 200);
+        assert.equal(extended.json.days, 90);
+
+        const stored = await pool.query(
+            'SELECT license_expires_at, is_active FROM users WHERE username = $1', ['list.tech']);
+        const remaining = (new Date(stored.rows[0].license_expires_at).getTime() - Date.now()) / 86400000;
+        assert.ok(remaining > 91.9 && remaining <= 93.1, `licence now ends in ${remaining} days`);
+
+        const logs = await api.get('/api/admin/logs', token);
+        assert.equal(logs.status, 200);
+        assert.ok(logs.json.items.some(entry => /extended by 90 day/.test(entry.message)));
     } finally {
         await api.close();
     }

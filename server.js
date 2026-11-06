@@ -5,13 +5,17 @@
  *
  * Authentication rules enforced here (and nowhere else):
  *   - an account is found by user name or e-mail address; the password is verified with BCrypt;
- *   - a technician account is bound to the first computer that signs in (HWID) and refused on any
- *     other machine until an administrator resets the binding;
- *   - administrators bypass the HWID check and the e-mail verification step;
+ *   - no machine binding: an account may sign in from any computer, and no fingerprint is stored
+ *     or compared (the HWID requirement was removed deliberately, not disabled per environment);
+ *   - administrators skip the e-mail verification step and always hold a lifetime licence;
  *   - a technician whose trial/subscription has run out can still sign in, but receives an expired
  *     licence and no permissions, so every device operation stays locked in the client;
  *   - when the database is unreachable the server fails closed (503): it never answers a login with
  *     a canned "success" payload.
+ *
+ * The administration console reads its directory, licence and metric data from the /api/admin
+ * routes below; every one of them answers an exhausted or empty database with zeros and empty
+ * collections instead of a 404 or a 500.
  */
 
 const http = require('http');
@@ -61,11 +65,6 @@ const TECHNICIAN_PERMISSIONS = [
 // Proper error codes the desktop client already understands.
 const ERRORS = {
     invalidCredentials: { status: 401, code: 'invalid-credentials', message: 'Invalid username or password.' },
-    deviceMismatch: {
-        status: 403,
-        code: 'device-mismatch',
-        message: 'This account is bound to another computer. Please contact administrator to reset HWID.'
-    },
     emailNotVerified: {
         status: 403,
         code: 'email-not-verified',
@@ -274,6 +273,21 @@ function isoOrNull(value) {
     return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
+/**
+ * The desktop contracts type every id as a Guid, but rows written by the old integer-keyed schema
+ * still exist. Real GUIDs pass through; anything else becomes a stable name-based UUID so the
+ * console deserialises the payload instead of failing on the whole list.
+ */
+function toGuidString(value) {
+    const text = String(value ?? '');
+    if (/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(text)) {
+        return text.toLowerCase();
+    }
+
+    const hash = crypto.createHash('sha1').update(text || 'empty').digest('hex');
+    return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-5${hash.slice(13, 16)}-a${hash.slice(17, 20)}-${hash.slice(20, 32)}`;
+}
+
 // -------------------------------------------------------------
 // 3. PostgreSQL store
 // -------------------------------------------------------------
@@ -398,6 +412,25 @@ function createPostgresStore(pool) {
                 `UPDATE users SET ${assignments.join(', ')} WHERE id = $${index} RETURNING *`,
                 values);
             return result.rows.length > 0 ? mapRow(result.rows[0]) : null;
+        },
+
+        async deleteUser(id) {
+            const result = await pool.query('DELETE FROM users WHERE id = $1 RETURNING id', [id]);
+            return result.rows.length > 0;
+        },
+
+        /** The administration console's directory, newest first. */
+        async listUsers(options = {}) {
+            const search = String(options.search || '').trim().toLowerCase();
+            const limit = Math.min(Math.max(Number(options.limit) || 500, 1), 2000);
+            const result = search.length === 0
+                ? await pool.query('SELECT * FROM users ORDER BY username ASC LIMIT $1', [limit])
+                : await pool.query(
+                    `SELECT * FROM users
+                     WHERE lower(username) LIKE $1 OR lower(coalesce(email, '')) LIKE $1
+                     ORDER BY username ASC LIMIT $2`,
+                    [`%${search}%`, limit]);
+            return result.rows.map(mapRow);
         }
     };
 }
@@ -582,34 +615,101 @@ function createMailer(config, log) {
     return {
         configured: true,
         async sendVerificationCode(to, userName, code) {
-            const body = [
-                '--------------------------------------------------',
-                'Welcome to B_VIP Tool,',
-                '',
-                'Thank you for registering on our smart device maintenance and servicing platform.',
-                'To complete your account activation and start your 3-day free trial, use the following verification code inside the tool:',
-                '',
-                code,
-                '',
-                'Validity: This code is valid for 15 minutes only.',
-                'Security: The B_VIP support team will never ask for this code. Do not share it with anyone.',
-                'If you did not request an account on B_VIP Tool, you can safely ignore this email; no action will be taken on your data.',
-                '',
-                'B_VIP Tool Team',
-                'All-in-One Solution for Smart Device Servicing & Maintenance.',
-                '--------------------------------------------------'
-            ].join('\n');
-
             await transport.sendMail({
                 from: `${config.fromName || 'B_VIP Tool'} <${from}>`,
                 to,
-                subject: '[B_VIP Tool] Account Verification Code',
-                text: body
+                subject: OTP_EMAIL_SUBJECT,
+                text: buildOtpText(code),
+                html: buildOtpHtml(code, userName)
             });
             log(`Verification code sent to ${to} for ${userName}.`);
             return true;
         }
     };
+}
+
+const OTP_EMAIL_SUBJECT = 'Your B_VIP Tool Verification Code';
+
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+/** Plain-text alternative: some clients strip HTML, and a text part improves deliverability. */
+function buildOtpText(code) {
+    return [
+        'Welcome to B_VIP Tool,',
+        '',
+        'Thank you for registering on our smart device management and maintenance platform.',
+        'To complete your account activation and start your 3-day free trial, enter the verification code below in the tool:',
+        '',
+        `[ ${code} ]`,
+        '',
+        'Expiry: This code is valid for 15 minutes only.',
+        'Security notice: The support team will never ask for this code. Never share it with anyone.',
+        'If you did not request this registration, please disregard this email.',
+        '',
+        'B_VIP Tool Team',
+        'Comprehensive ecosystem for smart device maintenance and support'
+    ].join('\n');
+}
+
+/** The verification mail: one screen, the code large, the theme's navy and neon cyan. */
+function buildOtpHtml(code, userName) {
+    const greeting = userName ? `Welcome to B_VIP Tool, ${escapeHtml(userName)}` : 'Welcome to B_VIP Tool,';
+
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${OTP_EMAIL_SUBJECT}</title>
+</head>
+<body style="margin:0;padding:0;background:#0B132B;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0B132B;padding:32px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#1E293B;border:1px solid #334155;border-radius:14px;overflow:hidden;font-family:'Segoe UI',Arial,Helvetica,sans-serif;">
+          <tr>
+            <td style="background:linear-gradient(135deg,#0F172A 0%,#1C2536 100%);padding:26px 32px;border-bottom:1px solid #334155;">
+              <div style="font-size:20px;font-weight:700;color:#FFFFFF;letter-spacing:0.4px;">B_VIP <span style="color:#38BDF8;">Tool</span></div>
+              <div style="font-size:12px;color:#94A3B8;margin-top:4px;">Smart device maintenance &amp; servicing platform</div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:30px 32px 8px 32px;color:#E2E8F0;font-size:15px;line-height:24px;">
+              <p style="margin:0 0 16px 0;color:#FFFFFF;font-size:16px;font-weight:600;">${greeting}</p>
+              <p style="margin:0 0 14px 0;">Thank you for registering on our smart device management and maintenance platform.</p>
+              <p style="margin:0 0 22px 0;">To complete your account activation and start your 3-day free trial, enter the verification code below in the tool:</p>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:0 32px;">
+              <div style="display:inline-block;padding:18px 30px;background:#0F172A;border:1px solid #38BDF8;border-radius:12px;box-shadow:0 0 22px rgba(0,210,255,0.35);font-size:34px;font-weight:700;letter-spacing:10px;color:#00D2FF;font-family:Consolas,'Courier New',monospace;">${escapeHtml(code)}</div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:26px 32px 30px 32px;color:#CBD5E1;font-size:13px;line-height:21px;">
+              <p style="margin:0 0 8px 0;"><strong style="color:#FFFFFF;">Expiry:</strong> This code is valid for 15 minutes only.</p>
+              <p style="margin:0 0 8px 0;"><strong style="color:#FFFFFF;">Security notice:</strong> The support team will never ask for this code. Never share it with anyone.</p>
+              <p style="margin:0;">If you did not request this registration, please disregard this email.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px 32px 26px 32px;border-top:1px solid #334155;color:#94A3B8;font-size:12px;line-height:19px;">
+              <div style="color:#E2E8F0;font-weight:600;font-size:13px;">B_VIP Tool Team</div>
+              <div>Comprehensive ecosystem for smart device maintenance and support</div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
 }
 
 // -------------------------------------------------------------
@@ -666,8 +766,9 @@ function buildLicenseSummary(user) {
         status: state.status,
         startsAt: isoOrNull(state.startedAt) || new Date().toISOString(),
         expiresAt: isoOrNull(state.expiresAt),
-        maxActivations: state.type === 'lifetime_admin' ? 0 : 1,
-        currentActivations: user.hwid ? 1 : 0,
+        // No device binding: a licence is not consumed by, or limited to, any number of machines.
+        maxActivations: 0,
+        currentActivations: 0,
         features: permissionsFor(user)
     };
 }
@@ -685,8 +786,9 @@ function buildUserSummary(user) {
         createdUtc: isoOrNull(user.createdUtc) || new Date().toISOString(),
         lastLoginUtc: isoOrNull(user.lastLoginAt),
         emailVerified: user.role === 'admin' ? true : user.isVerified === true,
-        hardwareId: user.hwid || null,
-        hardwareIdResetCount: user.hwidResetCount || 0
+        // Reported as null on purpose: the account is not tied to a machine any more.
+        hardwareId: null,
+        hardwareIdResetCount: 0
     };
 }
 
@@ -741,8 +843,69 @@ function createApp(options) {
     const store = options.store;
     const signingKey = options.signingKey || DEFAULT_SIGNING_KEY;
     const mailer = options.mailer;
-    const log = options.log || (() => {});
+    const reporter = options.log || (() => {});
+    const recentEvents = [];
+    const log = message => {
+        record('INFO', String(message));
+        reporter(message);
+    };
     const loginThrottle = new Map();
+    const maintenance = {
+        enabled: false,
+        message: null,
+        startsAt: null,
+        endsAt: null,
+        updatedUtc: new Date().toISOString()
+    };
+
+    // The subscription tiers the console and the in-app cards both show.
+    const plans = [
+        {
+            id: '11111111-1111-4111-8111-111111111101',
+            code: '3-months',
+            name: '3 Months Plan',
+            nameAr: null,
+            description: '90 days of full access to every vendor module.',
+            durationDays: 90,
+            maxActivations: 0,
+            isLifetime: false,
+            isActive: true,
+            sortOrder: 1,
+            licenseCount: 0,
+            price: 20,
+            currency: 'USD'
+        },
+        {
+            id: '22222222-2222-4222-8222-222222222202',
+            code: '6-months',
+            name: '6 Months Plan',
+            nameAr: null,
+            description: '180 days of full access to every vendor module.',
+            durationDays: 180,
+            maxActivations: 0,
+            isLifetime: false,
+            isActive: true,
+            sortOrder: 2,
+            licenseCount: 0,
+            price: 35,
+            currency: 'USD'
+        },
+        {
+            id: '33333333-3333-4333-8333-333333333303',
+            code: '1-year',
+            name: '1 Year Plan',
+            nameAr: null,
+            description: '365 days of full access to every vendor module.',
+            durationDays: 365,
+            maxActivations: 0,
+            isLifetime: false,
+            isActive: true,
+            sortOrder: 3,
+            licenseCount: 0,
+            price: 50,
+            currency: 'USD'
+        }
+    ];
 
     function sendJson(res, status, payload) {
         const body = JSON.stringify(payload);
@@ -818,7 +981,6 @@ function createApp(options) {
         const data = parseBody(await readBody(req));
         const identifier = pick(data, 'userName', 'username', 'email', 'User', 'user');
         const password = typeof data.password === 'string' ? data.password : pick(data, 'Password');
-        const hwid = pick(data, 'deviceFingerprint', 'hwid', 'Hwid', 'hardwareId');
 
         if (identifier.length === 0 || password.length === 0) {
             return fail(res, ERRORS.invalidCredentials);
@@ -861,23 +1023,10 @@ function createApp(options) {
             return fail(res, ERRORS.accountSuspended);
         }
 
-        // Administrators are never tied to a machine and never wait for an OTP.
-        if (user.role !== 'admin') {
-            if (user.isVerified !== true) {
-                return fail(res, ERRORS.emailNotVerified);
-            }
-
-            if (!hwid) {
-                return fail(res, ERRORS.deviceMismatch);
-            }
-
-            if (!user.hwid) {
-                user = await store.updateUser(user.id, { hwid });
-                log(`HWID bound for ${user.userName}.`);
-            } else if (!safeEqual(user.hwid, hwid)) {
-                log(`HWID mismatch for ${user.userName}: account bound elsewhere.`);
-                return fail(res, ERRORS.deviceMismatch);
-            }
+        // The e-mail verification gate stays; the machine check does not exist any more. A
+        // technician signs in from any computer and no fingerprint is written or compared.
+        if (user.role !== 'admin' && user.isVerified !== true) {
+            return fail(res, ERRORS.emailNotVerified);
         }
 
         const patch = { failedAttempts: 0, lockoutUntil: null, lastLoginAt: new Date() };
@@ -901,7 +1050,6 @@ function createApp(options) {
         const email = pick(data, 'email', 'Email').toLowerCase();
         const password = typeof data.password === 'string' ? data.password : pick(data, 'Password');
         const acceptedTerms = data.acceptedTerms === true || data.AcceptedTerms === true;
-        const hwid = pick(data, 'hardwareId', 'deviceFingerprint', 'hwid');
 
         if (!EMAIL_REGEX.test(email)) {
             return fail(res, ERRORS.invalidEmail);
@@ -936,7 +1084,6 @@ function createApp(options) {
             displayName: userName,
             email,
             passwordHash: await hashPassword(password),
-            hwid: hwid || null,
             role: 'technician',
             isActive: true,
             isVerified: false,
@@ -1083,6 +1230,622 @@ function createApp(options) {
         return sendJson(res, 200, buildSession(user, signingKey));
     }
 
+    // ---- administration console ------------------------------------------------
+
+    // Every log line the app already writes also lands here, so /api/admin/logs can show the
+    // recent history without a second logging stack.
+    function record(level, message) {
+        recentEvents.push({ id: newId(), occurredUtc: new Date().toISOString(), level, message });
+        while (recentEvents.length > 250) {
+            recentEvents.shift();
+        }
+    }
+
+    async function requireAdmin(req, res) {
+        const user = await readSessionUser(req);
+        if (!user) {
+            fail(res, { status: 401, code: 'unauthenticated', message: 'Sign in again to continue.' });
+            return null;
+        }
+
+        if (user.role !== 'admin') {
+            fail(res, { status: 403, code: 'forbidden', message: 'This action requires an administrator account.' });
+            return null;
+        }
+
+        return user;
+    }
+
+    async function allUsers() {
+        if (typeof store.listUsers !== 'function') {
+            return [];
+        }
+
+        try {
+            return await store.listUsers({ limit: 2000 });
+        } catch (error) {
+            log(`Directory listing failed: ${error.message}`);
+            return [];
+        }
+    }
+
+    function pageOf(items, url) {
+        const page = Math.max(1, Number(url.searchParams.get('page')) || 1);
+        const pageSize = Math.min(Math.max(Number(url.searchParams.get('pageSize')) || 100, 1), 500);
+        const start = (page - 1) * pageSize;
+        return {
+            items: items.slice(start, start + pageSize),
+            totalCount: items.length,
+            page,
+            pageSize,
+            totalPages: Math.max(1, Math.ceil(items.length / pageSize))
+        };
+    }
+
+    function directoryFrom(url) {
+        const search = String(url.searchParams.get('q') || url.searchParams.get('query') || '').trim().toLowerCase();
+        const status = String(url.searchParams.get('status') || '').trim().toLowerCase();
+        const role = String(url.searchParams.get('role') || '').trim().toLowerCase();
+
+        return async function filter() {
+            let users = await allUsers();
+            if (search.length > 0) {
+                users = users.filter(user =>
+                    String(user.userName || '').toLowerCase().includes(search) ||
+                    String(user.email || '').toLowerCase().includes(search));
+            }
+            if (status.length > 0) {
+                users = users.filter(user => String(buildUserSummary(user).status).toLowerCase() === status);
+            }
+            if (role.length > 0) {
+                users = users.filter(user => user.role === (role.includes('admin') ? 'admin' : 'technician'));
+            }
+            return users;
+        };
+    }
+
+    function toTechnicianSummary(user) {
+        const summary = buildUserSummary(user);
+        return { ...summary, id: toGuidString(summary.id) };
+    }
+
+    function toLicenseRow(user) {
+        const state = evaluateLicense(user);
+        const summary = buildLicenseSummary(user);
+        return {
+            id: toGuidString(`license:${user.id}`),
+            licenseKey: summary.licenseKey,
+            userId: toGuidString(user.id),
+            userName: user.userName,
+            planId: toGuidString(`plan:${state.type}`),
+            planCode: state.type,
+            planName: summary.planName,
+            status: state.active ? 'Active' : 'Expired',
+            effectiveStatus: state.status,
+            startsAt: isoOrNull(state.startedAt) || new Date().toISOString(),
+            expiresAt: isoOrNull(state.expiresAt),
+            maxActivations: 0,
+            currentActivations: 0,
+            createdUtc: isoOrNull(user.createdUtc) || new Date().toISOString(),
+            lastVerifiedUtc: isoOrNull(user.lastLoginAt),
+            source: 'cloud',
+            adminNotes: null,
+            features: permissionsFor(user),
+            activations: []
+        };
+    }
+
+    async function findAccount(identifier) {
+        const value = String(identifier || '').trim();
+        if (value.length === 0) {
+            return null;
+        }
+
+        try {
+            const byId = await store.findById(value);
+            if (byId) {
+                return byId;
+            }
+        } catch (_) {
+            // Not an id: fall through to the login lookup.
+        }
+
+        return await store.findByLogin(value);
+    }
+
+    async function extendAccount(user, days) {
+        const state = evaluateLicense(user);
+        const now = Date.now();
+        const currentExpiry = state.expiresAt ? new Date(state.expiresAt).getTime() : now;
+        const base = Math.max(now, Number.isFinite(currentExpiry) ? currentExpiry : now);
+        const expiresAt = new Date(base + days * 86400000);
+
+        const updated = await store.updateUser(user.id, {
+            licenseType: user.licenseType === 'trial' ? 'trial' : (user.licenseType || 'subscription'),
+            licenseStartedAt: user.licenseStartedAt || new Date(),
+            licenseExpiresAt: expiresAt,
+            isActive: true,
+            failedAttempts: 0,
+            lockoutUntil: null
+        });
+
+        log(`Subscription extended by ${days} day(s) for ${user.userName}.`);
+        return updated || user;
+    }
+
+    /**
+     * The console's routes. Returns true when the request was answered, false when the path is not
+     * one of them (so the caller can fall through to its 404). Every route is administrator-only and
+     * answers an empty database with zeros and empty collections rather than an error.
+     */
+    async function routeAdmin(req, res, path, url) {
+        const isGet = req.method === 'GET';
+        const isPost = req.method === 'POST';
+        const isPatch = req.method === 'PATCH';
+        const isDelete = req.method === 'DELETE';
+
+        const known =
+            path === '/api/admin/workstations' || path === '/api/admin/expired-accounts' ||
+            path === '/api/admin/logs' || path === '/api/admin/extend-license' ||
+            path === '/api/admin/overview' || path === '/api/admin/technicians' ||
+            path === '/api/admin/technicians/metrics' || path === '/api/admin/roles' ||
+            path === '/api/admin/permissions' || path === '/api/admin/settings' ||
+            path === '/api/admin/integrations' || path === '/api/admin/audit-events' ||
+            path === '/api/admin/backups' || path === '/api/admin/versions' ||
+            path === '/api/admin/health' || path === '/api/admin/status' ||
+            path === '/api/admin/maintenance' || path === '/api/users' || path === '/api/licenses' ||
+            path === '/api/licenses/plans' ||
+            path.startsWith('/api/users/') || path.startsWith('/api/licenses/plans/') ||
+            path.startsWith('/api/admin/technicians/');
+
+        if (!known) {
+            return false;
+        }
+
+        const admin = await requireAdmin(req, res);
+        if (!admin) {
+            return true;
+        }
+
+        if (path === '/api/admin/workstations' && isGet) {
+            const users = await directoryFrom(url)();
+            const items = users
+                .filter(user => user.role !== 'admin')
+                .map(user => ({
+                    userId: toGuidString(user.id),
+                    userName: user.userName,
+                    email: user.email || '',
+                    hardwareId: null,
+                    deviceBinding: 'disabled',
+                    status: buildUserSummary(user).status,
+                    lastLoginUtc: isoOrNull(user.lastLoginAt),
+                    createdUtc: isoOrNull(user.createdUtc)
+                }));
+            return sendJson(res, 200, { items, totalCount: items.length, deviceBinding: 'disabled' });
+        }
+
+        if (path === '/api/admin/expired-accounts' && isGet) {
+            const users = await allUsers();
+            const items = users
+                .filter(user => user.role !== 'admin' && !evaluateLicense(user).active)
+                .map(user => {
+                    const state = evaluateLicense(user);
+                    return {
+                        userId: toGuidString(user.id),
+                        userName: user.userName,
+                        email: user.email || '',
+                        licenseType: state.type,
+                        status: user.isActive === false ? 'Suspended' : 'Expired',
+                        expiredUtc: isoOrNull(state.expiresAt),
+                        emailVerified: user.isVerified === true,
+                        lastLoginUtc: isoOrNull(user.lastLoginAt)
+                    };
+                });
+            return sendJson(res, 200, { items, totalCount: items.length });
+        }
+
+        if (path === '/api/admin/logs' && isGet) {
+            const level = String(url.searchParams.get('level') || '').toUpperCase();
+            const limit = Math.min(Math.max(Number(url.searchParams.get('limit')) || 200, 1), 250);
+            const items = recentEvents
+                .filter(entry => level.length === 0 || entry.level === level)
+                .slice(-limit)
+                .reverse();
+            return sendJson(res, 200, { items, totalCount: items.length, level: level || null });
+        }
+
+        if (path === '/api/admin/extend-license' && isPost) {
+            const data = parseBody(await readBody(req));
+            const identifier = pick(data, 'userId', 'id', 'userName', 'username', 'email');
+            const days = Number(pick(data, 'days', 'Days') || data.days);
+
+            if (!Number.isFinite(days) || days < 1 || days > 3650) {
+                return fail(res, {
+                    status: 400,
+                    code: 'invalid-days',
+                    message: 'Enter a number of days between 1 and 3650.'
+                });
+            }
+
+            const user = await findAccount(identifier);
+            if (!user) {
+                return fail(res, { status: 404, code: 'account-not-found', message: 'That account does not exist.' });
+            }
+
+            if (user.role === 'admin') {
+                return sendJson(res, 200, {
+                    userId: toGuidString(user.id),
+                    userName: user.userName,
+                    licenseType: 'lifetime_admin',
+                    status: 'Active',
+                    expiresAt: null,
+                    days: 0,
+                    message: 'Administrator accounts never expire; no extension was needed.'
+                });
+            }
+
+            const updated = await extendAccount(user, Math.round(days));
+            const state = evaluateLicense(updated);
+            return sendJson(res, 200, {
+                userId: toGuidString(updated.id),
+                userName: updated.userName,
+                licenseType: state.type,
+                status: state.status,
+                expiresAt: isoOrNull(state.expiresAt),
+                days: Math.round(days),
+                message: `${Math.round(days)} day(s) added to ${updated.userName}.`
+            });
+        }
+
+        if (path === '/api/admin/overview' && isGet) {
+            const users = await allUsers();
+            const technicians = users.filter(user => user.role !== 'admin');
+            const states = technicians.map(evaluateLicense);
+            return sendJson(res, 200, {
+                totalUsers: users.length,
+                activeUsers: users.filter(user => user.isActive !== false).length,
+                suspendedUsers: users.filter(user => user.isActive === false).length,
+                totalLicenses: technicians.length,
+                activeLicenses: states.filter(state => state.active).length,
+                expiredLicenses: states.filter(state => !state.active).length,
+                totalActivations: 0,
+                openTickets: 0,
+                operationsLast24h: 0,
+                failedOperationsLast24h: 0,
+                securityEventsLast24h: recentEvents.length,
+                lastBackupUtc: null,
+                serverStatus: 'Online',
+                databaseStatus: 'Connected',
+                integrationsStatus: 'Not configured',
+                generatedUtc: new Date().toISOString()
+            });
+        }
+
+        if (path === '/api/admin/technicians/metrics' && isGet) {
+            const users = await allUsers();
+            const technicians = users.filter(user => user.role !== 'admin');
+            const states = technicians.map(evaluateLicense);
+            return sendJson(res, 200, {
+                totalTechnicians: technicians.length,
+                activeSubscriptions: states.filter(state => state.active && state.type !== 'trial').length,
+                pendingVerifications: technicians.filter(user => user.isVerified !== true).length,
+                suspended: technicians.filter(user => user.isActive === false).length,
+                hardwareBindings: 0,
+                operationsLogged: 0,
+                generatedUtc: new Date().toISOString()
+            });
+        }
+
+        if (path === '/api/admin/technicians' && isGet) {
+            const users = await directoryFrom(url)();
+            const rows = users.filter(user => user.role !== 'admin').map(toTechnicianSummary);
+            return sendJson(res, 200, pageOf(rows, url));
+        }
+
+        if (path === '/api/users' && isGet) {
+            const users = await directoryFrom(url)();
+            return sendJson(res, 200, pageOf(users.map(toTechnicianSummary), url));
+        }
+
+        if (path === '/api/admin/roles' && isGet) {
+            const users = await allUsers();
+            const adminCount = users.filter(user => user.role === 'admin').length;
+            return sendJson(res, 200, [
+                {
+                    id: toGuidString('role:admin'),
+                    name: 'Admin',
+                    description: 'Full management console access.',
+                    isSystem: true,
+                    userCount: adminCount,
+                    permissions: ADMIN_PERMISSIONS,
+                    createdUtc: new Date(0).toISOString()
+                },
+                {
+                    id: toGuidString('role:technician'),
+                    name: 'Technician',
+                    description: 'Device servicing workstation, limited to a valid licence.',
+                    isSystem: true,
+                    userCount: users.length - adminCount,
+                    permissions: TECHNICIAN_PERMISSIONS,
+                    createdUtc: new Date(0).toISOString()
+                }
+            ]);
+        }
+
+        if (path === '/api/admin/permissions' && isGet) {
+            const names = [...new Set([...ADMIN_PERMISSIONS, ...TECHNICIAN_PERMISSIONS])];
+            return sendJson(res, 200, names.map(name => ({
+                name,
+                group: ADMIN_PERMISSIONS.includes(name) ? 'Platform' : 'Devices',
+                description: null
+            })));
+        }
+
+        if (path === '/api/admin/settings' && isGet) {
+            return sendJson(res, 200, { settings: [] });
+        }
+
+        if (path === '/api/admin/integrations' && isGet) {
+            return sendJson(res, 200, []);
+        }
+
+        if (path === '/api/admin/backups' && isGet) {
+            return sendJson(res, 200, []);
+        }
+
+        if (path === '/api/admin/versions' && isGet) {
+            return sendJson(res, 200, []);
+        }
+
+        if (path === '/api/admin/audit-events' && isGet) {
+            const action = String(url.searchParams.get('action') || '').trim().toLowerCase();
+            const outcome = String(url.searchParams.get('outcome') || '').trim().toLowerCase();
+            const rows = recentEvents
+                .slice()
+                .reverse()
+                .map(entry => ({
+                    id: entry.id,
+                    occurredUtc: entry.occurredUtc,
+                    actorName: 'server',
+                    action: entry.message.split(':')[0].slice(0, 80),
+                    targetType: 'Server',
+                    targetId: null,
+                    outcome: /fail|reject|mismatch|error/i.test(entry.message) ? 'Failure' : 'Success',
+                    detail: entry.message,
+                    ipAddress: null,
+                    correlationId: entry.id
+                }))
+                .filter(row => action.length === 0 || String(row.action).toLowerCase().includes(action))
+                .filter(row => outcome.length === 0 || String(row.outcome).toLowerCase() === outcome);
+            return sendJson(res, 200, {
+                items: rows.slice(0, 200),
+                totalCount: rows.length,
+                page: 1,
+                pageSize: 200
+            });
+        }
+
+        if (path === '/api/admin/health' && isGet) {
+            let database = 'Unavailable';
+            try {
+                await store.findById('health-probe');
+                database = 'Healthy';
+            } catch (_) {
+                database = 'Unavailable';
+            }
+            return sendJson(res, 200, {
+                overall: database === 'Healthy' ? 'Healthy' : 'Degraded',
+                components: [{ name: 'Database', status: database, detail: null, checkedUtc: new Date().toISOString() }],
+                checkedUtc: new Date().toISOString()
+            });
+        }
+
+        if (path === '/api/admin/status' && isGet) {
+            return sendJson(res, 200, {
+                serverVersion: SERVER_VERSION,
+                runtimeVersion: process.version,
+                environment: process.env.NODE_ENV || 'production',
+                databaseProvider: 'PostgreSQL',
+                databaseConnected: true,
+                pendingMigrations: 0,
+                maintenanceEnabled: maintenance.enabled,
+                utcNow: new Date().toISOString(),
+                processUptimeSeconds: Math.round(process.uptime()),
+                cpuPercent: 0,
+                workingSetBytes: process.memoryUsage().rss
+            });
+        }
+
+        if (path === '/api/admin/maintenance' && (isGet || isPatch || isPost)) {
+            if (isPatch || isPost) {
+                const data = parseBody(await readBody(req));
+                maintenance.enabled = data.enabled === true || data.Enabled === true;
+                maintenance.message = typeof data.message === 'string' ? data.message : maintenance.message;
+                maintenance.startsAt = data.startsAt || null;
+                maintenance.endsAt = data.endsAt || null;
+                maintenance.updatedUtc = new Date().toISOString();
+                log(`Maintenance mode ${maintenance.enabled ? 'enabled' : 'disabled'}.`);
+            }
+            return sendJson(res, 200, { ...maintenance });
+        }
+
+        if (path === '/api/licenses' && isGet) {
+            const users = await allUsers();
+            const status = String(url.searchParams.get('status') || '').trim().toLowerCase();
+            let rows = users.filter(user => user.role !== 'admin').map(toLicenseRow);
+            if (status.length > 0) {
+                rows = rows.filter(row => String(row.effectiveStatus).toLowerCase() === status ||
+                    String(row.status).toLowerCase() === status);
+            }
+            return sendJson(res, 200, pageOf(rows, url));
+        }
+
+        if (path === '/api/licenses/plans' && isGet) {
+            return sendJson(res, 200, plans.map(plan => ({ ...plan })));
+        }
+
+        if (path === '/api/licenses/plans' && isPost) {
+            const data = parseBody(await readBody(req));
+            const name = String(pick(data, 'name', 'Name') || '').trim();
+            if (name.length === 0) {
+                return fail(res, { status: 400, code: 'invalid-plan', message: 'A plan needs a name.' });
+            }
+            const plan = {
+                id: newId(),
+                code: name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || `plan-${plans.length + 1}`,
+                name,
+                nameAr: null,
+                description: String(pick(data, 'description', 'Description') || ''),
+                durationDays: Number(data.durationDays) > 0 ? Math.round(Number(data.durationDays)) : null,
+                maxActivations: 0,
+                isLifetime: data.isLifetime === true,
+                isActive: data.isActive !== false,
+                sortOrder: plans.length + 1,
+                licenseCount: 0,
+                price: Number(data.price) || null,
+                currency: data.currency ? String(data.currency) : 'USD'
+            };
+            plans.push(plan);
+            log(`Subscription plan created: ${plan.name}.`);
+            return sendJson(res, 200, { ...plan });
+        }
+
+        const planMatch = /^\/api\/licenses\/plans\/([^/]+)$/.exec(path);
+        if (planMatch && (isPatch || isDelete)) {
+            const plan = plans.find(item => String(item.id).toLowerCase() === planMatch[1] || item.code === planMatch[1]);
+            if (!plan) {
+                return fail(res, { status: 404, code: 'plan-not-found', message: 'That plan does not exist.' });
+            }
+            if (isDelete) {
+                plan.isActive = false;
+                log(`Subscription plan deactivated: ${plan.name}.`);
+                return sendJson(res, 200, { ...plan });
+            }
+            const data = parseBody(await readBody(req));
+            if (typeof data.name === 'string' && data.name.trim().length > 0) {
+                plan.name = data.name.trim();
+            }
+            if (typeof data.description === 'string') {
+                plan.description = data.description;
+            }
+            if (Number(data.durationDays) > 0) {
+                plan.durationDays = Math.round(Number(data.durationDays));
+            }
+            if (typeof data.price === 'number') {
+                plan.price = data.price;
+            }
+            if (typeof data.isActive === 'boolean') {
+                plan.isActive = data.isActive;
+            }
+            return sendJson(res, 200, { ...plan });
+        }
+
+        const technicianMatch = /^\/api\/admin\/technicians\/([^/]+)(?:\/([a-z-]+))?$/.exec(path);
+        if (technicianMatch) {
+            const user = await findAccount(technicianMatch[1]);
+            if (!user) {
+                return fail(res, { status: 404, code: 'account-not-found', message: 'That account does not exist.' });
+            }
+            const action = technicianMatch[2] || '';
+
+            if (action === '' && isDelete) {
+                if (user.role === 'admin') {
+                    return fail(res, { status: 400, code: 'admin-protected', message: 'The administrator account cannot be deleted.' });
+                }
+                if (typeof store.deleteUser === 'function') {
+                    await store.deleteUser(user.id);
+                } else {
+                    await store.updateUser(user.id, { isActive: false });
+                }
+                log(`Technician deleted: ${user.userName}.`);
+                return sendJson(res, 200, { message: `${user.userName} was removed.` });
+            }
+
+            if (action === 'reset-hwid' && isPost) {
+                // Device binding is gone; this clears any fingerprint a legacy row still carries.
+                const updated = await store.updateUser(user.id, { hwid: null });
+                log(`Legacy device fingerprint cleared for ${user.userName}.`);
+                return sendJson(res, 200, {
+                    userId: toGuidString((updated || user).id),
+                    userName: (updated || user).userName,
+                    hardwareId: null,
+                    hardwareIdResetCount: 0,
+                    message: 'Device binding is disabled on this server; the account already signs in from any computer.'
+                });
+            }
+
+            if (action === 'verify-email' && isPost) {
+                const data = parseBody(await readBody(req));
+                const verified = data.verified === true || data.Verified === true;
+                const updated = await store.updateUser(user.id, { isVerified: verified });
+                log(`E-mail verification for ${user.userName} set to ${verified}.`);
+                return sendJson(res, 200, {
+                    userId: toGuidString((updated || user).id),
+                    userName: (updated || user).userName,
+                    emailVerified: verified,
+                    message: verified ? 'The account is now verified.' : 'The account is unverified again.'
+                });
+            }
+
+            if (action === 'extend-subscription' && isPost) {
+                const data = parseBody(await readBody(req));
+                const days = Math.round(Number(data.days) || 0);
+                if (days < 1 || days > 3650) {
+                    return fail(res, { status: 400, code: 'invalid-days', message: 'Enter a number of days between 1 and 3650.' });
+                }
+                const updated = await extendAccount(user, days);
+                const state = evaluateLicense(updated);
+                return sendJson(res, 200, {
+                    licenseId: toGuidString(`license:${updated.id}`),
+                    licenseKey: buildLicenseSummary(updated).licenseKey,
+                    planName: buildLicenseSummary(updated).planName,
+                    expiresAt: isoOrNull(state.expiresAt),
+                    message: `${days} day(s) added to ${updated.userName}.`
+                });
+            }
+
+            if (action === 'plan' && isPost) {
+                const data = parseBody(await readBody(req));
+                const planId = String(pick(data, 'planId', 'id') || '');
+                const plan = plans.find(item => String(item.id).toLowerCase() === planId.toLowerCase());
+                if (!plan) {
+                    return fail(res, { status: 404, code: 'plan-not-found', message: 'That plan does not exist.' });
+                }
+                const days = plan.durationDays || 3650;
+                const updated = await extendAccount(user, days);
+                await store.updateUser(user.id, { licenseType: plan.code });
+                log(`${user.userName} moved to the ${plan.name} plan.`);
+                return sendJson(res, 200, toLicenseRow({ ...updated, licenseType: plan.code }));
+            }
+
+            return fail(res, ERRORS.notFound);
+        }
+
+        const userAction = /^\/api\/users\/([^/]+)\/(suspend|reactivate|revoke-sessions)$/.exec(path);
+        if (userAction && isPost) {
+            const user = await findAccount(userAction[1]);
+            if (!user) {
+                return fail(res, { status: 404, code: 'account-not-found', message: 'That account does not exist.' });
+            }
+            if (user.role === 'admin') {
+                return fail(res, { status: 400, code: 'admin-protected', message: 'The administrator account cannot be suspended.' });
+            }
+            if (userAction[2] === 'suspend') {
+                await store.updateUser(user.id, { isActive: false });
+                log(`Account suspended: ${user.userName}.`);
+                return sendJson(res, 200, { message: `${user.userName} is suspended.` });
+            }
+            if (userAction[2] === 'reactivate') {
+                await store.updateUser(user.id, { isActive: true, failedAttempts: 0, lockoutUntil: null });
+                log(`Account reactivated: ${user.userName}.`);
+                return sendJson(res, 200, { message: `${user.userName} is active again.` });
+            }
+            return sendJson(res, 200, { message: 'Sessions revoked.' });
+        }
+
+        return fail(res, ERRORS.notFound);
+    }
+
     return async function handler(req, res) {
         res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
         res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
@@ -1138,6 +1901,11 @@ function createApp(options) {
 
             if (path === '/api/auth/logout' && req.method === 'POST') {
                 return sendJson(res, 200, { message: 'Signed out.' });
+            }
+
+            // The administration console's routes (see routeAdmin above).
+            if ((await routeAdmin(req, res, path, url)) !== false) {
+                return;
             }
 
             return fail(res, ERRORS.notFound);
@@ -1335,7 +2103,11 @@ module.exports = {
     MASTER_ADMIN,
     ERRORS,
     TRIAL_DAYS,
-    OTP_TTL_MINUTES
+    OTP_TTL_MINUTES,
+    OTP_EMAIL_SUBJECT,
+    buildOtpText,
+    buildOtpHtml,
+    toGuidString
 };
 
 if (require.main === module) {

@@ -20,7 +20,10 @@ const {
     verifyToken,
     evaluateLicense,
     MASTER_ADMIN,
-    ERRORS
+    ERRORS,
+    OTP_EMAIL_SUBJECT,
+    buildOtpText,
+    buildOtpHtml
 } = require('../../server.js');
 
 const SIGNING_KEY = 'test-signing-key-0123456789-abcdefghijklmnop';
@@ -76,6 +79,17 @@ function createMemoryStore() {
             assert.ok(user, `user ${id} exists`);
             Object.assign(user, patch);
             return { ...user };
+        },
+        async deleteUser(id) {
+            return users.delete(id);
+        },
+        async listUsers(options = {}) {
+            const search = String((options && options.search) || '').toLowerCase();
+            return [...users.values()]
+                .filter(user => search.length === 0 ||
+                    user.userName.toLowerCase().includes(search) ||
+                    String(user.email || '').toLowerCase().includes(search))
+                .map(user => ({ ...user }));
         }
     };
 
@@ -103,10 +117,12 @@ async function startApi(store, mailer) {
 
     return {
         base,
-        async post(path, body) {
+        async post(path, body, token) {
             const response = await fetch(base + path, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: token
+                    ? { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
+                    : { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body)
             });
             return { status: response.status, json: await response.json() };
@@ -261,7 +277,7 @@ test('an unverified technician is blocked with email-not-verified', async () => 
     }
 });
 
-test('the first technician login binds the HWID and the same machine is accepted again', async () => {
+test('a technician signs in from any computer and no fingerprint is stored', async () => {
     const store = createMemoryStore();
     const { user } = await addUser(store, {});
     const api = await startApi(store);
@@ -270,9 +286,9 @@ test('the first technician login binds the HWID and the same machine is accepted
             userName: 'tech.one', password: 'Technician!Pass1', deviceFingerprint: 'MACHINE-A'
         });
         assert.equal(first.status, 200);
-        assert.equal(first.json.user.hardwareId, 'MACHINE-A');
+        assert.equal(first.json.user.hardwareId, null, 'no machine is reported as bound');
         assert.deepEqual(first.json.user.roles, ['Technician']);
-        assert.equal(store.users.get(user.id).hwid, 'MACHINE-A');
+        assert.equal(store.users.get(user.id).hwid ?? null, null, 'no fingerprint is written to the account');
 
         const second = await api.post('/api/auth/login', {
             userName: 'tech.one', password: 'Technician!Pass1', deviceFingerprint: 'MACHINE-A'
@@ -283,7 +299,7 @@ test('the first technician login binds the HWID and the same machine is accepted
     }
 });
 
-test('a different machine is refused with 403 device-mismatch and the exact message', async () => {
+test('a different machine is accepted: the HWID gate has been removed', async () => {
     const store = createMemoryStore();
     await addUser(store, { hwid: 'MACHINE-A' });
     const api = await startApi(store);
@@ -291,12 +307,15 @@ test('a different machine is refused with 403 device-mismatch and the exact mess
         const result = await api.post('/api/auth/login', {
             userName: 'tech.one', password: 'Technician!Pass1', deviceFingerprint: 'MACHINE-B'
         });
-        assert.equal(result.status, 403);
-        assert.equal(result.json.error.code, 'device-mismatch');
-        assert.equal(
-            result.json.error.message,
-            'This account is bound to another computer. Please contact administrator to reset HWID.');
-        assert.equal(result.json.tokens, undefined);
+        assert.equal(result.status, 200);
+        assert.equal(result.json.error, undefined);
+        assert.ok(result.json.tokens.accessToken);
+
+        // A client that sends no fingerprint at all is equally welcome.
+        const withoutFingerprint = await api.post('/api/auth/login', {
+            userName: 'tech.one', password: 'Technician!Pass1'
+        });
+        assert.equal(withoutFingerprint.status, 200);
     } finally {
         await api.close();
     }
@@ -562,6 +581,99 @@ test('health reports the database state instead of a canned subscription', async
     } finally {
         await api.close();
     }
+});
+
+test('the admin console routes answer live data instead of 404', async () => {
+    const store = createMemoryStore();
+    await addUser(store, {
+        userName: 'Admin Bashir',
+        email: MASTER_ADMIN.email,
+        role: 'admin',
+        password: MASTER_ADMIN.password,
+        licenseType: 'lifetime_admin',
+        isVerified: true
+    });
+    await addUser(store, { userName: 'tech.two', email: 'tech.two@example.com' });
+    const api = await startApi(store);
+    try {
+        const login = await api.post('/api/auth/login', {
+            userName: MASTER_ADMIN.email, password: MASTER_ADMIN.password
+        });
+        assert.equal(login.status, 200);
+        const token = login.json.tokens.accessToken;
+
+        // Every read the desktop console performs now answers 200 with a payload.
+        const reads = [
+            '/api/admin/workstations', '/api/admin/expired-accounts', '/api/admin/logs',
+            '/api/admin/overview', '/api/admin/technicians', '/api/admin/technicians/metrics',
+            '/api/users', '/api/licenses', '/api/licenses/plans', '/api/admin/roles',
+            '/api/admin/permissions', '/api/admin/settings', '/api/admin/integrations',
+            '/api/admin/audit-events', '/api/admin/backups', '/api/admin/versions',
+            '/api/admin/maintenance', '/api/admin/health', '/api/admin/status'
+        ];
+        for (const path of reads) {
+            const response = await api.get(path, token);
+            assert.equal(response.status, 200, `${path} answered ${response.status}`);
+        }
+
+        const workstations = await api.get('/api/admin/workstations', token);
+        assert.equal(workstations.json.deviceBinding, 'disabled');
+        assert.equal(workstations.json.items.length, 1, 'the directory lists the technician only');
+        assert.equal(workstations.json.items[0].hardwareId, null);
+
+        const expired = await api.get('/api/admin/expired-accounts', token);
+        assert.deepEqual(expired.json.items, []);
+
+        const logs = await api.get('/api/admin/logs', token);
+        assert.ok(logs.json.items.length > 0, 'sign-in activity is recorded');
+        assert.ok(logs.json.items.some(entry => /Login Authorized/.test(entry.message)));
+
+        const technician = await store.findByLogin('tech.two');
+        const extended = await api.post('/api/admin/extend-license', {
+            userId: technician.id, days: 30
+        }, token);
+        assert.equal(extended.status, 200);
+        assert.equal(extended.json.days, 30);
+        assert.equal(extended.json.userName, 'tech.two');
+        const remainingDays = (new Date(extended.json.expiresAt).getTime() - Date.now()) / 86400000;
+        assert.ok(remainingDays > 32 && remainingDays <= 33.1, `licence now ends in ${remainingDays} days`);
+        assert.equal(store.users.get(technician.id).isActive, true);
+
+        const invalidDays = await api.post('/api/admin/extend-license', { userId: technician.id, days: 0 }, token);
+        assert.equal(invalidDays.status, 400);
+        assert.equal(invalidDays.json.error.code, 'invalid-days');
+
+        // A technician token cannot read or drive the management console.
+        const techLogin = await api.post('/api/auth/login', {
+            userName: 'tech.two', password: 'Technician!Pass1', deviceFingerprint: 'MACHINE-B'
+        });
+        assert.equal(techLogin.status, 200);
+        const forbidden = await api.get('/api/admin/workstations', techLogin.json.tokens.accessToken);
+        assert.equal(forbidden.status, 403);
+        assert.equal(forbidden.json.error.code, 'forbidden');
+    } finally {
+        await api.close();
+    }
+});
+
+test('the verification e-mail uses the approved English subject and body', () => {
+    assert.equal(OTP_EMAIL_SUBJECT, 'Your B_VIP Tool Verification Code');
+
+    const text = buildOtpText('428913');
+    assert.match(text, /Welcome to B_VIP Tool,/);
+    assert.match(text, /smart device management and maintenance platform/);
+    assert.match(text, /\[ 428913 \]/);
+    assert.match(text, /valid for 15 minutes only/);
+    assert.match(text, /Never share it with anyone/);
+    assert.match(text, /please disregard this email/);
+    assert.match(text, /B_VIP Tool Team/);
+    assert.match(text, /Comprehensive ecosystem for smart device maintenance and support/);
+
+    const html = buildOtpHtml('428913', 'tech.one');
+    assert.match(html, /<html/);
+    assert.match(html, /428913/);
+    assert.match(html, /#38BDF8/);
+    assert.match(html, /Welcome to B_VIP Tool, tech\.one/);
 });
 
 test('unknown endpoints return a 404 error envelope', async () => {
