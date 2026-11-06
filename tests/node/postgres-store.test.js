@@ -284,7 +284,11 @@ test('a technician registers, verifies and signs in from any workstation', async
             userName: 'store.tech', password: 'StrongPass1', deviceFingerprint: 'MACHINE-A'
         });
         assert.equal(signedIn.status, 200);
-        assert.equal(signedIn.json.license.status, 'Trial');
+        // Active for the whole 72 hours, with the trial visible in the plan rather than the status.
+        assert.equal(signedIn.json.license.status, 'Active');
+        assert.equal(signedIn.json.license.isTrial, true);
+        assert.equal(signedIn.json.license.deviceOperationsLocked, false);
+        assert.equal(signedIn.json.license.licenseStatus, 'Active');
         assert.equal(signedIn.json.user.hardwareId, null, 'no machine is bound to the account');
         assert.deepEqual(signedIn.json.user.roles, ['Technician']);
         assert.ok(signedIn.json.permissions.includes('MTK'));

@@ -756,14 +756,39 @@ function evaluateLicense(user) {
     };
 }
 
+/**
+ * The trial lifecycle, expressed once so every endpoint agrees.
+ *
+ * A trial is not a reduced licence: for its 72 hours it is ordinary active access with every
+ * module unlocked, and only the plan name marks it as a trial. Marquee statuses are deliberately
+ * *not* "Trial" on the wire, because a client that gates on `status === 'Active'` would otherwise
+ * lock the bench for exactly the three days the technician was promised full access.
+ * An expired licence still signs in; it just reports every device operation as locked.
+ */
+function licenseAccessFor(user) {
+    const state = evaluateLicense(user);
+    return {
+        isActive: state.active,
+        isTrial: user.role !== 'admin' && state.active && state.type === 'trial',
+        deviceOperationsLocked: !state.active,
+        licenseStatus: state.active ? 'Active' : 'Expired'
+    };
+}
+
 function buildLicenseSummary(user) {
     const state = evaluateLicense(user);
+    const access = licenseAccessFor(user);
     return {
         licenseId: user.id,
         licenseKey: `BV-${String(user.id).replace(/-/g, '').slice(0, 12).toUpperCase()}`,
         planCode: state.type,
         planName: state.type === 'trial' ? '3-Day Free Trial' : (state.type === 'lifetime_admin' ? 'Administrator (Lifetime)' : 'Subscription'),
-        status: state.status,
+        status: state.active ? 'Active' : state.status,
+        isActive: access.isActive,
+        isTrial: access.isTrial,
+        licenseStatus: access.licenseStatus,
+        deviceOperationsLocked: access.deviceOperationsLocked,
+        daysRemaining: state.daysRemaining,
         startsAt: isoOrNull(state.startedAt) || new Date().toISOString(),
         expiresAt: isoOrNull(state.expiresAt),
         // No device binding: a licence is not consumed by, or limited to, any number of machines.
@@ -775,6 +800,7 @@ function buildLicenseSummary(user) {
 
 function buildUserSummary(user) {
     const license = evaluateLicense(user);
+    const access = licenseAccessFor(user);
 
     return {
         id: user.id,
@@ -788,7 +814,13 @@ function buildUserSummary(user) {
         emailVerified: user.role === 'admin' ? true : user.isVerified === true,
         // Reported as null on purpose: the account is not tied to a machine any more.
         hardwareId: null,
-        hardwareIdResetCount: 0
+        hardwareIdResetCount: 0,
+        // The same view of the licence the license block carries, so either object answers
+        // "may this account operate a device right now?".
+        isActive: access.isActive,
+        isTrial: access.isTrial,
+        licenseStatus: access.licenseStatus,
+        deviceOperationsLocked: access.deviceOperationsLocked
     };
 }
 
@@ -1777,13 +1809,58 @@ function createApp(options) {
             if (action === 'verify-email' && isPost) {
                 const data = parseBody(await readBody(req));
                 const verified = data.verified === true || data.Verified === true;
-                const updated = await store.updateUser(user.id, { isVerified: verified });
+                const patch = { isVerified: verified };
+                if (verified) {
+                    // A verification delivered by support closes the pending code, exactly as the
+                    // technician's own code entry does, and starts the trial if it has not been used.
+                    patch.otpCode = null;
+                    patch.otpExpiresAt = null;
+                    const state = evaluateLicense(user);
+                    if (!state.active || state.type === 'trial') {
+                        const startedAt = new Date();
+                        patch.licenseType = 'trial';
+                        patch.licenseStartedAt = startedAt;
+                        patch.licenseExpiresAt = new Date(startedAt.getTime() + TRIAL_DAYS * 86400000);
+                    }
+                }
+                const updated = await store.updateUser(user.id, patch);
                 log(`E-mail verification for ${user.userName} set to ${verified}.`);
                 return sendJson(res, 200, {
                     userId: toGuidString((updated || user).id),
                     userName: (updated || user).userName,
                     emailVerified: verified,
                     message: verified ? 'The account is now verified.' : 'The account is unverified again.'
+                });
+            }
+
+            if (action === 'reset-trial' && isPost) {
+                if (user.role === 'admin') {
+                    return fail(res, {
+                        status: 400,
+                        code: 'admin-protected',
+                        message: 'The administrator account has lifetime access and needs no trial.'
+                    });
+                }
+
+                // Support runs this when a technician's 72 hours were consumed while their account
+                // was unreachable: the trial starts again now, not from the original registration.
+                const startedAt = new Date();
+                const updated = await store.updateUser(user.id, {
+                    isActive: true,
+                    licenseType: 'trial',
+                    licenseStartedAt: startedAt,
+                    licenseExpiresAt: new Date(startedAt.getTime() + TRIAL_DAYS * 86400000)
+                });
+                const account = updated || user;
+                const state = evaluateLicense(account);
+                log(`3-day trial restarted for ${user.userName} until ${state.expiresAt.toISOString()}.`);
+                return sendJson(res, 200, {
+                    userId: toGuidString(account.id),
+                    userName: account.userName,
+                    ...licenseAccessFor(account),
+                    startsAt: isoOrNull(state.startedAt),
+                    expiresAt: isoOrNull(state.expiresAt),
+                    message: `The 3-day trial now runs until ${state.expiresAt.toISOString()}.`
                 });
             }
 
@@ -2098,6 +2175,7 @@ module.exports = {
     signToken,
     verifyToken,
     evaluateLicense,
+    licenseAccessFor,
     normalizeRole,
     EMAIL_REGEX,
     MASTER_ADMIN,

@@ -19,6 +19,7 @@ const {
     signToken,
     verifyToken,
     evaluateLicense,
+    licenseAccessFor,
     MASTER_ADMIN,
     ERRORS,
     OTP_EMAIL_SUBJECT,
@@ -333,10 +334,16 @@ test('an expired subscription still signs in but grants no permissions', async (
         const result = await api.post('/api/auth/login', {
             userName: 'tech.one', password: 'Technician!Pass1', deviceFingerprint: 'MACHINE-A'
         });
+        // An expired trial is not a lockout from the account, only from the bench.
         assert.equal(result.status, 200);
+        assert.ok(result.json.tokens.accessToken, 'an expired trial still receives a session');
         assert.equal(result.json.license.status, 'Expired');
+        assert.equal(result.json.license.licenseStatus, 'Expired');
+        assert.equal(result.json.license.deviceOperationsLocked, true);
+        assert.equal(result.json.license.isActive, false);
         assert.deepEqual(result.json.permissions, []);
         assert.equal(result.json.user.status, 'Expired');
+        assert.equal(result.json.user.deviceOperationsLocked, true);
     } finally {
         await api.close();
     }
@@ -513,7 +520,9 @@ test('the bearer token opens /api/auth/me and a tampered token does not', async 
         const me = await api.get('/api/auth/me', token);
         assert.equal(me.status, 200);
         assert.equal(me.json.user.id, user.id);
-        assert.equal(me.json.license.status, 'Trial');
+        // A live trial reports as Active on the wire; the plan name is what marks it a trial.
+        assert.equal(me.json.license.status, 'Active');
+        assert.equal(me.json.license.isTrial, true);
 
         const tampered = token.slice(0, -3) + (token.endsWith('AAA') ? 'BBB' : 'AAA');
         const rejected = await api.get('/api/auth/me', tampered);
@@ -555,6 +564,14 @@ test('issued tokens carry role claims and are signed with the configured key', (
 
     assert.equal(evaluateLicense(admin).active, true);
     assert.equal(evaluateLicense(tech).status, 'Trial');
+
+    // The wire status is "Active" for the whole 72 hours: the internal trial label must never
+    // reach a client that gates device work on status === 'Active'.
+    assert.equal(licenseAccessFor(tech).licenseStatus, 'Active');
+    assert.equal(licenseAccessFor(tech).deviceOperationsLocked, false);
+    assert.equal(licenseAccessFor(tech).isTrial, true);
+    assert.equal(licenseAccessFor(admin).deviceOperationsLocked, false);
+    assert.equal(licenseAccessFor(admin).isTrial, false);
 
     const now = Math.floor(Date.now() / 1000);
     const token = signToken({ sub: tech.id, typ: 'access', role: 'Technician', exp: now + 300 }, SIGNING_KEY);
@@ -682,6 +699,140 @@ test('unknown endpoints return a 404 error envelope', async () => {
         const result = await api.post('/api/does-not-exist', {});
         assert.equal(result.status, 404);
         assert.equal(result.json.error.code, ERRORS.notFound.code);
+    } finally {
+        await api.close();
+    }
+});
+
+// ---------------------------------------------------------------------------
+// Trial lifecycle: 72 hours of full access, then a sign-in that operates nothing.
+// ---------------------------------------------------------------------------
+
+test('a fresh trial unlocks every module and reports no lock', async () => {
+    const store = createMemoryStore();
+    const { user } = await addUser(store, {
+        licenseType: 'trial',
+        licenseStartedAt: new Date(),
+        licenseExpiresAt: new Date(Date.now() + 3 * 86400000)
+    });
+
+    const api = await startApi(store);
+    try {
+        const login = await api.post('/api/auth/login', {
+            userName: 'tech.one', password: 'Technician!Pass1'
+        });
+        assert.equal(login.status, 200);
+
+        const license = login.json.license;
+        assert.equal(license.isActive, true);
+        assert.equal(license.isTrial, true);
+        assert.equal(license.licenseStatus, 'Active');
+        assert.equal(license.deviceOperationsLocked, false);
+        assert.equal(license.status, 'Active');
+        assert.equal(license.planCode, 'trial');
+        assert.equal(license.planName, '3-Day Free Trial');
+        assert.ok(license.daysRemaining >= 2, `daysRemaining was ${license.daysRemaining}`);
+        assert.ok(license.expiresAt, 'the trial carries an expiry');
+
+        // The same verdict on the user object, so either one answers "may this account work?".
+        assert.equal(login.json.user.deviceOperationsLocked, false);
+        assert.equal(login.json.user.isActive, true);
+        assert.equal(login.json.user.isTrial, true);
+        assert.equal(login.json.user.licenseStatus, 'Active');
+
+        // Every vendor module is available for the whole trial.
+        for (const permission of ['ADB', 'Fastboot', 'FRP', 'Flash', 'MTK', 'Qualcomm', 'SPD', 'Samsung']) {
+            assert.ok(login.json.permissions.includes(permission), `${permission} is unlocked during the trial`);
+        }
+
+        const claims = decodeJwt(login.json.tokens.accessToken);
+        assert.ok(claims.permissions.includes('MTK'), 'the token carries the trial permissions');
+        assert.equal(user.id, login.json.user.id);
+    } finally {
+        await api.close();
+    }
+});
+
+test('an administrator can restart a technician trial for a full 72 hours', async () => {
+    const store = createMemoryStore();
+    await store.createUser({
+        id: crypto.randomUUID(),
+        userName: MASTER_ADMIN.username,
+        displayName: MASTER_ADMIN.username,
+        email: MASTER_ADMIN.email,
+        passwordHash: await hashPassword(MASTER_ADMIN.password),
+        role: 'admin',
+        isActive: true,
+        isVerified: true,
+        licenseType: 'lifetime_admin',
+        licenseStartedAt: new Date(),
+        licenseExpiresAt: null
+    });
+    const { user: technician } = await addUser(store, {
+        userName: 'trial.again',
+        email: 'trial.again@example.com',
+        licenseType: 'trial',
+        licenseStartedAt: new Date(Date.now() - 5 * 86400000),
+        licenseExpiresAt: new Date(Date.now() - 2 * 86400000)
+    });
+
+    const api = await startApi(store);
+    try {
+        const admin = await api.post('/api/auth/login', {
+            userName: MASTER_ADMIN.email, password: MASTER_ADMIN.password
+        });
+        assert.equal(admin.status, 200);
+        const token = admin.json.tokens.accessToken;
+
+        const reset = await api.post(`/api/admin/technicians/${technician.id}/reset-trial`, {}, token);
+        assert.equal(reset.status, 200);
+        assert.equal(reset.json.isActive, true);
+        assert.equal(reset.json.isTrial, true);
+        assert.equal(reset.json.licenseStatus, 'Active');
+        assert.equal(reset.json.deviceOperationsLocked, false);
+
+        const hours = (new Date(reset.json.expiresAt).getTime() - Date.now()) / 3600000;
+        assert.ok(hours > 71.9 && hours <= 72.01, `reset trial ran ${hours} hours`);
+
+        // And the technician can now sign in with the bench unlocked.
+        const technicianLogin = await api.post('/api/auth/login', {
+            userName: 'trial.again', password: 'Technician!Pass1'
+        });
+        assert.equal(technicianLogin.status, 200);
+        assert.equal(technicianLogin.json.license.deviceOperationsLocked, false);
+        assert.equal(technicianLogin.json.license.isTrial, true);
+        assert.ok(technicianLogin.json.permissions.includes('MTK'));
+    } finally {
+        await api.close();
+    }
+});
+
+test('resetting a trial is refused for the administrator account', async () => {
+    const store = createMemoryStore();
+    const adminId = crypto.randomUUID();
+    await store.createUser({
+        id: adminId,
+        userName: MASTER_ADMIN.username,
+        displayName: MASTER_ADMIN.username,
+        email: MASTER_ADMIN.email,
+        passwordHash: await hashPassword(MASTER_ADMIN.password),
+        role: 'admin',
+        isActive: true,
+        isVerified: true,
+        licenseType: 'lifetime_admin',
+        licenseStartedAt: new Date(),
+        licenseExpiresAt: null
+    });
+
+    const api = await startApi(store);
+    try {
+        const admin = await api.post('/api/auth/login', {
+            userName: MASTER_ADMIN.email, password: MASTER_ADMIN.password
+        });
+        const result = await api.post(
+            `/api/admin/technicians/${adminId}/reset-trial`, {}, admin.json.tokens.accessToken);
+        assert.equal(result.status, 400);
+        assert.equal(result.json.error.code, 'admin-protected');
     } finally {
         await api.close();
     }
