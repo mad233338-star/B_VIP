@@ -198,7 +198,21 @@ namespace B_VIP.Desktop.Mvvm
         public bool IsBusy
         {
             get => _isBusy;
-            set => SetProperty(ref _isBusy, value);
+            set
+            {
+                if (SetProperty(ref _isBusy, value))
+                {
+                    OnBusyChanged();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Called after <see cref="IsBusy"/> changes so a screen can refresh the availability of the
+        /// commands that must not run twice.
+        /// </summary>
+        protected virtual void OnBusyChanged()
+        {
         }
 
         public string? StatusMessage

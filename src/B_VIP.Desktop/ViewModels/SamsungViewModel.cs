@@ -28,12 +28,20 @@ namespace B_VIP.Desktop.ViewModels
             _selectedBrowser = BrowserChoices[0];
             _customUrl = "https://accounts.google.com/signin/recovery";
 
+            // The MTP identity read works without an adb device; everything below it needs one.
             ReadInfoCommand = new AsyncRelayCommand(_ => RunOperationAsync(OperationTypes.SamsungReadInfoMtp));
-            RebootDownloadCommand = new AsyncRelayCommand(_ => RunOperationAsync(OperationTypes.SamsungRebootDownload));
-            RebootSystemCommand = new AsyncRelayCommand(_ => RunOperationAsync(OperationTypes.SamsungRebootSystem));
-            OpenBrowserCommand = new AsyncRelayCommand(_ => OpenBrowserAsync());
-            ResetFrpCommand = new AsyncRelayCommand(_ => ResetFrpAsync());
+            RebootDownloadCommand = new AsyncRelayCommand(_ => RunOperationAsync(OperationTypes.SamsungRebootDownload), DeviceReady);
+            RebootSystemCommand = new AsyncRelayCommand(_ => RunOperationAsync(OperationTypes.SamsungRebootSystem), DeviceReady);
+            RebootRecoveryCommand = new AsyncRelayCommand(_ => RunOperationAsync(OperationTypes.VendorReboot,
+                new Dictionary<string, string> { ["target"] = "recovery" }), DeviceReady);
+            OpenBrowserCommand = new AsyncRelayCommand(_ => OpenBrowserAsync(), DeviceReady);
+            ResetFrpCommand = new AsyncRelayCommand(_ => ResetFrpAsync(), DeviceReady);
+
+            GateOnDevice(RebootDownloadCommand, RebootSystemCommand, RebootRecoveryCommand, OpenBrowserCommand, ResetFrpCommand);
         }
+
+        /// <summary>Availability for every button that needs a selected handset.</summary>
+        private bool DeviceReady(object? _) => !IsBusy && CanRunDeviceAction;
 
         public ObservableCollection<DiagnosticRow> Rows { get; }
 
@@ -70,6 +78,9 @@ namespace B_VIP.Desktop.ViewModels
         public AsyncRelayCommand RebootDownloadCommand { get; }
 
         public AsyncRelayCommand RebootSystemCommand { get; }
+
+        /// <summary>Reboots into recovery over adb, falling back to fastboot when it refuses.</summary>
+        public AsyncRelayCommand RebootRecoveryCommand { get; }
 
         public AsyncRelayCommand OpenBrowserCommand { get; }
 

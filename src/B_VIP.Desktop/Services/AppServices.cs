@@ -173,10 +173,12 @@ namespace B_VIP.Desktop.Services
             Navigation = navigation;
             Log = log;
 
-            ProcessRunner = new ProcessRunner();
+            // One engine for every external tool: it streams the command line, output and exit
+            // status to the console with colour tags and honours the caller's cancellation token.
+            Cli = new CliProcessService(new ProcessRunner(), log);
+            ProcessRunner = Cli;
             Tools = new ToolLocator(toolOptions, ProcessRunner);
-            // Every adb/fastboot call streams its command line, output and exit status to the console.
-            Adb = new AdbClient(Tools, ProcessRunner, new ConsoleProcessSink(log));
+            Adb = new AdbClient(Tools, ProcessRunner);
             Detector = new DeviceDetector(Adb, Tools);
             Diagnostics = new DeviceDiagnostics(Adb);
             Registry = ModuleServices.CreateRegistry(Adb, Tools, ProcessRunner);
@@ -211,6 +213,9 @@ namespace B_VIP.Desktop.Services
         public NavigationService Navigation { get; }
 
         public IProcessRunner ProcessRunner { get; }
+
+        /// <summary>The centralized adb/fastboot runner behind every device operation.</summary>
+        public CliProcessService Cli { get; }
 
         public IToolLocator Tools { get; }
 

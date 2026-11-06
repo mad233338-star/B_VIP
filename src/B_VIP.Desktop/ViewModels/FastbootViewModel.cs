@@ -22,23 +22,30 @@ namespace B_VIP.Desktop.ViewModels
             PartitionName = "boot";
             ImagePath = string.Empty;
             ListDevicesCommand = new AsyncRelayCommand(_ => RunOperationAsync(OperationTypes.FastbootDevices));
-            ReadInfoCommand = new AsyncRelayCommand(_ => RunOperationAsync(OperationTypes.FastbootReadInfo));
+            ReadInfoCommand = new AsyncRelayCommand(_ => RunOperationAsync(OperationTypes.FastbootReadInfo), DeviceReady);
             GetVarCommand = new AsyncRelayCommand(_ => RunOperationAsync(OperationTypes.FastbootGetVar,
-                new Dictionary<string, string> { ["variable"] = VariableName }));
-            RebootSystemCommand = new AsyncRelayCommand(_ => RebootAsync("system"));
-            RebootRecoveryCommand = new AsyncRelayCommand(_ => RebootAsync("recovery"));
-            RebootBootloaderCommand = new AsyncRelayCommand(_ => RebootAsync("bootloader"));
-            RebootEdlCommand = new AsyncRelayCommand(_ => RebootAsync("edl"));
+                new Dictionary<string, string> { ["variable"] = VariableName }), DeviceReady);
+            RebootSystemCommand = new AsyncRelayCommand(_ => RebootAsync("system"), DeviceReady);
+            RebootRecoveryCommand = new AsyncRelayCommand(_ => RebootAsync("recovery"), DeviceReady);
+            RebootBootloaderCommand = new AsyncRelayCommand(_ => RebootAsync("bootloader"), DeviceReady);
+            RebootEdlCommand = new AsyncRelayCommand(_ => RebootAsync("edl"), DeviceReady);
             FlashCommand = new AsyncRelayCommand(_ => RunOperationAsync(OperationTypes.FastbootFlash,
-                new Dictionary<string, string> { ["partition"] = PartitionName, ["image"] = ImagePath }, confirmDataLoss: true));
+                new Dictionary<string, string> { ["partition"] = PartitionName, ["image"] = ImagePath }, confirmDataLoss: true), DeviceReady);
             WipeCommand = new AsyncRelayCommand(_ => RunOperationAsync(OperationTypes.FastbootWipe,
-                new Dictionary<string, string> { ["partition"] = PartitionName }, confirmDataLoss: true));
+                new Dictionary<string, string> { ["partition"] = PartitionName }, confirmDataLoss: true), DeviceReady);
             ResetFrpCommand = new AsyncRelayCommand(_ => RunOperationAsync(OperationTypes.FastbootResetFrp,
-                confirmDataLoss: true));
-            EraseFrpCommand = new AsyncRelayCommand(_ => EraseAsync("frp"));
-            EraseConfigCommand = new AsyncRelayCommand(_ => EraseAsync("config"));
-            ErasePersistentCommand = new AsyncRelayCommand(_ => EraseAsync("persistent"));
+                confirmDataLoss: true), DeviceReady);
+            EraseFrpCommand = new AsyncRelayCommand(_ => EraseAsync("frp"), DeviceReady);
+            EraseConfigCommand = new AsyncRelayCommand(_ => EraseAsync("config"), DeviceReady);
+            ErasePersistentCommand = new AsyncRelayCommand(_ => EraseAsync("persistent"), DeviceReady);
+
+            GateOnDevice(ReadInfoCommand, GetVarCommand, RebootSystemCommand, RebootRecoveryCommand,
+                RebootBootloaderCommand, RebootEdlCommand, FlashCommand, WipeCommand, ResetFrpCommand,
+                EraseFrpCommand, EraseConfigCommand, ErasePersistentCommand);
         }
+
+        /// <summary>Availability for every button that needs a selected handset.</summary>
+        private bool DeviceReady(object? _) => !IsBusy && CanRunDeviceAction;
 
         private string _output = string.Empty;
 

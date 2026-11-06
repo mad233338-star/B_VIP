@@ -118,8 +118,9 @@ namespace B_VIP.UnitTests
         [Fact]
         public void The_registry_contains_a_unique_key_for_every_operation()
         {
-            // 43 through the MediaTek phase, six Qualcomm EDL routines and six Unisoc/SPD routines.
-            Assert.Equal(55, OperationTypes.All.Count);
+            // 43 through the MediaTek phase, six Qualcomm EDL routines, six Unisoc/SPD routines,
+            // plus the shared vendor reboot, the Xiaomi Mi Account bypass and the batched fastboot erase.
+            Assert.Equal(58, OperationTypes.All.Count);
             Assert.Equal(OperationTypes.All.Count, OperationTypes.All.Select(o => o.Key).Distinct(StringComparer.OrdinalIgnoreCase).Count());
         }
 

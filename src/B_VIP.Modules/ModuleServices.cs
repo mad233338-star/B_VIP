@@ -57,7 +57,7 @@ namespace B_VIP.Modules
                 new ToolProbeExecutor(locator),
                 new SamsungModuleExecutor(client, samsung),
                 new BrandModuleExecutor(BrandProfiles.Xiaomi, client, locator, process,
-                    [OperationTypes.XiaomiReadInfo, OperationTypes.XiaomiResetFrp]),
+                    [OperationTypes.XiaomiReadInfo, OperationTypes.XiaomiResetFrp, OperationTypes.XiaomiBypassMiAccount]),
                 new BrandModuleExecutor(BrandProfiles.Infinix, client, locator, process,
                     [OperationTypes.InfinixReadInfo, OperationTypes.InfinixResetFrp, OperationTypes.InfinixFactoryFormat]),
                 new BrandModuleExecutor(BrandProfiles.Tecno, client, locator, process,
@@ -68,7 +68,9 @@ namespace B_VIP.Modules
                 new Qualcomm.QualcommEdlExecutor(client, locator),
                 // Unisoc: boot-ROM handshake, FDL loader upload and the safe partition routines.
                 new Spreadtrum.SpdModuleExecutor(client, locator, process),
-                new GoogleRecoveryExecutor(client)
+                new GoogleRecoveryExecutor(client),
+                // Reboot routing shared by every vendor tab: adb first, fastboot as the fallback.
+                new VendorRebootExecutor(client)
             ];
 
 

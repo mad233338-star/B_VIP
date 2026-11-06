@@ -13,7 +13,8 @@ namespace B_VIP.Desktop.Converters
         private static readonly Brush Success = Freeze(0x22, 0xC5, 0x5E);
         private static readonly Brush Warning = Freeze(0xF5, 0x9E, 0x0B);
         private static readonly Brush Error = Freeze(0xEF, 0x44, 0x44);
-        private static readonly Brush Process = Freeze(0x7D, 0xE9, 0xFF);
+        // Command lines stream in yellow so they stand apart from cyan information lines.
+        private static readonly Brush Process = Freeze(0xFA, 0xCC, 0x15);
 
         public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
             => value is LogLevel level

@@ -20,17 +20,23 @@ namespace B_VIP.Desktop.ViewModels
             Output = string.Empty;
             ShellCommand = "getprop ro.product.model";
             ListDevicesCommand = new AsyncRelayCommand(_ => RunOperationAsync(OperationTypes.AdbDevices));
-            ReadInfoCommand = new AsyncRelayCommand(_ => RunOperationAsync(OperationTypes.AdbReadInfo));
+            ReadInfoCommand = new AsyncRelayCommand(_ => RunOperationAsync(OperationTypes.AdbReadInfo), DeviceReady);
             RestartServerCommand = new AsyncRelayCommand(_ => RunOperationAsync(OperationTypes.AdbRestartServer));
-            ConnectionCheckCommand = new AsyncRelayCommand(_ => RunOperationAsync(OperationTypes.AdbConnectionCheck));
-            CollectLogcatCommand = new AsyncRelayCommand(_ => RunOperationAsync(OperationTypes.AdbCollectLogcat));
-            RunShellCommand = new AsyncRelayCommand(_ => RunShellAsync());
-            RebootSystemCommand = new AsyncRelayCommand(_ => RebootAsync("system"));
-            RebootRecoveryCommand = new AsyncRelayCommand(_ => RebootAsync("recovery"));
-            RebootBootloaderCommand = new AsyncRelayCommand(_ => RebootAsync("bootloader"));
-            RebootEdlCommand = new AsyncRelayCommand(_ => RebootAsync("edl"));
-            RebootDownloadCommand = new AsyncRelayCommand(_ => RebootAsync("download"));
+            ConnectionCheckCommand = new AsyncRelayCommand(_ => RunOperationAsync(OperationTypes.AdbConnectionCheck), DeviceReady);
+            CollectLogcatCommand = new AsyncRelayCommand(_ => RunOperationAsync(OperationTypes.AdbCollectLogcat), DeviceReady);
+            RunShellCommand = new AsyncRelayCommand(_ => RunShellAsync(), DeviceReady);
+            RebootSystemCommand = new AsyncRelayCommand(_ => RebootAsync("system"), DeviceReady);
+            RebootRecoveryCommand = new AsyncRelayCommand(_ => RebootAsync("recovery"), DeviceReady);
+            RebootBootloaderCommand = new AsyncRelayCommand(_ => RebootAsync("bootloader"), DeviceReady);
+            RebootEdlCommand = new AsyncRelayCommand(_ => RebootAsync("edl"), DeviceReady);
+            RebootDownloadCommand = new AsyncRelayCommand(_ => RebootAsync("download"), DeviceReady);
+
+            GateOnDevice(ReadInfoCommand, ConnectionCheckCommand, CollectLogcatCommand, RunShellCommand,
+                RebootSystemCommand, RebootRecoveryCommand, RebootBootloaderCommand, RebootEdlCommand, RebootDownloadCommand);
         }
+
+        /// <summary>Availability for every button that needs a selected handset.</summary>
+        private bool DeviceReady(object? _) => !IsBusy && CanRunDeviceAction;
 
         private string _output = string.Empty;
 

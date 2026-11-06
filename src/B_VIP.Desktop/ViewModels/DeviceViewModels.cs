@@ -49,11 +49,35 @@ namespace B_VIP.Desktop.ViewModels
                 {
                     OnPropertyChanged(nameof(CanRunDeviceAction));
                     OnDeviceSelected(value);
+                    RefreshDeviceGates();
                 }
             }
         }
 
         public bool CanRunDeviceAction => _selectedDevice is not null;
+
+        private readonly List<AsyncRelayCommand> _deviceGated = new();
+
+        /// <summary>
+        /// Registers the commands that need a selected handset. They are re-evaluated whenever the
+        /// selection or the busy state changes, so a button never fires against "no device" and
+        /// never starts a second routine while one is already running.
+        /// </summary>
+        protected void GateOnDevice(params AsyncRelayCommand[] commands)
+        {
+            _deviceGated.AddRange(commands);
+            RefreshDeviceGates();
+        }
+
+        protected override void OnBusyChanged() => RefreshDeviceGates();
+
+        private void RefreshDeviceGates()
+        {
+            foreach (AsyncRelayCommand command in _deviceGated)
+            {
+                command.RaiseCanExecuteChanged();
+            }
+        }
 
         public string this[string key] => Localizer.Instance[key];
 
@@ -376,8 +400,15 @@ namespace B_VIP.Desktop.ViewModels
         Spreadtrum
     }
 
-    /// <summary>One action offered by a brand tab: the operation it starts and whether it erases data.</summary>
-    public sealed record VendorAction(string Title, string OperationType, bool ErasesData);
+    /// <summary>
+    /// One action offered by a brand tab: the operation it starts, whether it erases data and the
+    /// parameters that operation needs (a reboot target, a partition list).
+    /// </summary>
+    public sealed record VendorAction(
+        string Title,
+        string OperationType,
+        bool ErasesData,
+        IReadOnlyDictionary<string, string>? Parameters = null);
 
     /// <summary>
     /// A brand tab: reads the handset through its own module and offers the maintenance routines
@@ -395,51 +426,90 @@ namespace B_VIP.Desktop.ViewModels
                 VendorKind.Samsung =>
                     ("Samsung", new[]
                     {
-                        new VendorAction("Read device information", OperationTypes.SamsungDiagnostic, false)
+                        new VendorAction("Read device information", OperationTypes.SamsungDiagnostic, false),
+                        new VendorAction("Reboot to Download", OperationTypes.SamsungRebootDownload, false),
+                        new VendorAction("Reboot to System", OperationTypes.VendorReboot, false, Target("system")),
+                        new VendorAction("Reboot to Recovery", OperationTypes.VendorReboot, false, Target("recovery"))
                     }),
                 VendorKind.Xiaomi =>
                     ("Xiaomi", new[]
                     {
                         new VendorAction("Read device information", OperationTypes.XiaomiReadInfo, false),
-                        new VendorAction("Reset FRP & config", OperationTypes.XiaomiResetFrp, true)
+                        new VendorAction("Read fastboot variables", OperationTypes.FastbootReadInfo, false),
+                        new VendorAction("Reset FRP (frp + config)", OperationTypes.XiaomiResetFrp, true),
+                        new VendorAction("Bypass Mi Account (ADB)", OperationTypes.XiaomiBypassMiAccount, false),
+                        new VendorAction("Factory format (userdata + cache)", OperationTypes.FastbootEraseBatch, true,
+                            Partitions("userdata", "cache")),
+                        new VendorAction("Reboot to EDL", OperationTypes.VendorReboot, false, Target("edl")),
+                        new VendorAction("Reboot to System", OperationTypes.VendorReboot, false, Target("system")),
+                        new VendorAction("Reboot to Recovery", OperationTypes.VendorReboot, false, Target("recovery"))
                     }),
                 VendorKind.Infinix =>
                     ("Infinix", new[]
                     {
                         new VendorAction("Read device information", OperationTypes.InfinixReadInfo, false),
-                        new VendorAction("Reset FRP & persist", OperationTypes.InfinixResetFrp, true),
-                        new VendorAction("Factory format", OperationTypes.InfinixFactoryFormat, true)
+                        new VendorAction("Read fastboot variables", OperationTypes.FastbootReadInfo, false),
+                        new VendorAction("Reset FRP (frp + persistent)", OperationTypes.FastbootEraseBatch, true,
+                            Partitions("frp", "persistent")),
+                        new VendorAction("Factory format (fastboot -w)", OperationTypes.InfinixFactoryFormat, true),
+                        new VendorAction("Reboot to System", OperationTypes.VendorReboot, false, Target("system")),
+                        new VendorAction("Reboot to Fastboot", OperationTypes.VendorReboot, false, Target("bootloader"))
                     }),
                 VendorKind.Tecno =>
                     ("Tecno", new[]
                     {
                         new VendorAction("Read device information", OperationTypes.TecnoReadInfo, false),
-                        new VendorAction("Reset FRP", OperationTypes.TecnoResetFrp, true),
-                        new VendorAction("Wipe userdata & cache", OperationTypes.TecnoWipe, true)
+                        new VendorAction("Read fastboot variables", OperationTypes.FastbootReadInfo, false),
+                        new VendorAction("Reset FRP (frp + persistent)", OperationTypes.FastbootEraseBatch, true,
+                            Partitions("frp", "persistent")),
+                        new VendorAction("Wipe userdata & cache", OperationTypes.TecnoWipe, true),
+                        new VendorAction("Reboot to System", OperationTypes.VendorReboot, false, Target("system")),
+                        new VendorAction("Reboot to Fastboot", OperationTypes.VendorReboot, false, Target("bootloader"))
                     }),
                 VendorKind.MediaTek =>
                     ("MediaTek", new[]
                     {
-                        new VendorAction("Read device information", OperationTypes.MediaTekDiagnostic, false)
+                        new VendorAction("Read device information", OperationTypes.MediaTekDiagnostic, false),
+                        new VendorAction("Erase FRP (fastboot)", OperationTypes.FastbootEraseBatch, true, Partitions("frp")),
+                        new VendorAction("Read fastboot variables", OperationTypes.FastbootReadInfo, false),
+                        new VendorAction("Reboot to Bootloader", OperationTypes.VendorReboot, false, Target("bootloader"))
                     }),
                 VendorKind.Qualcomm =>
                     ("Qualcomm", new[]
                     {
-                        new VendorAction("Read device information", OperationTypes.QualcommDiagnostic, false)
+                        new VendorAction("Read device information", OperationTypes.QualcommDiagnostic, false),
+                        new VendorAction("Reboot to EDL", OperationTypes.VendorReboot, false, Target("edl")),
+                        new VendorAction("Erase config + frp (fastboot)", OperationTypes.FastbootEraseBatch, true,
+                            Partitions("config", "frp")),
+                        new VendorAction("Read fastboot variables", OperationTypes.FastbootReadInfo, false)
                     }),
                 _ =>
                     ("SPREADTRUM (Unisoc)", new[]
                     {
                         new VendorAction("Read device information", OperationTypes.SpreadtrumReadInfo, false),
-                        new VendorAction("Reset FRP", OperationTypes.SpreadtrumResetFrp, true)
+                        new VendorAction("Reset FRP (frp + persist)", OperationTypes.FastbootEraseBatch, true,
+                            Partitions("frp", "persist")),
+                        new VendorAction("Factory format (userdata + cache)", OperationTypes.FastbootEraseBatch, true,
+                            Partitions("userdata", "cache")),
+                        new VendorAction("Reboot to System", OperationTypes.VendorReboot, false, Target("system"))
                     })
             };
 
             Title = title;
             Actions = actions;
-            RunCommand = new AsyncRelayCommand(_ => RunAsync(actions[0].OperationType), _ => !IsBusy);
-            RunActionCommand = new AsyncRelayCommand(RunActionAsync, _ => !IsBusy);
+            RunCommand = new AsyncRelayCommand(
+                _ => RunAsync(actions[0].OperationType, actions[0].ErasesData, actions[0].Parameters),
+                _ => !IsBusy && CanRunDeviceAction);
+            RunActionCommand = new AsyncRelayCommand(RunActionAsync, _ => !IsBusy && CanRunDeviceAction);
+
+            // Both commands need a handset: the buttons stay disabled until one is selected.
+            GateOnDevice(RunCommand, RunActionCommand);
         }
+
+        private static Dictionary<string, string> Target(string target) => new() { ["target"] = target };
+
+        private static Dictionary<string, string> Partitions(params string[] partitions)
+            => new() { ["partitions"] = string.Join(',', partitions) };
 
         public VendorKind Kind { get; }
 
@@ -479,10 +549,23 @@ namespace B_VIP.Desktop.ViewModels
                 }
             }
 
-            await RunAsync(action.OperationType, action.ErasesData);
+            Dictionary<string, string>? parameters = action.Parameters is null
+                ? null
+                : new Dictionary<string, string>(action.Parameters);
+
+            // Destructive routines carry an explicit confirmation parameter so the module refuses
+            // to erase anything when it is invoked without the operator's consent.
+            if (action.ErasesData)
+            {
+                parameters ??= new Dictionary<string, string>();
+                parameters["confirm"] = "yes";
+            }
+
+            await RunAsync(action.OperationType, action.ErasesData, parameters);
         }
 
-        private async Task RunAsync(string operationType, bool confirmDataLoss = false)
+        private async Task RunAsync(string operationType, bool confirmDataLoss,
+            IReadOnlyDictionary<string, string>? parameters)
         {
             if (SelectedDevice is null)
             {
@@ -495,11 +578,6 @@ namespace B_VIP.Desktop.ViewModels
             Rows.Clear();
             try
             {
-                // Destructive routines carry an explicit confirmation parameter so the module
-                // can refuse to erase a partition when it is invoked without the operator's consent.
-                IReadOnlyDictionary<string, string>? parameters = confirmDataLoss
-                    ? new Dictionary<string, string> { ["confirm"] = "yes" }
-                    : null;
 
                 OperationExecutionResult result = await Services.Devices.ExecuteAsync(
                     operationType,

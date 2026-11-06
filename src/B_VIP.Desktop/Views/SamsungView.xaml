@@ -44,6 +44,9 @@
                             ToolTip="adb reboot download: Samsung Download (Odin) mode." />
                     <Button Content="Reboot to System" Style="{StaticResource Button.Outline}"
                             Command="{Binding RebootSystemCommand}" Margin="0,0,8,8" />
+                    <Button Content="Reboot to Recovery" Style="{StaticResource Button.Outline}"
+                            Command="{Binding RebootRecoveryCommand}" Margin="0,0,8,8"
+                            ToolTip="adb reboot recovery, with fastboot reboot recovery as the fallback." />
                 </WrapPanel>
 
                 <DockPanel Margin="0,4,0,0">

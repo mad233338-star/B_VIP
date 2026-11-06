@@ -294,12 +294,125 @@
         </Setter>
     </Style>
 
-    <Style x:Key="Input.Select" TargetType="ComboBox">
+    <!--
+        ComboBox
+        The stock WPF template draws the drop-down in the system colour while the items inherit
+        this theme's white foreground, which is what made device lists look blank once the popup
+        opened. The template below owns both halves: a dark slate popup (#1E293B, border #334155)
+        and white item text, with blue hover (#2563EB) and selected (#1D4ED8) states.
+    -->
+
+    <SolidColorBrush x:Key="Brush.SelectPopup" Color="#FF1E293B" />
+    <SolidColorBrush x:Key="Brush.SelectPopupBorder" Color="#FF334155" />
+    <SolidColorBrush x:Key="Brush.SelectHover" Color="#FF2563EB" />
+    <SolidColorBrush x:Key="Brush.SelectSelected" Color="#FF1D4ED8" />
+    <SolidColorBrush x:Key="Brush.SelectText" Color="#FFFFFFFF" />
+
+    <ControlTemplate x:Key="ComboBox.Cyber" TargetType="ComboBox">
+        <Grid x:Name="root">
+            <ToggleButton x:Name="toggle" Focusable="False" ClickMode="Press"
+                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+                <ToggleButton.Template>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="border"
+                                Background="{Binding Background, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+                                BorderBrush="{Binding BorderBrush, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+                                BorderThickness="{Binding BorderThickness, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+                                CornerRadius="4">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <ContentPresenter Grid.Column="0" Margin="9,0,0,0"
+                                                  VerticalAlignment="Center" HorizontalAlignment="Left"
+                                                  Content="{Binding SelectionBoxItem, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+                                                  ContentTemplate="{Binding SelectionBoxItemTemplate, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+                                                  ContentStringFormat="{Binding SelectionBoxItemStringFormat, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+                                                  TextElement.Foreground="{StaticResource Brush.SelectText}" />
+                                <Path Grid.Column="1" Data="M 0 0 L 4 4 L 8 0" Stroke="{StaticResource Brush.Accent}"
+                                      StrokeThickness="1.6" VerticalAlignment="Center" Margin="0,0,10,1" />
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource Brush.Accent}" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource Brush.Accent}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border" Property="Opacity" Value="0.45" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </ToggleButton.Template>
+            </ToggleButton>
+
+            <Popup x:Name="PART_Popup" Placement="Bottom" AllowsTransparency="True" Focusable="False"
+                   IsOpen="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                   PopupAnimation="Fade">
+                <Border Background="{StaticResource Brush.SelectPopup}"
+                        BorderBrush="{StaticResource Brush.SelectPopupBorder}"
+                        BorderThickness="1" CornerRadius="4" Margin="0,2,0,0"
+                        MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}"
+                        MaxHeight="320">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" SnapsToDevicePixels="True">
+                        <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained" />
+                    </ScrollViewer>
+                </Border>
+            </Popup>
+        </Grid>
+    </ControlTemplate>
+
+    <!-- Every drop-down row: white text on the dark popup, blue hover and selected states. -->
+    <Style TargetType="ComboBoxItem">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{StaticResource Brush.SelectText}" />
+        <Setter Property="Padding" Value="9,6" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ComboBoxItem">
+                    <Border x:Name="row" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsHighlighted" Value="True">
+                            <Setter TargetName="row" Property="Background" Value="{StaticResource Brush.SelectHover}" />
+                            <Setter Property="Foreground" Value="{StaticResource Brush.SelectText}" />
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="row" Property="Background" Value="{StaticResource Brush.SelectSelected}" />
+                            <Setter Property="Foreground" Value="{StaticResource Brush.SelectText}" />
+                            <Setter Property="FontWeight" Value="SemiBold" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Any ComboBox without an explicit style still gets the readable template. -->
+    <Style TargetType="ComboBox">
         <Setter Property="Background" Value="{StaticResource Brush.Card}" />
         <Setter Property="Foreground" Value="{StaticResource Brush.Text}" />
         <Setter Property="BorderBrush" Value="{StaticResource Brush.Border}" />
         <Setter Property="Padding" Value="8,6" />
         <Setter Property="FontSize" Value="13" />
+        <Setter Property="MinHeight" Value="30" />
+        <Setter Property="Template" Value="{StaticResource ComboBox.Cyber}" />
+    </Style>
+
+    <Style x:Key="Input.Select" TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
+        <Setter Property="Background" Value="{StaticResource Brush.Card}" />
+        <Setter Property="Foreground" Value="{StaticResource Brush.Text}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.Border}" />
+        <Setter Property="Padding" Value="8,6" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Template" Value="{StaticResource ComboBox.Cyber}" />
     </Style>
 
     <Style x:Key="Check.Cyber" TargetType="CheckBox">

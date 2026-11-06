@@ -115,6 +115,11 @@ namespace B_VIP.Modules
                     return await FastbootMaintenanceAsync(request, "FRP reset", _profile.FrpPartitions, factoryFormat: false, ct);
                 }
 
+                if (string.Equals(request.OperationType, OperationTypes.XiaomiBypassMiAccount, StringComparison.OrdinalIgnoreCase))
+                {
+                    return await BypassMiAccountAsync(request, ct);
+                }
+
                 if (_profile.WipeOperation is not null &&
                     string.Equals(request.OperationType, _profile.WipeOperation, StringComparison.OrdinalIgnoreCase))
                 {
@@ -251,6 +256,88 @@ namespace B_VIP.Modules
                     : "COM ports exist but none looks like a SPRD diag interface.",
                 null));
             log.Add($"SPREADTRUM port probe: {joined}");
+        }
+
+        // ------------------------------------------------------------------ Mi Account
+
+        /// <summary>
+        /// Disables Xiaomi's find-device agent over an authorized adb connection. The package is only
+        /// stopped on this installation — the account lock itself lives on Xiaomi's servers, so a
+        /// factory reset (or a re-enable) brings the prompt back. The result says exactly that.
+        /// </summary>
+        private async Task<OperationExecutionResult> BypassMiAccountAsync(OperationExecutionRequest request, CancellationToken ct)
+        {
+            if (request.Serial is null)
+            {
+                return OperationExecutionResult.Failure(request.OperationType,
+                    "A connected device is required.",
+                    "No device serial was supplied. Enable USB debugging on the handset, approve the prompt and retry.");
+            }
+
+            List<DiagnosticCheckDto> checks = new();
+            List<string> log = new();
+            List<string> warnings = new();
+            List<string> errors = new();
+
+            IReadOnlyList<Dictionary<string, string>> props = await VendorSupport.PropertiesAsync(_adb, request.Serial, ct);
+            string? manufacturer = VendorSupport.Any(props, "ro.product.manufacturer", "ro.product.brand", "ro.product.system.manufacturer");
+            bool isXiaomi = Matches(manufacturer, ["xiaomi", "redmi", "poco"]);
+            checks.Add(new DiagnosticCheckDto("mi-identity", isXiaomi ? "pass" : "fail",
+                isXiaomi
+                    ? $"Manufacturer: {manufacturer}"
+                    : $"The device reports '{manufacturer ?? "unknown"}' as manufacturer, which is not a Xiaomi handset.",
+                null));
+
+            if (!isXiaomi)
+            {
+                errors.Add("The connected device does not identify itself as Xiaomi / Redmi / POCO.");
+                return VendorSupport.Build(request.OperationType, "Not a Xiaomi device.", checks, log, warnings, errors);
+            }
+
+            (string Command, string Label, bool Fatal)[] steps =
+            [
+                ("pm disable-user --user 0 com.xiaomi.finddevice", "Disable find-device agent", true),
+                ("am force-stop com.xiaomi.finddevice", "Stop the running agent", false),
+                ("pm clear com.xiaomi.finddevice", "Clear the agent's stored state", false)
+            ];
+
+            bool agentDisabled = false;
+            foreach ((string command, string label, bool fatal) in steps)
+            {
+                request.Process($"adb shell {command}");
+                ProcessResult result = await _adb.ShellAsync(request.Serial, command, 60, ct);
+                string output = VendorSupport.FirstLine(result.StandardOutput + " " + result.StandardError);
+                log.Add($"$ adb -s {request.Serial} shell {command} -> exit {result.ExitCode?.ToString() ?? "?"}: {VendorSupport.Truncate(output, 200)}");
+
+                bool done = result.Succeeded && !output.Contains("Error", StringComparison.OrdinalIgnoreCase);
+                checks.Add(new DiagnosticCheckDto(command.Split(' ')[0] + "-" + command.Split(' ').Last(),
+                    done ? "pass" : fatal ? "fail" : "warn",
+                    done ? $"{label}: done." : $"{label}: {VendorSupport.Truncate(output, 200)}", result.DurationMs));
+
+                if (command.StartsWith("pm disable-user", StringComparison.Ordinal))
+                {
+                    agentDisabled = done;
+                }
+
+                if (!done && fatal)
+                {
+                    errors.Add($"{label} failed: {VendorSupport.Truncate(output, 200)}");
+                }
+                else if (!done)
+                {
+                    warnings.Add($"{label} was refused by the build ({VendorSupport.Truncate(output, 120)}).");
+                }
+            }
+
+            warnings.Add("This only disables the agent on the handset. The Mi Account lock itself is held on Xiaomi's servers, " +
+                         "so a factory reset or a system update restores it. Verify the account state on the device before closing the job.");
+
+            bool succeeded = agentDisabled && errors.Count == 0;
+            return VendorSupport.Build(request.OperationType,
+                succeeded
+                    ? "Mi Account agent disabled over ADB."
+                    : errors.FirstOrDefault() ?? "The Mi Account agent could not be disabled.",
+                checks, log, warnings, errors);
         }
 
         // ------------------------------------------------------------------ fastboot

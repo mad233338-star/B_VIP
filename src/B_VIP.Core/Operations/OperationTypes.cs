@@ -31,6 +31,7 @@ namespace B_VIP.Core.Operations
         public const string FastbootReboot = "fastboot.reboot";
         public const string FastbootFlash = "fastboot.flash";
         public const string FastbootWipe = "fastboot.wipe";
+        public const string FastbootEraseBatch = "fastboot.erase-batch";
         public const string AndroidDiagnosticRun = "diagnostic.android-run";
         public const string SamsungDiagnostic = "vendor.samsung-diagnostic";
         public const string SamsungReadInfoMtp = "samsung.read-info-mtp";
@@ -40,6 +41,7 @@ namespace B_VIP.Core.Operations
         public const string SamsungFrpTestMode = "samsung.frp-testmode";
         public const string XiaomiReadInfo = "vendor.xiaomi-read-info";
         public const string XiaomiResetFrp = "vendor.xiaomi-reset-frp";
+        public const string XiaomiBypassMiAccount = "vendor.xiaomi-bypass-mi-account";
         public const string InfinixReadInfo = "vendor.infinix-read-info";
         public const string InfinixResetFrp = "vendor.infinix-reset-frp";
         public const string InfinixFactoryFormat = "vendor.infinix-factory-format";
@@ -72,6 +74,7 @@ namespace B_VIP.Core.Operations
         public const string GoogleLockStatus = "vendor.google-lock-status";
         public const string GoogleOpenDeviceUrl = "vendor.device-open-url";
         public const string ToolProbe = "tool.probe";
+        public const string VendorReboot = "vendor.reboot";
 
         private static readonly OperationTypeDefinition[] Registry =
         [
@@ -89,6 +92,7 @@ namespace B_VIP.Core.Operations
             new(FastbootReboot, "Reboot from Fastboot", "إعادة التشغيل من Fastboot", ModuleKeys.Fastboot, true, true, false, "exit-code-zero", 45),
             new(FastbootFlash, "Flash an image", "كتابة صورة", ModuleKeys.Fastboot, true, true, true, "exit-code-zero", 600),
             new(FastbootWipe, "Erase a partition", "مسح قسم", ModuleKeys.Fastboot, true, true, true, "exit-code-zero", 300),
+            new(FastbootEraseBatch, "Erase a set of partitions", "مسح مجموعة أقسام", ModuleKeys.Fastboot, true, true, true, "exit-code-zero", 600),
             new(AndroidDiagnosticRun, "Run Android diagnostics", "تشغيل تشخيص Android", ModuleKeys.AndroidDiagnostics, true, true, false, "verified", 180),
             new(SamsungDiagnostic, "Samsung device information", "Samsung device information", ModuleKeys.Samsung, true, true, false, "verified", 120),
             new(SamsungReadInfoMtp, "Read Samsung information over MTP", "Read Samsung information over MTP", ModuleKeys.Samsung, false, false, false, "verified", 120),
@@ -98,6 +102,7 @@ namespace B_VIP.Core.Operations
             new(SamsungFrpTestMode, "Samsung FRP reset (test mode / ADB)", "Samsung FRP reset (test mode / ADB)", ModuleKeys.Samsung, true, true, true, "exit-code-zero", 300),
             new(XiaomiReadInfo, "Xiaomi read device information", "Xiaomi read device information", ModuleKeys.Xiaomi, true, true, false, "verified", 120),
             new(XiaomiResetFrp, "Xiaomi reset FRP and config", "Xiaomi reset FRP and config", ModuleKeys.Xiaomi, true, true, true, "exit-code-zero", 180),
+            new(XiaomiBypassMiAccount, "Xiaomi disable the Mi Account agent over ADB", "Xiaomi disable the Mi Account agent over ADB", ModuleKeys.Xiaomi, true, true, false, "verified", 120),
             new(InfinixReadInfo, "Infinix read device information", "Infinix read device information", ModuleKeys.Infinix, true, true, false, "verified", 120),
             new(InfinixResetFrp, "Infinix reset FRP and persist", "Infinix reset FRP and persist", ModuleKeys.Infinix, true, true, true, "exit-code-zero", 180),
             new(InfinixFactoryFormat, "Infinix factory format", "Infinix factory format", ModuleKeys.Infinix, true, true, true, "exit-code-zero", 420),
@@ -129,7 +134,8 @@ namespace B_VIP.Core.Operations
             new(GoogleRecoveryGuidance, "Google account recovery guidance", "Google account recovery guidance", ModuleKeys.GoogleRecovery, false, false, false, "verified", 30),
             new(GoogleLockStatus, "Read FRP and lock status", "Read FRP and lock status", ModuleKeys.GoogleRecovery, true, true, false, "verified", 90),
             new(GoogleOpenDeviceUrl, "Open a web page on the device", "Open a web page on the device", ModuleKeys.GoogleRecovery, true, true, false, "exit-code-zero", 60),
-            new(ToolProbe, "Probe external tools", "فحص الأدوات الخارجية", ModuleKeys.Settings, false, true, false, "exit-code-zero", 20)
+            new(ToolProbe, "Probe external tools", "فحص الأدوات الخارجية", ModuleKeys.Settings, false, true, false, "exit-code-zero", 20),
+            new(VendorReboot, "Reboot the handset into another mode", "إعادة تشغيل الجهاز في وضع آخر", ModuleKeys.ServiceOperations, true, true, false, "exit-code-zero", 90)
         ];
 
         public static IReadOnlyList<OperationTypeDefinition> All => Registry;

@@ -42,6 +42,10 @@ namespace B_VIP.Modules
         public static string Truncate(string value, int max)
             => value.Length <= max ? value : value[..max];
 
+        /// <summary>The first non-empty line of a tool's output, for one-line log messages.</summary>
+        public static string FirstLine(string value)
+            => value.Split('\n').Select(l => l.Trim()).FirstOrDefault(l => l.Length > 0) ?? string.Empty;
+
         public static OperationExecutionResult Build(string operationType, string summary,
             List<DiagnosticCheckDto> checks, List<string> log, List<string> warnings, List<string> errors)
         {

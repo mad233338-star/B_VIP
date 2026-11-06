@@ -25,7 +25,20 @@ namespace B_VIP.Modules
             OperationTypes.FastbootGetVar,
             OperationTypes.FastbootReboot,
             OperationTypes.FastbootFlash,
-            OperationTypes.FastbootWipe
+            OperationTypes.FastbootWipe,
+            OperationTypes.FastbootEraseBatch
+        ];
+
+        /// <summary>
+        /// Partitions that carry radio calibration and cannot be recovered once erased. The vendor
+        /// tabs pass partition lists from their own workflows, so the refusal lives here rather
+        /// than in a view model: no request can wipe these by accident.
+        /// </summary>
+        internal static readonly string[] ProtectedPartitions =
+        [
+            "modemst1", "modemst2", "fsg", "persist", "persistent",
+            "nvram", "nvdata", "nvcfg", "prodnv", "protect1", "protect2",
+            "boot", "recovery", "vbmeta", "bootloader", "preloader", "dtbo"
         ];
 
         public async Task<OperationExecutionResult> ExecuteAsync(OperationExecutionRequest request, CancellationToken ct = default)
@@ -50,6 +63,9 @@ namespace B_VIP.Modules
 
                 case OperationTypes.FastbootResetFrp:
                     return await ResetFrpAsync(request, ct);
+
+                case OperationTypes.FastbootEraseBatch:
+                    return await EraseBatchAsync(request, ct);
             }
 
             List<string> log = new();
@@ -243,6 +259,108 @@ namespace B_VIP.Modules
                 checks, log, warnings, errors);
         }
 
+        /// <summary>
+        /// Erases the partition list a vendor workflow asks for ("frp,config", "userdata,cache",
+        /// "frp,persistent"). The request must be confirmed explicitly, and the calibration and
+        /// boot-chain partitions in <see cref="ProtectedPartitions"/> are refused by name.
+        /// </summary>
+        private async Task<OperationExecutionResult> EraseBatchAsync(OperationExecutionRequest request, CancellationToken ct)
+        {
+            List<string> log = new();
+            List<string> warnings = new();
+            List<string> errors = new();
+            List<DiagnosticCheckDto> checks = new();
+
+            if (request.Serial is null)
+            {
+                return OperationExecutionResult.Failure(request.OperationType,
+                    "A connected device is required.", "No device serial was supplied for this operation.");
+            }
+
+            if (!string.Equals(request.GetParameter("confirm"), "yes", StringComparison.OrdinalIgnoreCase))
+            {
+                errors.Add("Erasing partitions must be confirmed explicitly before it runs. " +
+                           "Confirm the warning in the client and retry.");
+                return VendorSupport.Build(request.OperationType, "Confirmation required.", checks, log, warnings, errors);
+            }
+
+            string[] partitions = (request.GetParameter("partitions") ?? string.Empty)
+                .Split([' ', ',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(p => p.ToLowerInvariant())
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
+
+            if (partitions.Length == 0)
+            {
+                errors.Add("No partition was named. Supply the partition list to erase.");
+                return VendorSupport.Build(request.OperationType, "No partition selected.", checks, log, warnings, errors);
+            }
+
+            string[] protectedRequested = partitions.Where(p => ProtectedPartitions.Contains(p)).ToArray();
+            if (protectedRequested.Length > 0)
+            {
+                errors.Add($"Refusing to erase protected partition(s): {string.Join(", ", protectedRequested)}. " +
+                           "These carry radio calibration or the boot chain and cannot be restored.");
+                checks.Add(new DiagnosticCheckDto("protected-partitions", "fail",
+                    $"Blocked: {string.Join(", ", protectedRequested)}", null));
+                return VendorSupport.Build(request.OperationType, "Protected partition requested.", checks, log, warnings, errors);
+            }
+
+            string? fastboot = _tools.Find(ToolLocator.Fastboot);
+            if (fastboot is null)
+            {
+                errors.Add("fastboot was not found. Install the bundled platform-tools next to the application.");
+                return VendorSupport.Build(request.OperationType, "fastboot is unavailable.", checks, log, warnings, errors);
+            }
+
+            request.Process($"Erasing {string.Join(", ", partitions)} on {request.Serial}.");
+
+            ProcessResult devices = await Run(log, ["devices"], 30, ct);
+            if (string.IsNullOrWhiteSpace(devices.StandardOutput))
+            {
+                errors.Add("No fastboot device answered. Boot the handset into fastboot/bootloader mode and retry.");
+                checks.Add(new DiagnosticCheckDto("fastboot-device", "fail", "No fastboot device.", null));
+                return VendorSupport.Build(request.OperationType, "No fastboot device.", checks, log, warnings, errors);
+            }
+
+            checks.Add(new DiagnosticCheckDto("fastboot-device", "pass", "A fastboot device is attached.", null));
+
+            bool allSucceeded = true;
+            foreach (string partition in partitions)
+            {
+                ProcessResult erase = await Run(log, ["-s", request.Serial, "erase", partition], 180, ct);
+                string output = FirstLine(erase.StandardOutput + " " + erase.StandardError);
+
+                if (erase.Succeeded)
+                {
+                    checks.Add(new DiagnosticCheckDto($"erase-{partition}", "pass", $"Partition '{partition}' erased.", erase.DurationMs));
+                    request.Success($"Erased '{partition}'.");
+                    continue;
+                }
+
+                if (IsMissingPartition(erase))
+                {
+                    checks.Add(new DiagnosticCheckDto($"erase-{partition}", "warn",
+                        $"The device has no '{partition}' partition; skipped.", erase.DurationMs));
+                    warnings.Add($"Partition '{partition}' does not exist on this handset and was skipped.");
+                    continue;
+                }
+
+                allSucceeded = false;
+                checks.Add(new DiagnosticCheckDto($"erase-{partition}", "fail",
+                    VendorSupport.Truncate(output, 200), erase.DurationMs));
+                errors.Add($"fastboot erase {partition} failed: {VendorSupport.Truncate(output, 200)}");
+            }
+
+            warnings.Add("Reboot the handset after the erase and confirm that setup completes normally.");
+
+            string summary = allSucceeded
+                ? $"Erased {string.Join(", ", partitions)}."
+                : "The erase sequence finished with errors.";
+
+            return VendorSupport.Build(request.OperationType, summary, checks, log, warnings, errors);
+        }
+
         private static bool IsMissingPartition(ProcessResult result)
         {
             string text = (result.StandardError + " " + result.StandardOutput).ToLowerInvariant();
@@ -320,6 +438,9 @@ namespace B_VIP.Modules
             warnings.Add($"Erasing partition '{partition}' permanently removes its contents. This cannot be undone from the tool.");
             return await Run(log, ["-s", request.Serial!, "erase", partition], 300, ct);
         }
+
+        private static string FirstLine(string value)
+            => value.Split('\n').Select(l => l.Trim()).FirstOrDefault(l => l.Length > 0) ?? string.Empty;
 
         private async Task<ProcessResult> Run(List<string> log, string[] args, int timeout, CancellationToken ct)
         {
