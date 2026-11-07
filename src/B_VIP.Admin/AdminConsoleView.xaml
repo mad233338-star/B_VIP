@@ -60,24 +60,133 @@
             </Style>
 
             <Style x:Key="AdminInput" TargetType="TextBox">
-                <Setter Property="Background" Value="#FF1F2937" />
-                <Setter Property="Foreground" Value="{StaticResource AdminText}" />
-                <Setter Property="BorderBrush" Value="{StaticResource AdminLine}" />
+                <Setter Property="Background" Value="#FF0F172A" />
+                <Setter Property="Foreground" Value="#FFFFFFFF" />
+                <Setter Property="CaretBrush" Value="#FF00D2FF" />
+                <Setter Property="BorderBrush" Value="#FF334155" />
                 <Setter Property="Padding" Value="8,6" />
             </Style>
 
+            <!-- Grid palette. The stock WPF grid paints white rows over a light header, which
+                 is why this table showed a white background and invisible white text. -->
+            <SolidColorBrush x:Key="AdminHeaderFill" Color="#FF1E293B" />
+            <SolidColorBrush x:Key="AdminRowFill" Color="#FF0F172A" />
+            <SolidColorBrush x:Key="AdminRowAltFill" Color="#FF1E293B" />
+            <SolidColorBrush x:Key="AdminGridLineFill" Color="#FF334155" />
+            <SolidColorBrush x:Key="AdminSelectedFill" Color="#FF2563EB" />
+
+            <Style x:Key="AdminGridHeader" TargetType="DataGridColumnHeader">
+                <Setter Property="Background" Value="{StaticResource AdminHeaderFill}" />
+                <Setter Property="Foreground" Value="#FFFFFFFF" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="FontSize" Value="11.5" />
+                <Setter Property="Padding" Value="8,6" />
+                <Setter Property="BorderBrush" Value="{StaticResource AdminGridLineFill}" />
+                <Setter Property="BorderThickness" Value="0,0,0,1" />
+                <Setter Property="HorizontalContentAlignment" Value="Left" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="DataGridColumnHeader">
+                            <Border Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter VerticalAlignment="Center"
+                                                  HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" />
+                            </Border>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <Style x:Key="AdminGridCell" TargetType="DataGridCell">
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="Foreground" Value="#FFFFFFFF" />
+                <Setter Property="BorderBrush" Value="{StaticResource AdminGridLineFill}" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="Padding" Value="10,0" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="DataGridCell">
+                            <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                                <ContentPresenter VerticalAlignment="Center" />
+                            </Border>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+                <Style.Triggers>
+                    <Trigger Property="IsSelected" Value="True">
+                        <Setter Property="Background" Value="{StaticResource AdminSelectedFill}" />
+                        <Setter Property="Foreground" Value="#FFFFFFFF" />
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+
+            <Style x:Key="AdminGridRow" TargetType="DataGridRow">
+                <Setter Property="Background" Value="{StaticResource AdminRowFill}" />
+                <Setter Property="Foreground" Value="#FFFFFFFF" />
+                <Style.Triggers>
+                    <Trigger Property="IsSelected" Value="True">
+                        <Setter Property="Background" Value="{StaticResource AdminSelectedFill}" />
+                        <Setter Property="Foreground" Value="#FFFFFFFF" />
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+
+            <!-- Tab headers: the stock template paints a light strip, which was the remaining
+                 white block above the tables. -->
+            <Style x:Key="AdminTab" TargetType="TabItem">
+                <Setter Property="Foreground" Value="{StaticResource AdminMuted}" />
+                <Setter Property="FontSize" Value="12" />
+                <Setter Property="Padding" Value="14,7" />
+                <Setter Property="Margin" Value="0,0,4,0" />
+                <Setter Property="Cursor" Value="Hand" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="TabItem">
+                            <Border x:Name="tab" Background="Transparent"
+                                    BorderBrush="Transparent" BorderThickness="0,0,0,2"
+                                    CornerRadius="4,4,0,0" Padding="{TemplateBinding Padding}">
+                                <ContentPresenter ContentSource="Header" VerticalAlignment="Center" />
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="tab" Property="Background" Value="#FF1E293B" />
+                                    <Setter Property="Foreground" Value="#FFFFFFFF" />
+                                </Trigger>
+                                <Trigger Property="IsSelected" Value="True">
+                                    <Setter TargetName="tab" Property="Background" Value="#FF1E293B" />
+                                    <Setter TargetName="tab" Property="BorderBrush" Value="#FF00D2FF" />
+                                    <Setter Property="Foreground" Value="#FFFFFFFF" />
+                                    <Setter Property="FontWeight" Value="SemiBold" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
             <Style x:Key="AdminGrid" TargetType="DataGrid">
-                <Setter Property="Background" Value="{StaticResource AdminPanel}" />
-                <Setter Property="Foreground" Value="{StaticResource AdminText}" />
-                <Setter Property="BorderBrush" Value="{StaticResource AdminLine}" />
-                <Setter Property="AlternatingRowBackground" Value="#FF1F2937" />
-                <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource AdminLine}" />
+                <Setter Property="Background" Value="{StaticResource AdminRowFill}" />
+                <Setter Property="Foreground" Value="#FFFFFFFF" />
+                <Setter Property="BorderBrush" Value="{StaticResource AdminGridLineFill}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="RowBackground" Value="{StaticResource AdminRowFill}" />
+                <Setter Property="AlternatingRowBackground" Value="{StaticResource AdminRowAltFill}" />
+                <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource AdminGridLineFill}" />
+                <Setter Property="VerticalGridLinesBrush" Value="Transparent" />
+                <Setter Property="GridLinesVisibility" Value="Horizontal" />
+                <Setter Property="HeadersVisibility" Value="Column" />
+                <Setter Property="ColumnHeaderStyle" Value="{StaticResource AdminGridHeader}" />
+                <Setter Property="CellStyle" Value="{StaticResource AdminGridCell}" />
+                <Setter Property="RowStyle" Value="{StaticResource AdminGridRow}" />
                 <Setter Property="AutoGenerateColumns" Value="False" />
                 <Setter Property="IsReadOnly" Value="True" />
                 <Setter Property="CanUserAddRows" Value="False" />
                 <Setter Property="SelectionMode" Value="Single" />
                 <Setter Property="FontSize" Value="12.5" />
-                <Setter Property="RowHeight" Value="28" />
+                <Setter Property="RowHeight" Value="30" />
+                <Setter Property="ColumnHeaderHeight" Value="32" />
             </Style>
         </ResourceDictionary>
     </UserControl.Resources>
@@ -128,7 +237,9 @@
             </Border>
         </StackPanel>
 
-        <TabControl Grid.Row="2" Background="Transparent" BorderThickness="0" Foreground="{StaticResource AdminText}">
+        <TabControl Grid.Row="2" Background="Transparent" BorderThickness="0"
+                    Foreground="{StaticResource AdminText}"
+                    ItemContainerStyle="{StaticResource AdminTab}">
             <TabItem Header="Technicians">
                 <Grid Margin="0,8">
                     <Grid.RowDefinitions>
@@ -191,20 +302,23 @@
                         </Border>
                     </UniformGrid>
 
-                    <!-- search and extension controls -->
-                    <DockPanel Grid.Row="1" Margin="0,0,0,8">
-                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                            <TextBlock Text="Extend by (days)" Foreground="{StaticResource AdminMuted}" FontSize="11.5"
-                                       VerticalAlignment="Center" Margin="0,0,6,0" />
-                            <TextBox Style="{StaticResource AdminInput}" Width="70"
-                                     Text="{Binding ExtendDays, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,8,0" />
-                            <Button Content="Refresh" Style="{StaticResource AdminButton}" Command="{Binding SearchTechniciansCommand}" />
-                        </StackPanel>
-                        <TextBox Style="{StaticResource AdminInput}" Width="300" HorizontalAlignment="Left"
-                                 Text="{Binding TechnicianSearch, UpdateSourceTrigger=PropertyChanged}" />
-                        <TextBlock Text="Search by username, e-mail or HWID" Foreground="{StaticResource AdminMuted}"
-                                   FontSize="11.5" VerticalAlignment="Center" Margin="10,0,0,0" />
-                    </DockPanel>
+                    <!-- search and extension controls: dark container, dark inputs, white text -->
+                    <Border Grid.Row="1" Background="#FF0F172A" BorderBrush="#FF334155"
+                            BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,0,10">
+                        <DockPanel>
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                <TextBlock Text="Extend by (days)" Foreground="{StaticResource AdminMuted}" FontSize="11.5"
+                                           VerticalAlignment="Center" Margin="0,0,6,0" />
+                                <TextBox Style="{StaticResource AdminInput}" Width="70"
+                                         Text="{Binding ExtendDays, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,8,0" />
+                                <Button Content="Refresh" Style="{StaticResource AdminButton}" Command="{Binding SearchTechniciansCommand}" />
+                            </StackPanel>
+                            <TextBox Style="{StaticResource AdminInput}" Width="300" HorizontalAlignment="Left"
+                                     Text="{Binding TechnicianSearch, UpdateSourceTrigger=PropertyChanged}" />
+                            <TextBlock Text="Search by username, e-mail or HWID" Foreground="{StaticResource AdminMuted}"
+                                       FontSize="11.5" VerticalAlignment="Center" Margin="10,0,0,0" />
+                        </DockPanel>
+                    </Border>
 
                     <DataGrid Grid.Row="2" Style="{StaticResource AdminGrid}" ItemsSource="{Binding Technicians}"
                               SelectedItem="{Binding SelectedTechnician}">

@@ -5,6 +5,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:B_VIP.Desktop.ViewModels"
              xmlns:loc="clr-namespace:B_VIP.Desktop.Localization"
+             xmlns:views="clr-namespace:B_VIP.Desktop.Views"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vm:RegisterPanelViewModel}">
     <StackPanel>
@@ -26,7 +27,7 @@
                    TextWrapping="Wrap" Margin="0,0,0,10"
                    Visibility="{Binding HasEmailError, Converter={StaticResource BoolToVisibility}}" />
 
-        <Grid Margin="0,0,0,8">
+        <Grid Margin="0,0,0,10">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="12" />
@@ -35,18 +36,16 @@
             <StackPanel Grid.Column="0">
                 <TextBlock Text="{Binding [register.password], Source={x:Static loc:Localizer.Instance}}"
                            Style="{StaticResource Text.Label}" />
-                <PasswordBox x:Name="PasswordBox" Style="{StaticResource Input.Password}"
-                             PasswordChanged="Password_OnPasswordChanged" />
+                <views:PasswordField Password="{Binding Password, Mode=TwoWay}" />
             </StackPanel>
             <StackPanel Grid.Column="2">
                 <TextBlock Text="{Binding [register.confirm], Source={x:Static loc:Localizer.Instance}}"
                            Style="{StaticResource Text.Label}" />
-                <PasswordBox x:Name="ConfirmPasswordBox" Style="{StaticResource Input.Password}"
-                             PasswordChanged="ConfirmPassword_OnPasswordChanged" />
+                <views:PasswordField Password="{Binding ConfirmPassword, Mode=TwoWay}" />
             </StackPanel>
         </Grid>
 
-        <WrapPanel Margin="0,0,0,8">
+        <WrapPanel Margin="0,0,0,12">
             <TextBlock Text="Passwords match" FontSize="11.5" Foreground="{StaticResource Brush.Success}"
                        Margin="0,0,10,0"
                        Visibility="{Binding PasswordsMatch, Converter={StaticResource BoolToVisibility}}" />
@@ -57,22 +56,25 @@
                        FontSize="11.5" Foreground="{StaticResource Brush.Muted}" />
         </WrapPanel>
 
-        <!-- Inline links open the full legal text in a modal; the checkbox itself stays a single
-             toggle so the consent flag keeps its straightforward binding. -->
-        <CheckBox Style="{StaticResource Check.Cyber}" Margin="0,4,0,14"
-                  IsChecked="{Binding AcceptedTerms}">
-            <TextBlock VerticalAlignment="Center" Foreground="{StaticResource Brush.White}" FontSize="12.5">
-                <Run Text="I accept the " />
-                <Hyperlink Command="{Binding ShowLegalCommand}" CommandParameter="terms">
-                    <Run Text="Terms &amp; Conditions" />
-                </Hyperlink>
-                <Run Text=" and " />
-                <Hyperlink Command="{Binding ShowLegalCommand}" CommandParameter="privacy">
-                    <Run Text="Privacy Policy" />
-                </Hyperlink>
-                <Run Text="." />
+        <!-- The checkbox owns its own column so the sentence can wrap inside the remaining width
+             instead of being clipped by the checkbox's content presenter. The links open the full
+             legal text in the in-app overlay. -->
+        <Grid Margin="0,8,0,16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <CheckBox Grid.Column="0" Style="{StaticResource Check.Cyber}"
+                      IsChecked="{Binding AcceptedTerms}"
+                      VerticalAlignment="Top" Margin="0,3,9,0" />
+
+            <TextBlock Grid.Column="1" Foreground="{StaticResource Brush.White}" FontSize="12.5"
+                       TextWrapping="Wrap" LineHeight="20" VerticalAlignment="Center">
+                <!-- One line on purpose: whitespace between inlines is significant in a TextBlock. -->
+                <Run Text="I accept the " /><Hyperlink Command="{Binding ShowLegalCommand}" CommandParameter="terms" Foreground="{StaticResource Brush.Accent}"><Run Text="Terms &amp; Conditions" /></Hyperlink><Run Text=" and " /><Hyperlink Command="{Binding ShowLegalCommand}" CommandParameter="privacy" Foreground="{StaticResource Brush.Accent}"><Run Text="Privacy Policy" /></Hyperlink><Run Text="." />
             </TextBlock>
-        </CheckBox>
+        </Grid>
 
         <Border Background="#1AEF4444" CornerRadius="4" Padding="10" Margin="0,0,0,10"
                 Visibility="{Binding HasError, Converter={StaticResource BoolToVisibility}}">

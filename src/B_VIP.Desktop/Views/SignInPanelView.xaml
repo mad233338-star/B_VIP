@@ -5,6 +5,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:B_VIP.Desktop.ViewModels"
              xmlns:loc="clr-namespace:B_VIP.Desktop.Localization"
+             xmlns:views="clr-namespace:B_VIP.Desktop.Views"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vm:SignInPanelViewModel}">
     <StackPanel>
@@ -29,8 +30,7 @@
 
         <TextBlock Text="{Binding [login.password], Source={x:Static loc:Localizer.Instance}}"
                    Style="{StaticResource Text.Label}" />
-        <PasswordBox x:Name="PasswordBox" Style="{StaticResource Input.Password}" Margin="0,0,0,10"
-                     PasswordChanged="PasswordBox_OnPasswordChanged" />
+        <views:PasswordField Password="{Binding Password, Mode=TwoWay}" Margin="0,0,0,10" />
 
         <CheckBox Content="{Binding [login.remember], Source={x:Static loc:Localizer.Instance}}"
                   Style="{StaticResource Check.Cyber}" IsChecked="{Binding RememberMe}" Margin="0,0,0,12" />

@@ -422,22 +422,55 @@
         <Setter Property="Cursor" Value="Hand" />
     </Style>
 
-    <!-- ============================== DataGrid ============================ -->
+    <!-- ============================== DataGrid ============================
+         The stock WPF grid paints a near-white row surface and a light column header,
+         both unreadable under this theme's white foreground. These styles own the whole
+         table surface: #1E293B headers, #0F172A / #1E293B rows, #334155 separators and a
+         #2563EB selection. The implicit styles at the end of the block also cover grids
+         that ship no style of their own (the administrator console keeps its own
+         resource dictionary).
+    -->
+
+    <SolidColorBrush x:Key="Brush.GridHeader" Color="#FF1E293B" />
+    <SolidColorBrush x:Key="Brush.GridRow" Color="#FF0F172A" />
+    <SolidColorBrush x:Key="Brush.GridRowAlt" Color="#FF1E293B" />
+    <SolidColorBrush x:Key="Brush.GridLine" Color="#FF334155" />
+    <SolidColorBrush x:Key="Brush.GridSelected" Color="#FF2563EB" />
+    <SolidColorBrush x:Key="Brush.GridHover" Color="#FF1B2740" />
 
     <Style x:Key="Grid.ColumnHeader" TargetType="DataGridColumnHeader">
-        <Setter Property="Background" Value="{StaticResource Brush.Card}" />
-        <Setter Property="Foreground" Value="{StaticResource Brush.Muted}" />
+        <Setter Property="Background" Value="{StaticResource Brush.GridHeader}" />
+        <Setter Property="Foreground" Value="#FFFFFFFF" />
         <Setter Property="FontSize" Value="11.5" />
         <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="Padding" Value="10,6" />
-        <Setter Property="BorderBrush" Value="{StaticResource Brush.Border}" />
+        <Setter Property="Padding" Value="8,6" />
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.GridLine}" />
         <Setter Property="BorderThickness" Value="0,0,0,1" />
         <Setter Property="HorizontalContentAlignment" Value="Left" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="DataGridColumnHeader">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter VerticalAlignment="Center"
+                                          HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Background" Value="{StaticResource Brush.GridHover}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
     <Style x:Key="Grid.Cell" TargetType="DataGridCell">
         <Setter Property="Background" Value="Transparent" />
-        <Setter Property="Foreground" Value="{StaticResource Brush.Text}" />
+        <Setter Property="Foreground" Value="#FFFFFFFF" />
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.GridLine}" />
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="Padding" Value="10,0" />
         <Setter Property="Template">
@@ -451,8 +484,22 @@
         </Setter>
         <Style.Triggers>
             <Trigger Property="IsSelected" Value="True">
-                <Setter Property="Background" Value="{StaticResource Brush.AccentTint}" />
-                <Setter Property="Foreground" Value="{StaticResource Brush.Accent}" />
+                <Setter Property="Background" Value="{StaticResource Brush.GridSelected}" />
+                <Setter Property="Foreground" Value="#FFFFFFFF" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style x:Key="Grid.Row" TargetType="DataGridRow">
+        <Setter Property="Background" Value="{StaticResource Brush.GridRow}" />
+        <Setter Property="Foreground" Value="#FFFFFFFF" />
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{StaticResource Brush.GridHover}" />
+            </Trigger>
+            <Trigger Property="IsSelected" Value="True">
+                <Setter Property="Background" Value="{StaticResource Brush.GridSelected}" />
+                <Setter Property="Foreground" Value="#FFFFFFFF" />
             </Trigger>
         </Style.Triggers>
     </Style>
@@ -462,9 +509,9 @@
         <Setter Property="Foreground" Value="{StaticResource Brush.Text}" />
         <Setter Property="BorderBrush" Value="{StaticResource Brush.Border}" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="RowBackground" Value="{StaticResource Brush.Surface}" />
-        <Setter Property="AlternatingRowBackground" Value="{StaticResource Brush.Panel}" />
-        <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource Brush.Border}" />
+        <Setter Property="RowBackground" Value="{StaticResource Brush.GridRow}" />
+        <Setter Property="AlternatingRowBackground" Value="{StaticResource Brush.GridRowAlt}" />
+        <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource Brush.GridLine}" />
         <Setter Property="VerticalGridLinesBrush" Value="Transparent" />
         <Setter Property="HeadersVisibility" Value="Column" />
         <Setter Property="GridLinesVisibility" Value="Horizontal" />
@@ -477,23 +524,13 @@
         <Setter Property="ColumnHeaderHeight" Value="32" />
         <Setter Property="ColumnHeaderStyle" Value="{StaticResource Grid.ColumnHeader}" />
         <Setter Property="CellStyle" Value="{StaticResource Grid.Cell}" />
-        <Setter Property="RowStyle">
-            <Setter.Value>
-                <Style TargetType="DataGridRow">
-                    <Setter Property="Background" Value="Transparent" />
-                    <Setter Property="Foreground" Value="{StaticResource Brush.Text}" />
-                    <Style.Triggers>
-                        <Trigger Property="IsMouseOver" Value="True">
-                            <Setter Property="Background" Value="#1400E5FF" />
-                        </Trigger>
-                        <Trigger Property="IsSelected" Value="True">
-                            <Setter Property="Background" Value="{StaticResource Brush.AccentTint}" />
-                        </Trigger>
-                    </Style.Triggers>
-                </Style>
-            </Setter.Value>
-        </Setter>
+        <Setter Property="RowStyle" Value="{StaticResource Grid.Row}" />
     </Style>
+
+    <!-- Any DataGrid without an explicit style still gets the readable dark surface. -->
+    <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource Grid.ColumnHeader}" />
+    <Style TargetType="DataGridCell" BasedOn="{StaticResource Grid.Cell}" />
+    <Style TargetType="DataGridRow" BasedOn="{StaticResource Grid.Row}" />
 
     <Style x:Key="Badge.Status" TargetType="Border">
         <Setter Property="CornerRadius" Value="10" />
