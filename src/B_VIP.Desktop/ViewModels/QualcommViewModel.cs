@@ -120,44 +120,21 @@ namespace B_VIP.Desktop.ViewModels
 
         protected override void OnOperationCompleted(OperationExecutionResult result)
         {
-            Rows.Clear();
-            foreach (DiagnosticCheckDto check in result.Checks)
-            {
-                Rows.Add(new DiagnosticRow { Name = check.Name, Status = check.Status, Detail = check.Detail });
-            }
-
-            foreach (string line in result.Log)
-            {
-                Rows.Add(new DiagnosticRow { Name = "log", Status = "info", Detail = line });
-            }
-
-            foreach (string warning in result.Warnings)
-            {
-                Rows.Add(new DiagnosticRow { Name = "notice", Status = "warn", Detail = warning });
-            }
-
+            ApplyRows(Rows, result);
             RefreshPorts();
         }
 
         /// <summary>Reads the ports once on construction and again after every routine.</summary>
         private int RefreshPorts()
         {
-            Ports.Clear();
-            PortChoices.Clear();
-            PortChoices.Add(SamePortOption);
-
+            // Collected first, then handed to the dispatcher in one pass: the bound list is never
+            // cleared and refilled from a worker while the screen is rendering.
+            List<QualcommPort> ports = new();
             if (OperatingSystem.IsWindows())
             {
                 try
                 {
-                    foreach (QualcommPort port in QualcommPortLocator.FindPorts())
-                    {
-                        Ports.Add(port);
-                        if (port.PortName.StartsWith("COM", StringComparison.OrdinalIgnoreCase))
-                        {
-                            PortChoices.Add(port.PortName);
-                        }
-                    }
+                    ports.AddRange(QualcommPortLocator.FindPorts());
                 }
                 catch (Exception ex)
                 {
@@ -165,10 +142,27 @@ namespace B_VIP.Desktop.ViewModels
                 }
             }
 
-            if (!PortChoices.Contains(SelectedFirehosePort))
+            OnUiThread(() =>
             {
-                SelectedFirehosePort = SamePortOption;
-            }
+                Ports.Clear();
+                PortChoices.Clear();
+                PortChoices.Add(SamePortOption);
+
+                foreach (QualcommPort port in ports)
+                {
+                    Ports.Add(port);
+                    if (!string.IsNullOrEmpty(port.PortName) &&
+                        port.PortName.StartsWith("COM", StringComparison.OrdinalIgnoreCase))
+                    {
+                        PortChoices.Add(port.PortName);
+                    }
+                }
+
+                if (!PortChoices.Contains(SelectedFirehosePort))
+                {
+                    SelectedFirehosePort = SamePortOption;
+                }
+            });
 
             return Ports.Count;
         }

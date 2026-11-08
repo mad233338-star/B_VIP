@@ -88,21 +88,10 @@ namespace B_VIP.Desktop.ViewModels
 
         protected override void OnOperationCompleted(OperationExecutionResult result)
         {
-            Rows.Clear();
-            foreach (DiagnosticCheckDto check in result.Checks)
-            {
-                Rows.Add(new DiagnosticRow { Name = check.Name, Status = check.Status, Detail = check.Detail });
-            }
-
-            foreach (string line in result.Log)
-            {
-                Rows.Add(new DiagnosticRow { Name = "log", Status = "info", Detail = line });
-            }
-
-            foreach (string warning in result.Warnings)
-            {
-                Rows.Add(new DiagnosticRow { Name = "notice", Status = "warn", Detail = warning });
-            }
+            // The rows are built into a plain list and swapped in on the dispatcher: the MTP/adb read
+            // completes on a worker, and clearing a bound DataGrid row by row there is what crashed
+            // the table (and its console) the moment "Read Info (MTP)" produced output.
+            ApplyRows(Rows, result);
         }
 
         private Task OpenBrowserAsync()

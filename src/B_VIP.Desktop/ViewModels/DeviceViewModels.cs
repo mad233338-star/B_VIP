@@ -81,6 +81,67 @@ namespace B_VIP.Desktop.ViewModels
 
         public string this[string key] => Localizer.Instance[key];
 
+        /// <summary>Runs <paramref name="action"/> on the UI thread, inline when already there.</summary>
+        protected static void OnUiThread(Action action) => UiThread.Invoke(action);
+
+        /// <summary>
+        /// Turns an operation outcome into table rows. It only reads the result, so it can run on the
+        /// worker that finished the operation; nothing it touches is bound to a control.
+        /// </summary>
+        protected static List<DiagnosticRow> BuildRows(OperationExecutionResult result)
+        {
+            List<DiagnosticRow> rows = new(result.Checks.Count + result.Log.Count + result.Warnings.Count);
+
+            foreach (DiagnosticCheckDto check in result.Checks)
+            {
+                rows.Add(new DiagnosticRow
+                {
+                    Name = string.IsNullOrWhiteSpace(check.Name) ? "check" : check.Name,
+                    Status = string.IsNullOrWhiteSpace(check.Status) ? "info" : check.Status,
+                    Detail = check.Detail,
+                    DurationMs = check.DurationMs
+                });
+            }
+
+            foreach (string line in result.Log)
+            {
+                if (!string.IsNullOrWhiteSpace(line))
+                {
+                    rows.Add(new DiagnosticRow { Name = "log", Status = "info", Detail = line });
+                }
+            }
+
+            foreach (string warning in result.Warnings)
+            {
+                if (!string.IsNullOrWhiteSpace(warning))
+                {
+                    rows.Add(new DiagnosticRow { Name = "notice", Status = "warn", Detail = warning });
+                }
+            }
+
+            return rows;
+        }
+
+        /// <summary>
+        /// Replaces a table's contents in one dispatcher pass. Mutating a bound collection from the
+        /// thread that finished the operation, or clearing and re-adding it row by row while the grid
+        /// is rendering, is what made WPF report an inconsistent items source.
+        /// </summary>
+        protected static void ApplyRows(ObservableCollection<DiagnosticRow> rows, OperationExecutionResult result)
+            => ApplyRows(rows, BuildRows(result));
+
+        protected static void ApplyRows(ObservableCollection<DiagnosticRow> rows, IReadOnlyList<DiagnosticRow> replacement)
+        {
+            OnUiThread(() =>
+            {
+                rows.Clear();
+                foreach (DiagnosticRow row in replacement)
+                {
+                    rows.Add(row);
+                }
+            });
+        }
+
         protected virtual void OnDeviceSelected(DeviceInfoDto? device)
         {
         }
@@ -105,19 +166,26 @@ namespace B_VIP.Desktop.ViewModels
                     entered = true;
                     DeviceListResponse response = await Services.Devices.ScanAsync(ct);
                     string? previous = SelectedDevice?.Serial;
-                    Devices.Clear();
-                    foreach (DeviceInfoDto device in response.Devices)
+
+                    // The scan finishes wherever the detector's last await resumed: fill the bound
+                    // collection on the dispatcher instead of assuming the UI thread.
+                    OnUiThread(() =>
                     {
-                        Devices.Add(device);
-                    }
+                        Devices.Clear();
+                        foreach (DeviceInfoDto device in response.Devices)
+                        {
+                            Devices.Add(device);
+                        }
 
-                    SelectedDevice = previous is null
-                        ? Devices.FirstOrDefault()
-                        : Devices.FirstOrDefault(d => d.Serial == previous) ?? Devices.FirstOrDefault();
+                        SelectedDevice = previous is null
+                            ? Devices.FirstOrDefault()
+                            : Devices.FirstOrDefault(d => d.Serial == previous) ?? Devices.FirstOrDefault();
 
-                    StatusMessage = Devices.Count == 0
-                        ? Localizer.Instance["devices.none"]
-                        : $"{Devices.Count} device(s) detected.";
+                        StatusMessage = Devices.Count == 0
+                            ? Localizer.Instance["devices.none"]
+                            : $"{Devices.Count} device(s) detected.";
+                    });
+
                     ErrorMessage = response.ScanError;
                 }, indeterminate: true);
 
@@ -141,11 +209,14 @@ namespace B_VIP.Desktop.ViewModels
             try
             {
                 IReadOnlyList<ToolStatusDto> tools = await Services.Devices.GetToolStatusAsync();
-                ToolStatuses.Clear();
-                foreach (ToolStatusDto tool in tools)
+                OnUiThread(() =>
                 {
-                    ToolStatuses.Add(tool);
-                }
+                    ToolStatuses.Clear();
+                    foreach (ToolStatusDto tool in tools)
+                    {
+                        ToolStatuses.Add(tool);
+                    }
+                });
             }
             catch (Exception ex)
             {
@@ -196,7 +267,9 @@ namespace B_VIP.Desktop.ViewModels
                         ErrorMessage = string.Join(Environment.NewLine, result.Errors);
                     }
 
-                    OnOperationCompleted(result);
+                    // The screen is told about the outcome on the UI thread, whichever thread the
+                    // module finished on, so it can touch its bound tables safely.
+                    OnUiThread(() => OnOperationCompleted(result));
                     // DeviceWorkspace already writes the verdict to the console; logging it here too
                     // would double every line of the operation diary.
                 }, indeterminate: true);
@@ -320,21 +393,7 @@ namespace B_VIP.Desktop.ViewModels
             try
             {
                 DeviceDiagnosticsResponse response = await Services.Devices.RunDiagnosticsAsync(serial);
-                foreach (DiagnosticCheckDto check in response.Checks)
-                {
-                    Rows.Add(new DiagnosticRow
-                    {
-                        Name = check.Name,
-                        Status = check.Status,
-                        Detail = check.Detail,
-                        DurationMs = check.DurationMs
-                    });
-                }
-
-                foreach (string warning in response.Warnings)
-                {
-                    Rows.Add(new DiagnosticRow { Name = "warning", Status = "warn", Detail = warning });
-                }
+                ApplyRows(Rows, BuildDiagnosticRows(response));
 
                 string json = ReportBuilder.BuildJson(new ReportInput(
                     Module: "android-diagnostics",
@@ -366,6 +425,31 @@ namespace B_VIP.Desktop.ViewModels
             {
                 IsBusy = false;
             }
+        }
+
+        private static List<DiagnosticRow> BuildDiagnosticRows(DeviceDiagnosticsResponse response)
+        {
+            List<DiagnosticRow> rows = new(response.Checks.Count + response.Warnings.Count);
+            foreach (DiagnosticCheckDto check in response.Checks)
+            {
+                rows.Add(new DiagnosticRow
+                {
+                    Name = string.IsNullOrWhiteSpace(check.Name) ? "check" : check.Name,
+                    Status = string.IsNullOrWhiteSpace(check.Status) ? "info" : check.Status,
+                    Detail = check.Detail,
+                    DurationMs = check.DurationMs
+                });
+            }
+
+            foreach (string warning in response.Warnings)
+            {
+                if (!string.IsNullOrWhiteSpace(warning))
+                {
+                    rows.Add(new DiagnosticRow { Name = "warning", Status = "warn", Detail = warning });
+                }
+            }
+
+            return rows;
         }
 
         public string LastJson { get; private set; } = "{}";
@@ -564,6 +648,11 @@ namespace B_VIP.Desktop.ViewModels
             await RunAsync(action.OperationType, action.ErasesData, parameters);
         }
 
+        /// <summary>
+        /// Runs the routine through the shared dispatcher so the status bar, the cancel button and
+        /// the live console all see it: DeviceWorkspace logs the start line and the verdict, and the
+        /// module streams its own steps while the operation is still running.
+        /// </summary>
         private async Task RunAsync(string operationType, bool confirmDataLoss,
             IReadOnlyDictionary<string, string>? parameters)
         {
@@ -573,52 +662,95 @@ namespace B_VIP.Desktop.ViewModels
                 return;
             }
 
-            IsBusy = true;
-            ErrorMessage = null;
-            Rows.Clear();
-            try
-            {
-
-                OperationExecutionResult result = await Services.Devices.ExecuteAsync(
-                    operationType,
-                    SelectedDevice.Serial,
-                    SelectedDevice.DeviceId,
-                    Describe(SelectedDevice),
-                    parameters,
-                    confirmDataLoss);
-
-                Fill(result);
-
-                StatusMessage = result.Summary;
-                ErrorMessage = result.Errors.Count > 0 ? string.Join(Environment.NewLine, result.Errors) : null;
-            }
-            catch (Exception ex)
-            {
-                ErrorMessage = ex.Message;
-            }
-            finally
-            {
-                IsBusy = false;
-            }
+            // The previous routine's rows must not stay on screen while this one runs.
+            OnUiThread(() => Rows.Clear());
+            await RunOperationAsync(operationType, parameters, confirmDataLoss);
         }
 
-        private void Fill(OperationExecutionResult result)
+        private void Fill(OperationExecutionResult result) => ApplyRows(Rows, BuildVendorRows(result));
+
+        /// <summary>
+        /// The labels the technician expects instead of the raw getprop keys the module reports.
+        /// </summary>
+        private static readonly IReadOnlyDictionary<string, string> RowLabels =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["adb-status"] = "ADB Status",
+                ["brand-identity"] = "Brand identity",
+                ["board-platform"] = "Board platform",
+                ["chipset-family"] = "Chipset family",
+                ["ro.product.model"] = "Model",
+                ["ro.product.brand"] = "Brand",
+                ["ro.product.device"] = "Device",
+                ["ro.build.display.id"] = "Build",
+                ["ro.build.version.release"] = "Android version",
+                ["ro.build.version.sdk"] = "API level",
+                ["ro.build.version.security_patch"] = "Security patch",
+                ["ro.build.fingerprint"] = "Fingerprint",
+                ["ro.product.cpu.abi"] = "CPU ABI",
+                ["ro.boot.hardware"] = "Boot hardware",
+                ["ro.bootloader"] = "Bootloader",
+                ["ro.boot.hardware.sku"] = "Hardware SKU",
+                ["ro.miui.ui.version.name"] = "MIUI version",
+                ["ro.mi.os.version.name"] = "HyperOS version",
+                ["ro.miui.region"] = "Region",
+                ["ro.serialno"] = "Serial",
+                ["frp-state"] = "FRP state",
+                ["oem-unlock"] = "OEM unlock",
+                ["sprd-com-ports"] = "COM ports",
+                ["sprd-diag-interface"] = "SPRD diag interface",
+                ["fastboot-product"] = "Fastboot product",
+                ["log"] = "Log",
+                ["notice"] = "Notice",
+                ["warning"] = "Warning",
+                ["error"] = "Error"
+            };
+
+        /// <summary>
+        /// Builds the table for a brand routine from the module's own outcome. It only reads the
+        /// result, so it can run on the worker that finished the operation; <c>ApplyRows</c> then
+        /// swaps the whole table in one dispatcher pass.
+        /// </summary>
+        private static List<DiagnosticRow> BuildVendorRows(OperationExecutionResult result)
         {
-            Rows.Clear();
-            foreach (DiagnosticCheckDto check in result.Checks)
+            List<DiagnosticRow> rows = BuildRows(result);
+
+            foreach (string error in result.Errors)
             {
-                Rows.Add(new DiagnosticRow { Name = check.Name, Status = check.Status, Detail = check.Detail });
+                if (!string.IsNullOrWhiteSpace(error))
+                {
+                    rows.Add(new DiagnosticRow { Name = "error", Status = "fail", Detail = error });
+                }
             }
 
-            foreach (string line in result.Log)
+            // A read that produced nothing must still say so: an empty grid looks like a broken
+            // screen, which is exactly how the Xiaomi tab behaved on an unauthorised handset.
+            if (rows.Count == 0)
             {
-                Rows.Add(new DiagnosticRow { Name = "log", Status = "info", Detail = line });
+                rows.Add(new DiagnosticRow
+                {
+                    Name = "Result",
+                    Status = result.Succeeded ? "pass" : "fail",
+                    Detail = result.Summary
+                });
             }
 
-            foreach (string warning in result.Warnings)
+            return rows.Select(Friendly).ToList();
+        }
+
+        /// <summary>Renames a raw check to its display label and drops the now duplicated prefix.</summary>
+        private static DiagnosticRow Friendly(DiagnosticRow row)
+        {
+            string name = RowLabels.TryGetValue(row.Name, out string? label) ? label : row.Name;
+            string? detail = row.Detail;
+
+            if (!string.IsNullOrEmpty(detail) &&
+                detail.StartsWith(name + ": ", StringComparison.OrdinalIgnoreCase))
             {
-                Rows.Add(new DiagnosticRow { Name = "notice", Status = "warn", Detail = warning });
+                detail = detail[(name.Length + 2)..];
             }
+
+            return new DiagnosticRow { Name = name, Status = row.Status, Detail = detail, DurationMs = row.DurationMs };
         }
     }
 }

@@ -1,5 +1,6 @@
 using B_VIP.Core;
 using B_VIP.Hardware;
+using B_VIP.Modules;
 using Xunit;
 
 namespace B_VIP.HardwareTests
@@ -102,6 +103,161 @@ namespace B_VIP.HardwareTests
             Assert.Equal("ABC123", devices[0].Serial);
             Assert.Equal("fastboot", devices[0].InterfaceDetail);
             Assert.Empty(DeviceDetector.ParseFastbootDevices(string.Empty));
+        }
+    }
+
+    /// <summary>
+    /// The getprop dump that a real handset prints: 1300+ lines of <c>[key]: [value]</c>. Nothing in
+    /// it may be dropped, because the read-info table is built from these entries.
+    /// </summary>
+    public sealed class GetpropParsingTests
+    {
+        [Fact]
+        public void Parses_the_standard_bracketed_pairs()
+        {
+            const string output = """
+                [ro.product.model]: [M2101K6G]
+                [ro.product.brand]: [Redmi]
+                [ro.miui.ui.version.name]: [V14.0.5.0.TKHMIXM]
+                [ro.mi.os.version.name]: [OS1.0.4.0.UKHMIXM]
+                [ro.build.version.release]: [13]
+                [ro.build.version.security_patch]: [2023-05-01]
+                [ro.serialno]: [9A1B2C3D]
+                """;
+
+            IReadOnlyList<Dictionary<string, string>> props = AdbClient.ParseGetprop(output);
+
+            Assert.Equal(7, props.Count);
+            Assert.Equal("M2101K6G", First(props, "ro.product.model"));
+            Assert.Equal("Redmi", First(props, "ro.product.brand"));
+            Assert.Equal("V14.0.5.0.TKHMIXM", First(props, "ro.miui.ui.version.name"));
+            Assert.Equal("OS1.0.4.0.UKHMIXM", First(props, "ro.mi.os.version.name"));
+            Assert.Equal("13", First(props, "ro.build.version.release"));
+            Assert.Equal("2023-05-01", First(props, "ro.build.version.security_patch"));
+            Assert.Equal("9A1B2C3D", First(props, "ro.serialno"));
+        }
+
+        [Fact]
+        public void Keeps_empty_values_and_values_containing_colons_or_brackets()
+        {
+            const string output = """
+                [persist.sys.blank]: []
+                [ro.build.description]: [redmi:user:13/TKQ1:1234/release-keys]
+                [ro.url]: [https://example.invalid/a?b=c]
+                [dalvik.vm.args]: [-Xmx[1g]]
+                """;
+
+            IReadOnlyList<Dictionary<string, string>> props = AdbClient.ParseGetprop(output);
+
+            Assert.Equal(4, props.Count);
+            Assert.Equal(string.Empty, First(props, "persist.sys.blank"));
+            Assert.Equal("redmi:user:13/TKQ1:1234/release-keys", First(props, "ro.build.description"));
+            Assert.Equal("https://example.invalid/a?b=c", First(props, "ro.url"));
+            Assert.Equal("-Xmx[1g]", First(props, "dalvik.vm.args"));
+        }
+
+        [Fact]
+        public void Accepts_bracketless_and_windows_line_endings_and_ignores_noise()
+        {
+            string output = "ro.product.model: Redmi Note 12\r\nro.product.brand=Poco\r\n\r\nrandom noise without a separator\r\n";
+
+            IReadOnlyList<Dictionary<string, string>> props = AdbClient.ParseGetprop(output);
+
+            Assert.Equal(2, props.Count);
+            Assert.Equal("Redmi Note 12", First(props, "ro.product.model"));
+            Assert.Equal("Poco", First(props, "ro.product.brand"));
+            Assert.Empty(AdbClient.ParseGetprop(null));
+            Assert.Empty(AdbClient.ParseGetprop("   \n\n"));
+        }
+
+        [Fact]
+        public void A_full_dump_is_parsed_completely_and_in_order()
+        {
+            const int lines = 1349;
+            var builder = new System.Text.StringBuilder(lines * 40);
+            for (int i = 0; i < lines; i++)
+            {
+                builder.Append("[ro.test.key").Append(i).Append("]: [value").Append(i).Append("]\n");
+            }
+
+            IReadOnlyList<Dictionary<string, string>> props = AdbClient.ParseGetprop(builder.ToString());
+
+            Assert.Equal(lines, props.Count);
+            Assert.Equal("value0", First(props, "ro.test.key0"));
+            Assert.Equal("value1348", First(props, "ro.test.key1348"));
+        }
+
+        [Fact]
+        public async Task Xiaomi_read_info_fills_rows_from_a_hyperos_dump()
+        {
+            const string dump = """
+                [ro.product.model]: [2312DRA50G]
+                [ro.product.vendor.model]: [2312DRA50G]
+                [ro.product.brand]: [Redmi]
+                [ro.product.manufacturer]: [Xiaomi]
+                [ro.mi.os.version.name]: [OS1.0.8.0.UMOMIXM]
+                [ro.build.version.incremental]: [OS1.0.8.0.UMOMIXM]
+                [ro.build.version.release]: [14]
+                [ro.build.version.security_patch]: [2024-06-01]
+                [ro.serialno]: [4f9c1d2a]
+                [ro.miui.region]: [IN]
+                [ro.board.platform]: [taro]
+                """;
+
+            var adb = new FakeAdbClient { Properties = AdbClient.ParseGetprop(dump) };
+            var module = new B_VIP.Modules.BrandModuleExecutor(
+                B_VIP.Modules.BrandProfiles.Xiaomi, adb, new StubToolLocator(), new ProcessRunner(),
+                [B_VIP.Core.Operations.OperationTypes.XiaomiReadInfo]);
+
+            OperationExecutionResult result = await module.ExecuteAsync(new OperationExecutionRequest(
+                B_VIP.Core.Operations.OperationTypes.XiaomiReadInfo, "SER1", new Dictionary<string, string>(), "corr-x"));
+
+            Assert.True(result.Succeeded, string.Join("; ", result.Errors));
+            Assert.Contains(result.Checks, c => c.Name == "ro.product.model" && c.Status == "pass" && c.Detail!.Contains("2312DRA50G"));
+            Assert.Contains(result.Checks, c => c.Name == "ro.product.brand" && c.Detail!.Contains("Redmi"));
+            Assert.Contains(result.Checks, c => c.Name == "ro.mi.os.version.name" && c.Detail!.Contains("UMOMIXM"));
+            Assert.Contains(result.Checks, c => c.Name == "ro.build.version.release" && c.Detail!.Contains("14"));
+            Assert.Contains(result.Checks, c => c.Name == "ro.build.version.security_patch" && c.Detail!.Contains("2024-06-01"));
+            Assert.Contains(result.Checks, c => c.Name == "ro.serialno" && c.Detail!.Contains("4f9c1d2a"));
+            Assert.Contains(result.Checks, c => c.Name == "ro.miui.region" && c.Detail!.Contains("IN"));
+        }
+
+        [Fact]
+        public async Task Xiaomi_read_info_falls_back_to_the_vendor_and_odm_model_keys()
+        {
+            var adb = new FakeAdbClient
+            {
+                Properties = AdbClient.ParseGetprop("""
+                    [ro.product.odm.model]: [22111317G]
+                    [ro.product.manufacturer]: [Xiaomi]
+                    [ro.build.product]: [fuxi]
+                    [ro.board.platform]: [taro]
+                    """)
+            };
+
+            var module = new B_VIP.Modules.BrandModuleExecutor(
+                B_VIP.Modules.BrandProfiles.Xiaomi, adb, new StubToolLocator(), new ProcessRunner(),
+                [B_VIP.Core.Operations.OperationTypes.XiaomiReadInfo]);
+
+            OperationExecutionResult result = await module.ExecuteAsync(new OperationExecutionRequest(
+                B_VIP.Core.Operations.OperationTypes.XiaomiReadInfo, "SER1", new Dictionary<string, string>(), "corr-y"));
+
+            Assert.True(result.Succeeded, string.Join("; ", result.Errors));
+            Assert.Contains(result.Checks, c => c.Name == "ro.product.model" && c.Status == "pass" && c.Detail!.Contains("22111317G"));
+            Assert.Contains(result.Checks, c => c.Name == "ro.product.brand" && c.Detail!.Contains("Xiaomi"));
+        }
+
+        private static string? First(IReadOnlyList<Dictionary<string, string>> props, string key)
+        {
+            foreach (Dictionary<string, string> entry in props)
+            {
+                if (entry.TryGetValue(key, out string? value))
+                {
+                    return value;
+                }
+            }
+
+            return null;
         }
     }
 

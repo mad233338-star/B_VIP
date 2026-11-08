@@ -36,15 +36,19 @@ namespace B_VIP.Hardware
             string? scanError = null;
             string? toolVersion = null;
 
-            ProcessResult version = await _adb.AdbAsync(["version"], 15, ct);
-            if (!version.Succeeded)
-            {
-                scanError = version.FailureReason ?? "adb could not be executed.";
-            }
-            else
+            // `adb version` is only informational: the same server also answers the device listing a
+            // line later, so it gets a one-second budget. A wedged or still-starting adb server used to
+            // cost this scan fifteen seconds and then cancel the enumeration entirely.
+            ProcessResult version = await _adb.AdbAsync(["version"], 1, ct);
+            if (version.Succeeded)
             {
                 toolVersion = version.StandardOutput.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                     .FirstOrDefault();
+            }
+            else if (!version.Started)
+            {
+                // The executable itself could not be launched, so no device can be listed either.
+                scanError = version.FailureReason ?? "adb could not be executed.";
             }
 
             if (scanError is null)

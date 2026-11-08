@@ -161,9 +161,18 @@ namespace B_VIP.Modules
             IReadOnlyList<Dictionary<string, string>> props = await VendorSupport.PropertiesAsync(_adb, request.Serial, ct);
             if (props.Count == 0)
             {
-                errors.Add("The device did not return any properties through adb; check the connection and the USB authorisation prompt.");
+                // An empty getprop almost always means the handset is not in adb mode, or the USB
+                // debugging prompt is still waiting on the phone's screen. Report which one it is
+                // instead of returning an empty table the technician cannot act on.
+                DiagnosticCheckDto adbState = await ProbeAdbAsync(request.Serial, ct);
+                checks.Add(adbState);
+                log.Add($"adb status for {request.Serial}: {adbState.Status} — {adbState.Detail}");
+                errors.Add(adbState.Detail ?? "The device did not return any properties through adb; check the connection and the USB authorisation prompt.");
                 return VendorSupport.Build(request.OperationType, "No data read.", checks, log, warnings, errors);
             }
+
+            checks.Add(new DiagnosticCheckDto("adb-status", "pass",
+                $"USB debugging is authorised for this computer ({props.Count} properties read).", null));
 
             string? manufacturer = VendorSupport.Any(props, "ro.product.manufacturer", "ro.product.system.manufacturer", "ro.product.brand", "ro.product.vendor.manufacturer");
             string? brand = VendorSupport.Any(props, "ro.product.brand", "ro.product.system.brand");
@@ -193,25 +202,50 @@ namespace B_VIP.Modules
                     : "The chipset does not match the usual families for this module; diagnostics still ran.",
                 null));
 
-            (string key, string label)[] fields =
+            // Every row carries a fallback chain: a HyperOS handset does not publish the same build
+            // and model keys as an older MIUI one, and a vendor fork may only fill the .vendor or
+            // .odm copies. The first key that answers wins, so a row is never blank while the dump
+            // holds the value under another name.
+            (string Key, string Label, string[] Keys)[] fields =
             [
-                ("ro.product.model", "Model"),
-                ("ro.product.device", "Device"),
-                ("ro.build.display.id", "Build"),
-                ("ro.build.version.release", "Android version"),
-                ("ro.build.version.sdk", "API level"),
-                ("ro.build.version.security_patch", "Security patch"),
-                ("ro.build.fingerprint", "Fingerprint"),
-                ("ro.product.cpu.abi", "CPU ABI"),
-                ("ro.boot.hardware", "Boot hardware"),
-                ("ro.bootloader", "Bootloader")
+                ("ro.product.model", "Model", ["ro.product.model", "ro.product.vendor.model", "ro.product.odm.model", "ro.product.system.model", "ro.build.product"]),
+                ("ro.product.device", "Device", ["ro.product.device", "ro.product.vendor.device", "ro.product.odm.device"]),
+                ("ro.build.display.id", "Build", ["ro.build.display.id", "ro.build.version.incremental", "ro.system.build.version.incremental", "ro.vendor.build.version.incremental"]),
+                ("ro.build.version.release", "Android version", ["ro.build.version.release", "ro.system.build.version.release", "ro.build.version.release_or_codename"]),
+                ("ro.build.version.sdk", "API level", ["ro.build.version.sdk"]),
+                ("ro.build.version.security_patch", "Security patch", ["ro.build.version.security_patch", "ro.vendor.build.security_patch"]),
+                ("ro.build.fingerprint", "Fingerprint", ["ro.build.fingerprint", "ro.system.build.fingerprint", "ro.vendor.build.fingerprint"]),
+                ("ro.product.cpu.abi", "CPU ABI", ["ro.product.cpu.abi"]),
+                ("ro.boot.hardware", "Boot hardware", ["ro.boot.hardware", "ro.hardware"]),
+                ("ro.bootloader", "Bootloader", ["ro.bootloader"])
             ];
 
-            foreach ((string key, string label) in fields)
+            foreach ((string key, string label, string[] keys) in fields)
             {
-                string? value = VendorSupport.Get(props, key);
+                string? value = VendorSupport.Any(props, keys);
                 checks.Add(new DiagnosticCheckDto(key, value is null ? "skip" : "pass",
                     value is null ? $"{label} was not reported." : $"{label}: {VendorSupport.Truncate(value, 160)}", null));
+            }
+
+            if (string.Equals(_profile.Key, BrandProfiles.Xiaomi.Key, StringComparison.OrdinalIgnoreCase))
+            {
+                // The Xiaomi module shows the MIUI/HyperOS build, the sales region and the serial
+                // number, so those keys are read as well as the generic Android ones above. HyperOS
+                // renamed several of them, hence the chains.
+                (string Key, string Label, string? Value)[] xiaomiFields =
+                [
+                    ("ro.product.brand", "Brand", VendorSupport.Any(props, "ro.product.brand", "ro.product.manufacturer", "ro.product.vendor.brand", "ro.product.system.brand")),
+                    ("ro.mi.os.version.name", "HyperOS version", VendorSupport.Any(props, "ro.mi.os.version.name", "ro.mi.os.version.incremental", "ro.mi.os.version.code")),
+                    ("ro.miui.ui.version.name", "MIUI version", VendorSupport.Any(props, "ro.miui.ui.version.name", "ro.miui.ui.version.code")),
+                    ("ro.miui.region", "Region", VendorSupport.Any(props, "ro.miui.region", "ro.miui.build.region", "ro.product.locale.region", "ro.cust.locale")),
+                    ("ro.serialno", "Serial", VendorSupport.Any(props, "ro.serialno", "ro.boot.serialno", "ro.vendor.serialno", "ril.serialnumber"))
+                ];
+
+                foreach ((string key, string label, string? value) in xiaomiFields)
+                {
+                    checks.Add(new DiagnosticCheckDto(key, value is null ? "skip" : "pass",
+                        value is null ? $"{label} was not reported." : $"{label}: {VendorSupport.Truncate(value, 160)}", null));
+                }
             }
 
             string? frp = VendorSupport.Any(props, "ro.frp.pst", "ro.frp");
@@ -228,11 +262,68 @@ namespace B_VIP.Modules
             }
 
             warnings.Add($"{_profile.DisplayName} maintenance routines (FRP / partition erase) run in fastboot mode and require a factory/unlocked bootloader.");
-            log.Add($"{_profile.DisplayName} module: identity, chipset, build and FRP state read through adb getprop.");
+            log.Add($"{_profile.DisplayName} module: {props.Count} properties parsed from adb getprop; identity, chipset, build and FRP state below.");
 
-            string? model = VendorSupport.Get(props, "ro.product.model");
+            string? model = VendorSupport.Any(props, "ro.product.model", "ro.product.vendor.model", "ro.product.odm.model");
             return VendorSupport.Build(request.OperationType,
                 $"{_profile.DisplayName} device information read for {model ?? request.Serial}.", checks, log, warnings, errors);
+        }
+
+        /// <summary>
+        /// Asks adb itself what state the handset is in. "unauthorized" is the common case after a
+        /// fresh USB connection: the phone is waiting for the operator to allow this computer.
+        /// </summary>
+        private async Task<DiagnosticCheckDto> ProbeAdbAsync(string serial, CancellationToken ct)
+        {
+            ProcessResult result = await _adb.AdbAsync(["devices", "-l"], 20, ct);
+            if (!result.Succeeded)
+            {
+                string reason = string.IsNullOrWhiteSpace(result.FailureReason)
+                    ? VendorSupport.FirstLine(result.StandardError)
+                    : result.FailureReason!;
+                return new DiagnosticCheckDto("adb-status", "fail",
+                    $"adb could not list devices: {VendorSupport.Truncate(reason, 200)}", null);
+            }
+
+            string line = result.StandardOutput
+                .Split('\n')
+                .Select(l => l.Trim())
+                .FirstOrDefault(l => l.StartsWith(serial, StringComparison.OrdinalIgnoreCase)) ?? string.Empty;
+
+            if (line.Length == 0)
+            {
+                return new DiagnosticCheckDto("adb-status", "not connected",
+                    "The handset is not listed by adb. Reconnect the USB cable, allow file transfer/ADB on the phone and retry.", null);
+            }
+
+            if (line.Contains("unauthorized", StringComparison.OrdinalIgnoreCase))
+            {
+                return new DiagnosticCheckDto("adb-status", "Unauthorized",
+                    "Check the phone screen and allow USB debugging for this computer, then retry.", null);
+            }
+
+            if (line.Contains("no permissions", StringComparison.OrdinalIgnoreCase))
+            {
+                return new DiagnosticCheckDto("adb-status", "no permissions",
+                    "Windows did not grant access to the device. Reinstall the OEM USB driver and reconnect.", null);
+            }
+
+            if (line.Contains("offline", StringComparison.OrdinalIgnoreCase))
+            {
+                return new DiagnosticCheckDto("adb-status", "offline",
+                    "The handset is offline in adb. Reconnect the cable or run 'adb kill-server' and retry.", null);
+            }
+
+            if (line.Contains("recovery", StringComparison.OrdinalIgnoreCase) ||
+                line.Contains("sideload", StringComparison.OrdinalIgnoreCase) ||
+                line.Contains("bootloader", StringComparison.OrdinalIgnoreCase))
+            {
+                return new DiagnosticCheckDto("adb-status", "not in Android",
+                    "The handset is not booted into Android, so its properties cannot be read. Reboot to system and retry.", null);
+            }
+
+            return new DiagnosticCheckDto("adb-status", "device",
+                "adb reports the handset, but it returned no properties. Reboot the phone and retry.", null);
         }
 
         /// <summary>SPRD diag/preloader ports appear as virtual COM ports with a Unisoc device name.</summary>

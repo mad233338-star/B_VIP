@@ -94,6 +94,10 @@ namespace B_VIP.Desktop.Services
                 parameters ?? new Dictionary<string, string>(), Guid.NewGuid().ToString("N"),
                 new ConsoleOperationObserver(_log));
 
+            // Logged before the server round trip: the console must show the routine immediately,
+            // not after a cold backend has answered the create-operation call.
+            _log?.Process($"Executing {operationType} on {deviceDescription ?? serial ?? "the connected device"}...");
+
             Guid? operationId = null;
             try
             {
@@ -109,7 +113,6 @@ namespace B_VIP.Desktop.Services
             {
             }
 
-            _log?.Process($"Executing {operationType} on {deviceDescription ?? serial ?? "the connected device"}...");
             OperationExecutionResult result = await _registry.ExecuteAsync(request, ct);
 
             if (result.Succeeded)

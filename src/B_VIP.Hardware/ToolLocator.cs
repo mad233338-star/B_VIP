@@ -134,7 +134,9 @@ namespace B_VIP.Hardware
                     + "or in the Android SDK locations.");
             }
 
-            ProcessResult version = await _runner.RunAsync(new ProcessRequest(path, ["version"], TimeoutSeconds: 15), ct);
+            // The path already resolved, so the version is decoration: never let a slow adb server
+            // stall the tools page (or an operation waiting on this probe) for fifteen seconds.
+            ProcessResult version = await _runner.RunAsync(new ProcessRequest(path, ["version"], TimeoutSeconds: 1), ct);
             string output = string.IsNullOrWhiteSpace(version.StandardOutput) ? version.StandardError : version.StandardOutput;
             string? versionLine = output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                 .FirstOrDefault(l => l.Contains(toolName, StringComparison.OrdinalIgnoreCase))

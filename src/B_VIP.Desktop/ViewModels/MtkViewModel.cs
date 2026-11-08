@@ -96,44 +96,35 @@ namespace B_VIP.Desktop.ViewModels
 
         protected override void OnOperationCompleted(OperationExecutionResult result)
         {
-            Rows.Clear();
-            foreach (DiagnosticCheckDto check in result.Checks)
-            {
-                Rows.Add(new DiagnosticRow { Name = check.Name, Status = check.Status, Detail = check.Detail });
-            }
-
-            foreach (string line in result.Log)
-            {
-                Rows.Add(new DiagnosticRow { Name = "log", Status = "info", Detail = line });
-            }
-
-            foreach (string warning in result.Warnings)
-            {
-                Rows.Add(new DiagnosticRow { Name = "notice", Status = "warn", Detail = warning });
-            }
-
+            ApplyRows(Rows, result);
             RefreshPorts();
         }
 
         private int RefreshPorts()
         {
-            Ports.Clear();
-            if (!OperatingSystem.IsWindows())
+            // The list is collected first and handed to the dispatcher in one pass, so the bound
+            // collection is never cleared and refilled while the screen is rendering.
+            List<MtkPort> ports = new();
+            if (OperatingSystem.IsWindows())
             {
-                return 0;
+                try
+                {
+                    ports.AddRange(MtkPortLocator.FindPorts());
+                }
+                catch (Exception ex)
+                {
+                    Services.Log.Warn($"MediaTek port enumeration failed: {ex.Message}");
+                }
             }
 
-            try
+            OnUiThread(() =>
             {
-                foreach (MtkPort port in MtkPortLocator.FindPorts())
+                Ports.Clear();
+                foreach (MtkPort port in ports)
                 {
                     Ports.Add(port);
                 }
-            }
-            catch (Exception ex)
-            {
-                Services.Log.Warn($"MediaTek port enumeration failed: {ex.Message}");
-            }
+            });
 
             return Ports.Count;
         }

@@ -1,6 +1,7 @@
 using System.Collections.Specialized;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Threading;
 using B_VIP.Desktop.ViewModels;
 
 namespace B_VIP.Desktop.Views
@@ -9,6 +10,7 @@ namespace B_VIP.Desktop.Views
     {
         private ConsoleViewModel? _viewModel;
         private INotifyCollectionChanged? _observed;
+        private bool _scrollQueued;
 
         public LiveConsoleView()
         {
@@ -47,26 +49,43 @@ namespace B_VIP.Desktop.Views
             _viewModel = null;
         }
 
+        /// <summary>
+        /// Schedules one scroll for the whole batch instead of scrolling per changed row.
+        ///
+        /// Scrolling forces the item container generator to run a layout pass. Doing that inside the
+        /// CollectionChanged notification — while the collection is still being appended to — leaves
+        /// the generator counting a different number of rows than the collection holds, and WPF then
+        /// throws "An ItemsControl is inconsistent with its items source" on the next line of output.
+        /// Posting the scroll lets the batch finish and the layout settle first.
+        /// </summary>
         private void OnEntriesChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {
-            if (_viewModel?.AutoScroll != true)
+            if (_viewModel?.AutoScroll != true || _scrollQueued)
             {
                 return;
             }
 
-            ScrollToNewest();
+            _scrollQueued = true;
+            Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
+            {
+                _scrollQueued = false;
+                if (_viewModel?.AutoScroll == true)
+                {
+                    ScrollToNewest();
+                }
+            }));
         }
 
         private void ScrollToNewest()
         {
-            int count = LogList.Items.Count;
-            if (count == 0)
+            ItemCollection items = LogList.Items;
+            if (items.Count == 0)
             {
                 return;
             }
 
-            object last = LogList.Items[count - 1];
-            if (last is not null)
+            object? last = items[items.Count - 1];
+            if (last is not null && LogList.Items.Contains(last))
             {
                 LogList.ScrollIntoView(last);
             }

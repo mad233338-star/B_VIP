@@ -76,9 +76,11 @@ namespace B_VIP.Hardware
                     }
                 }
             }
-            catch (Exception ex) when (ex is ManagementException or System.Runtime.InteropServices.COMException)
+            catch (Exception)
             {
-                // WMI unavailable: the caller reports that MTP information cannot be read.
+                // WMI fails in more ways than one: a provider error, a COM apartment that is busy, a
+                // handle revoked while iterating. None of them should reach the dispatcher, so the
+                // enumeration reports "no MTP device" and the caller says MTP cannot be read.
             }
 
             return devices;

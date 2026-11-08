@@ -1,7 +1,9 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Windows;
 using System.Windows.Input;
+using System.Windows.Threading;
 
 namespace B_VIP.Desktop.Mvvm
 {
@@ -58,7 +60,62 @@ namespace B_VIP.Desktop.Mvvm
 
         public void Execute(object? parameter) => _execute(parameter);
 
-        public void RaiseCanExecuteChanged() => CanExecuteChanged?.Invoke(this, EventArgs.Empty);
+        public void RaiseCanExecuteChanged() => UiThread.Raise(CanExecuteChanged, this);
+    }
+
+    /// <summary>
+    /// Command notifications must reach the controls on the thread that owns them. Work that finishes
+    /// on a worker thread would otherwise re-evaluate a bound button from that thread, which throws
+    /// a cross-thread <see cref="InvalidOperationException"/> straight out of the dispatcher and takes
+    /// the process down. Notifications raised off the UI thread are therefore posted to it, and a
+    /// dispatcher that is already shutting down simply drops them.
+    /// </summary>
+    internal static class UiThread
+    {
+        public static void Raise(EventHandler? handler, object sender)
+        {
+            if (handler is null)
+            {
+                return;
+            }
+
+            Dispatcher? dispatcher = System.Windows.Application.Current?.Dispatcher;
+            if (dispatcher is not null && !dispatcher.CheckAccess())
+            {
+                try
+                {
+                    dispatcher.BeginInvoke(DispatcherPriority.Background, handler, sender, EventArgs.Empty);
+                }
+                catch (Exception ex) when (ex is TaskCanceledException or InvalidOperationException)
+                {
+                    // The window is closing; nobody is left to re-evaluate the command.
+                }
+
+                return;
+            }
+
+            handler(sender, EventArgs.Empty);
+        }
+
+        /// <summary>Runs <paramref name="action"/> on the UI thread, inline when already there.</summary>
+        public static void Invoke(Action action)
+        {
+            Dispatcher? dispatcher = System.Windows.Application.Current?.Dispatcher;
+            if (dispatcher is null || dispatcher.CheckAccess())
+            {
+                action();
+                return;
+            }
+
+            try
+            {
+                dispatcher.Invoke(action, DispatcherPriority.DataBind);
+            }
+            catch (Exception ex) when (ex is TaskCanceledException or InvalidOperationException)
+            {
+                // The dispatcher is shutting down; the update is moot.
+            }
+        }
     }
 
     /// <summary>Command that reports an in-flight state so the UI can disable repeated clicks.</summary>
@@ -112,11 +169,13 @@ namespace B_VIP.Desktop.Mvvm
             }
             finally
             {
+                // The work may have completed on a worker thread (a module that finished without
+                // returning to the dispatcher), so the button must be re-evaluated on the UI thread.
                 IsRunning = false;
             }
         }
 
-        public void RaiseCanExecuteChanged() => CanExecuteChanged?.Invoke(this, EventArgs.Empty);
+        public void RaiseCanExecuteChanged() => UiThread.Raise(CanExecuteChanged, this);
     }
 
     public interface INavigationHost

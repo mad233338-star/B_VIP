@@ -71,28 +71,105 @@ namespace B_VIP.Hardware
                 return Array.Empty<Dictionary<string, string>>();
             }
 
-            List<Dictionary<string, string>> properties = new(128);
-            foreach (string line in result.StandardOutput.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            // A handset prints well over a thousand of these in a few hundred milliseconds. The dump
+            // is parsed line by line and *nothing* is discarded just because the line does not look
+            // exactly like the usual pair, otherwise one unexpected format empties the whole table.
+            return ParseGetprop(result.StandardOutput);
+        }
+
+        /// <summary>
+        /// Parses an <c>adb shell getprop</c> dump. The canonical line is
+        /// <c>[ro.product.model]: [M2101K6G]</c>; the bracket-less <c>key: value</c> and
+        /// <c>key=value</c> shapes are accepted as well so a vendor build that prints its properties
+        /// differently still fills the table. Blank values are kept as empty strings.
+        /// </summary>
+        public static IReadOnlyList<Dictionary<string, string>> ParseGetprop(string? output)
+        {
+            List<Dictionary<string, string>> properties = new(256);
+            if (string.IsNullOrWhiteSpace(output))
             {
-                int close = line.LastIndexOf(']');
-                int open = line.IndexOf('[');
-                if (open <= 1 || close < open)
+                return properties;
+            }
+
+            HashSet<string> seen = new(StringComparer.OrdinalIgnoreCase);
+            foreach (string raw in output.Split('\n'))
+            {
+                string line = raw.Trim().TrimEnd('\r');
+                if (line.Length == 0 || !TryParseProperty(line, out string name, out string value))
                 {
                     continue;
                 }
 
-                string name = line[1..open];
-                string value = line[(open + 1)..close];
-                if (name.Length > 0)
+                if (!seen.Add(name))
                 {
-                    properties.Add(new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-                    {
-                        [name] = value
-                    });
+                    continue;
                 }
+
+                properties.Add(new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    [name] = value
+                });
             }
 
             return properties;
+        }
+
+        /// <summary>Extracts one property from one dump line without trusting the exact spacing.</summary>
+        private static bool TryParseProperty(string line, out string name, out string value)
+        {
+            name = string.Empty;
+            value = string.Empty;
+
+            // [key]: [value] — the shape every stock Android build prints. The key can never contain
+            // ']', so the first "]:" after the opening bracket ends it, and any ':' or ']' inside the
+            // value is left untouched.
+            if (line[0] == '[')
+            {
+                int keyEnd = line.IndexOf("]:", StringComparison.Ordinal);
+                if (keyEnd > 1)
+                {
+                    name = line[1..keyEnd].Trim();
+                    string rest = line[(keyEnd + 2)..].Trim();
+                    if (rest.Length >= 2 && rest[0] == '[' && rest[^1] == ']')
+                    {
+                        rest = rest[1..^1];
+                    }
+
+                    value = rest;
+                    return name.Length > 0;
+                }
+
+                // A bracketed key with an unusual separator falls through to the lenient split.
+                int bracket = line.IndexOf(']');
+                if (bracket > 1)
+                {
+                    int after = line.IndexOf(':', bracket);
+                    if (after > bracket)
+                    {
+                        name = line[1..bracket].Trim();
+                        value = line[(after + 1)..].Trim().Trim('[', ']');
+                        return name.Length > 0;
+                    }
+                }
+            }
+
+            // key: value or key=value
+            int colon = line.IndexOf(':');
+            int equals = line.IndexOf('=');
+            int split = colon > 0 && (equals < 0 || colon < equals) ? colon : equals;
+            if (split <= 0 || split == line.Length - 1)
+            {
+                return false;
+            }
+
+            name = line[..split].Trim();
+            value = line[(split + 1)..].Trim();
+            if (value.Length >= 2 && value[0] == '[' && value[^1] == ']')
+            {
+                value = value[1..^1];
+            }
+
+            return name.Length > 0;
         }
 
         public Task<ProcessResult> ShellAsync(string serial, string command, int timeoutSeconds = 60, CancellationToken ct = default)

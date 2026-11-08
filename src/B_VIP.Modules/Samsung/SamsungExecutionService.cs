@@ -43,7 +43,9 @@ namespace B_VIP.Modules.Samsung
             IReadOnlyList<MtpDeviceInfo> mtpDevices;
             try
             {
-                mtpDevices = await _mtp.FindDevicesAsync(ct);
+                // A provider that returns nothing at all must read as "no MTP device", not as a
+                // null-reference crash in the middle of the screen's read.
+                mtpDevices = await _mtp.FindDevicesAsync(ct) ?? Array.Empty<MtpDeviceInfo>();
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -93,13 +95,40 @@ namespace B_VIP.Modules.Samsung
                 request.Info($"Step 3/4 — reading getprop from {serial}.");
                 checks.Add(new DiagnosticCheckDto("adb-connection", "pass", $"Authorized adb device: {serial}", null));
 
-                IReadOnlyList<Dictionary<string, string>> props = await _adb.GetPropertiesAsync(serial, ct);
+                // getprop output is whatever the handset prints: a truncated line, a property with no
+                // brackets or a connection that drops mid-read must not abort the whole screen. The
+                // properties that did arrive are still reported.
+                IReadOnlyList<Dictionary<string, string>> props;
+                try
+                {
+                    props = await _adb.GetPropertiesAsync(serial, ct);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    warnings.Add($"The property list could not be read: {ex.Message}");
+                    props = Array.Empty<Dictionary<string, string>>();
+                }
+
+                props ??= Array.Empty<Dictionary<string, string>>();
+
                 Dictionary<string, string> values = new(StringComparer.OrdinalIgnoreCase);
                 foreach (Dictionary<string, string> entry in props)
                 {
+                    if (entry is null)
+                    {
+                        continue;
+                    }
+
                     foreach ((string key, string value) in entry)
                     {
-                        values[key] = value;
+                        if (!string.IsNullOrWhiteSpace(key))
+                        {
+                            values[key] = value ?? string.Empty;
+                        }
                     }
                 }
 
