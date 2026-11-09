@@ -38,16 +38,28 @@ namespace B_VIP.Desktop.Services.Loaders
     {
         private const int BufferSize = 81920;
 
+        /// <summary>
+        /// A stalled release CDN must surface as an error instead of an endless progress bar, so
+        /// every attempt is abandoned after this long.
+        /// </summary>
+        private static readonly TimeSpan AttemptTimeout = TimeSpan.FromSeconds(30);
+
         private readonly HttpClient _http;
         private readonly Action<string>? _log;
+        private readonly string? _downloadBaseUrl;
 
-        public LoaderProvisioner(HttpClient http, string rootDirectory, Action<string>? log = null)
+        public LoaderProvisioner(
+            HttpClient http,
+            string rootDirectory,
+            Action<string>? log = null,
+            string? downloadBaseUrl = null)
         {
             _http = http ?? throw new ArgumentNullException(nameof(http));
             RootDirectory = string.IsNullOrWhiteSpace(rootDirectory)
                 ? DefaultRootDirectory
                 : Path.GetFullPath(rootDirectory);
             _log = log;
+            _downloadBaseUrl = string.IsNullOrWhiteSpace(downloadBaseUrl) ? null : downloadBaseUrl.Trim();
         }
 
         /// <summary>The <c>Loaders</c> folder beside the executable.</summary>
@@ -116,15 +128,17 @@ namespace B_VIP.Desktop.Services.Loaders
                 _log?.Invoke($"Downloading {package.DisplayName}.");
                 stages?.Report(LoaderStatus.Downloading);
 
-                bool downloaded = await DownloadAsync(package, archivePath, progress, ct).ConfigureAwait(false);
-                if (!downloaded)
+                DownloadOutcome download = await DownloadAsync(package, archivePath, progress, ct).ConfigureAwait(false);
+                if (download != DownloadOutcome.Downloaded)
                 {
                     stages?.Report(LoaderStatus.Error);
                     return new LoaderProvisionResult(false, LoaderStatus.Error, targetDirectory,
-                        "The loader archive could not be downloaded from the release page.");
+                        download == DownloadOutcome.TimedOut
+                            ? "The loader download timed out. Retry to start it again."
+                            : "The loader archive could not be fetched. Check the connection and retry.");
                 }
 
-                _log?.Invoke($"Extracting {package.ArchiveFileName} into {targetDirectory}.");
+                _log?.Invoke($"Extracting {package.ArchiveFileName}.");
                 stages?.Report(LoaderStatus.Extracting);
                 progress?.Report(-1);
 
@@ -154,9 +168,11 @@ namespace B_VIP.Desktop.Services.Loaders
             catch (Exception ex) when (ex is HttpRequestException or IOException or UnauthorizedAccessException
                 or InvalidDataException or NotSupportedException)
             {
-                _log?.Invoke($"Loader provisioning failed: {ex.Message}");
+                // The raw message can name a host or a folder, neither of which belongs on screen.
+                _log?.Invoke("Loader provisioning failed.");
                 stages?.Report(LoaderStatus.Error);
-                return new LoaderProvisionResult(false, LoaderStatus.Error, targetDirectory, ex.Message);
+                return new LoaderProvisionResult(false, LoaderStatus.Error, targetDirectory,
+                    "The loader archive could not be installed. Retry to try again.");
             }
             finally
             {
@@ -165,11 +181,84 @@ namespace B_VIP.Desktop.Services.Loaders
             }
         }
 
-        private async Task<bool> DownloadAsync(
+        /// <summary>How one provisioning download ended.</summary>
+        private enum DownloadOutcome
+        {
+            Downloaded,
+            Failed,
+            TimedOut
+        }
+
+        /// <summary>
+        /// Streams the archive, trying the cloud service first and the published release asset only
+        /// when the service cannot deliver it. Every attempt is bounded by <see cref="AttemptTimeout"/>,
+        /// so an ISP block on the release CDN becomes a retryable error instead of a frozen bar.
+        /// </summary>
+        private async Task<DownloadOutcome> DownloadAsync(
             LoaderPackage package, string archivePath, IProgress<int>? progress, CancellationToken ct)
         {
+            bool timedOut = false;
+
+            foreach (Uri source in SourcesFor(package))
+            {
+                progress?.Report(-1);
+
+                try
+                {
+                    if (await DownloadFromAsync(source, archivePath, progress, ct).ConfigureAwait(false))
+                    {
+                        return DownloadOutcome.Downloaded;
+                    }
+
+                    _log?.Invoke("A loader download source did not answer; trying the next one.");
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (OperationCanceledException)
+                {
+                    // The linked timeout fired, not the operator's cancel.
+                    timedOut = true;
+                    _log?.Invoke("A loader download timed out; trying the next source.");
+                }
+                catch (HttpRequestException)
+                {
+                    _log?.Invoke("A loader download source could not be reached; trying the next one.");
+                }
+                catch (IOException)
+                {
+                    _log?.Invoke("A loader download stopped early; trying the next source.");
+                }
+            }
+
+            return timedOut ? DownloadOutcome.TimedOut : DownloadOutcome.Failed;
+        }
+
+        /// <summary>The cloud service first, then the release asset it mirrors.</summary>
+        private IEnumerable<Uri> SourcesFor(LoaderPackage package)
+        {
+            string? proxyUrl = LoaderCatalog.ProxyUrl(_downloadBaseUrl, package);
+            if (proxyUrl is not null && Uri.TryCreate(proxyUrl, UriKind.Absolute, out Uri? proxy))
+            {
+                yield return proxy;
+            }
+
+            if (Uri.TryCreate(package.DownloadUrl, UriKind.Absolute, out Uri? direct))
+            {
+                yield return direct;
+            }
+        }
+
+        private async Task<bool> DownloadFromAsync(
+            Uri source, string archivePath, IProgress<int>? progress, CancellationToken ct)
+        {
+            using CancellationTokenSource attempt =
+                CancellationTokenSource.CreateLinkedTokenSource(ct);
+            attempt.CancelAfter(AttemptTimeout);
+
             using HttpResponseMessage response = await _http
-                .GetAsync(new Uri(package.DownloadUrl), HttpCompletionOption.ResponseHeadersRead, ct)
+                .GetAsync(source, HttpCompletionOption.ResponseHeadersRead, attempt.Token)
                 .ConfigureAwait(false);
 
             if (!response.IsSuccessStatusCode)
@@ -183,15 +272,15 @@ namespace B_VIP.Desktop.Services.Loaders
             long written = 0;
             int lastReported = -1;
 
-            await using Stream source = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+            await using Stream body = await response.Content.ReadAsStreamAsync(attempt.Token).ConfigureAwait(false);
             await using FileStream destination = new(archivePath, FileMode.Create, FileAccess.Write, FileShare.None,
                 BufferSize, useAsync: true);
 
             byte[] buffer = new byte[BufferSize];
             int read;
-            while ((read = await source.ReadAsync(buffer, ct).ConfigureAwait(false)) > 0)
+            while ((read = await body.ReadAsync(buffer, attempt.Token).ConfigureAwait(false)) > 0)
             {
-                await destination.WriteAsync(buffer.AsMemory(0, read), ct).ConfigureAwait(false);
+                await destination.WriteAsync(buffer.AsMemory(0, read), attempt.Token).ConfigureAwait(false);
                 written += read;
 
                 if (total is > 0)

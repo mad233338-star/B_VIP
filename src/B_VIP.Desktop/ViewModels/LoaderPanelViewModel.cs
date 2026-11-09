@@ -48,6 +48,7 @@ namespace B_VIP.Desktop.ViewModels
                     OnPropertyChanged(nameof(IsFailed));
                     OnPropertyChanged(nameof(IsIndeterminate));
                     OnPropertyChanged(nameof(IsIdle));
+                    OnPropertyChanged(nameof(PrepareButtonText));
                     PrepareCommand.RaiseCanExecuteChanged();
                     CancelCommand.RaiseCanExecuteChanged();
                 }
@@ -85,7 +86,14 @@ namespace B_VIP.Desktop.ViewModels
             private set => SetProperty(ref _detail, value);
         }
 
+        /// <summary>
+        /// Where the bundle lives on this computer. Code-only: the screen never shows a folder, so
+        /// an operator is not confronted with an absolute path.
+        /// </summary>
         public string Directory => _installation.Directory;
+
+        /// <summary>The action button: a first download, or the retry that follows a failure.</summary>
+        public string PrepareButtonText => IsFailed ? "Retry" : "Download";
 
         public string PackageName => _installation.Package.DisplayName;
 
@@ -162,7 +170,6 @@ namespace B_VIP.Desktop.ViewModels
             Status = _installation.Status;
             Progress = _installation.Progress;
             Detail = _installation.Detail;
-            OnPropertyChanged(nameof(Directory));
         }
     }
 }

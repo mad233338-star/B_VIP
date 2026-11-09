@@ -95,9 +95,9 @@
                     <Button DockPanel.Dock="Right" Content="Cancel" Style="{StaticResource Button.Outline}"
                             Command="{Binding Loaders.CancelCommand}" Margin="8,0,0,0" VerticalAlignment="Center"
                             Visibility="{Binding Loaders.IsProvisioning, Converter={StaticResource BoolToVisibility}}" />
-                    <Button DockPanel.Dock="Right" Content="Download" Style="{StaticResource Button.Outline}"
+                    <Button DockPanel.Dock="Right" Content="{Binding Loaders.PrepareButtonText}" Style="{StaticResource Button.Outline}"
                             Command="{Binding Loaders.PrepareCommand}" Margin="8,0,0,0" VerticalAlignment="Center"
-                            ToolTip="Fetches the published mtkclient bundle into Loaders\MTK." />
+                            ToolTip="Fetches and installs the MediaTek loader bundle." />
                     <TextBlock Style="{StaticResource Text.Muted}" Text="{Binding Loaders.PackageName}"
                                VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                 </DockPanel>
@@ -109,8 +109,6 @@
 
                 <TextBlock Style="{StaticResource Text.Muted}" Text="{Binding Loaders.Detail}"
                            TextWrapping="Wrap" Margin="0,6,0,0" />
-                <TextBlock Style="{StaticResource Text.Muted}" Text="{Binding Loaders.Directory}"
-                           FontFamily="Consolas" FontSize="11" TextTrimming="CharacterEllipsis" Margin="0,2,0,0" />
             </StackPanel>
         </Border>
 

@@ -22,10 +22,29 @@ namespace B_VIP.Desktop.Services.Loaders
         /// <summary>Sub-folder of the application directory that holds every provisioned bundle.</summary>
         public const string RootFolderName = "Loaders";
 
-        /// <summary>Release the three archives come from.</summary>
+        /// <summary>Release the three archives come from (the direct fallback when no proxy answers).</summary>
         public const string ReleasePage = "https://github.com/mad233338-star/B_VIP-Loaders/releases/tag/v1.0";
 
+        /// <summary>
+        /// Route on the cloud service that streams a release archive to the client. The release CDN
+        /// is blocked or throttled from some regions, so the service is tried first and the release
+        /// URL only afterwards.
+        /// </summary>
+        public const string ProxyRoute = "/api/v1/loaders/download/";
+
         private const string ReleaseDownload = "https://github.com/mad233338-star/B_VIP-Loaders/releases/download/v1.0/";
+
+        /// <summary>
+        /// The proxy address for <paramref name="package"/>, or null when no cloud service is
+        /// configured (the release asset is then used directly).
+        /// </summary>
+        public static string? ProxyUrl(string? baseUrl, LoaderPackage package)
+        {
+            ArgumentNullException.ThrowIfNull(package);
+
+            string root = (baseUrl ?? string.Empty).Trim().TrimEnd('/');
+            return root.Length == 0 ? null : root + ProxyRoute + package.Id;
+        }
 
         /// <summary>Qualcomm programmers and Firehose loaders.</summary>
         public static LoaderPackage Qualcomm { get; } = new(
@@ -55,5 +74,9 @@ namespace B_VIP.Desktop.Services.Loaders
             "spd_dump and SC9863A loader images");
 
         public static IReadOnlyList<LoaderPackage> All { get; } = [Qualcomm, Mtk, Spreadtrum];
+
+        /// <summary>Looks a package up by its route id (<c>qualcomm</c>, <c>mtk</c>, <c>spd</c>).</summary>
+        public static LoaderPackage? Find(string? id)
+            => All.FirstOrDefault(package => string.Equals(package.Id, id?.Trim(), StringComparison.OrdinalIgnoreCase));
     }
 }

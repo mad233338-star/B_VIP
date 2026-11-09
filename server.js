@@ -62,8 +62,33 @@ const TECHNICIAN_PERMISSIONS = [
     'ADB', 'Fastboot', 'FRP', 'Flash', 'Repair', 'MTK', 'Qualcomm', 'SPD', 'Samsung'
 ];
 
+// Chipset loader bundles published as release assets. The desktop client asks for a chipset by
+// id through LOADER_PROXY_ROUTE and this service streams the matching archive back to it.
+const LOADER_PROXY_ROUTE = '/api/v1/loaders/download/';
+const LOADER_HEADER_TIMEOUT_MS = 30000;
+
+const LOADER_ASSETS = {
+    qualcomm: {
+        fileName: 'Loaders-main.zip',
+        url: 'https://github.com/mad233338-star/B_VIP-Loaders/releases/download/v1.0/Loaders-main.zip'
+    },
+    mtk: {
+        fileName: 'mtkclient-main.zip',
+        url: 'https://github.com/mad233338-star/B_VIP-Loaders/releases/download/v1.0/mtkclient-main.zip'
+    },
+    spd: {
+        fileName: 'SPD_Loaders.zip.zip',
+        url: 'https://github.com/mad233338-star/B_VIP-Loaders/releases/download/v1.0/SPD_Loaders.zip.zip'
+    }
+};
+
 // Proper error codes the desktop client already understands.
 const ERRORS = {
+    loaderUnavailable: {
+        status: 502,
+        code: 'loader-unavailable',
+        message: 'The loader archive could not be fetched. Try again in a moment.'
+    },
     invalidCredentials: { status: 401, code: 'invalid-credentials', message: 'Invalid username or password.' },
     emailNotVerified: {
         status: 403,
@@ -1309,6 +1334,89 @@ function createApp(options) {
         });
     }
 
+    // ---------------------------------------------------------
+    // Loader archive proxy.
+    //
+    // The desktop client used to fetch these ZIPs straight from the GitHub release CDN, which is
+    // blocked or throttled from several regions and left the download bar hanging. The client now
+    // asks this service instead: the archive is streamed through unchanged, so the operator never
+    // needs direct access to the release host. Nothing is buffered in memory, nothing is cached.
+    // ---------------------------------------------------------
+    async function handleLoaderDownload(req, res, chipset) {
+        const asset = LOADER_ASSETS[chipset];
+        if (!asset) {
+            return fail(res, ERRORS.notFound);
+        }
+
+        const controller = new AbortController();
+        const headerTimer = setTimeout(() => controller.abort(), LOADER_HEADER_TIMEOUT_MS);
+
+        // A technician who closes the panel must not leave the upstream transfer running.
+        res.on('close', () => {
+            if (!res.writableEnded) {
+                controller.abort();
+            }
+        });
+
+        try {
+            const upstream = await fetch(asset.url, {
+                redirect: 'follow',
+                signal: controller.signal,
+                headers: { 'User-Agent': 'B_VIP-Desktop/2.0', Accept: 'application/octet-stream' }
+            });
+
+            clearTimeout(headerTimer);
+
+            if (!upstream.ok || !upstream.body) {
+                log(`Loader asset '${chipset}' answered HTTP ${upstream.status}.`);
+                return fail(res, ERRORS.loaderUnavailable);
+            }
+
+            const headers = {
+                'Content-Type': 'application/zip',
+                'Content-Disposition': `attachment; filename="${asset.fileName}"`,
+                'Cache-Control': 'no-store'
+            };
+
+            const length = upstream.headers.get('content-length');
+            if (length) {
+                headers['Content-Length'] = length;
+            }
+
+            res.writeHead(200, headers);
+
+            // Back-pressure: pause reading while the client's socket is full. A client that goes
+            // away mid-transfer resolves on 'close' too, so the wait never hangs.
+            for await (const chunk of upstream.body) {
+                if (!res.write(chunk)) {
+                    await new Promise(resolve => {
+                        const resume = () => {
+                            res.off('drain', resume);
+                            res.off('close', resume);
+                            resolve();
+                        };
+
+                        res.once('drain', resume);
+                        res.once('close', resume);
+                    });
+                }
+            }
+
+            res.end();
+        } catch (error) {
+            clearTimeout(headerTimer);
+
+            if (res.headersSent) {
+                // The transfer was already announced; the client sees a truncated stream and retries.
+                res.destroy();
+                return;
+            }
+
+            log(`Loader proxy failed for '${chipset}': ${error && error.message ? error.message : error}`);
+            return fail(res, ERRORS.loaderUnavailable);
+        }
+    }
+
     async function handleMe(req, res) {
         const user = await readSessionUser(req);
         if (!user) {
@@ -2061,6 +2169,11 @@ function createApp(options) {
             // The service queue the desktop polls for cloud-synchronised work.
             if ((path === '/api/operations/queue' || path === '/api/v1/service/queue') && req.method === 'GET') {
                 return await handleServiceQueue(req, res);
+            }
+
+            // Chipset loader archives, streamed through this service (see handleLoaderDownload).
+            if (path.startsWith(LOADER_PROXY_ROUTE) && req.method === 'GET') {
+                return await handleLoaderDownload(req, res, path.substring(LOADER_PROXY_ROUTE.length));
             }
 
             // The administration console's routes (see routeAdmin above).

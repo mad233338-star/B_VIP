@@ -155,7 +155,7 @@ namespace B_VIP.Desktop.Services
             ConsoleLoggerService log = new(dispatcher);
 
             _current = new AppServices(api, tokens, new SessionService(), new NavigationService(),
-                toolOptions ?? new ToolLocatorOptions(), log, dispatcher, http);
+                toolOptions ?? new ToolLocatorOptions(), log, dispatcher, http, ApiConfiguration.ResolveBaseUrl(baseUrl));
             return _current;
         }
 
@@ -167,7 +167,8 @@ namespace B_VIP.Desktop.Services
             ToolLocatorOptions toolOptions,
             ConsoleLoggerService log,
             System.Windows.Threading.Dispatcher? dispatcher,
-            HttpClient http)
+            HttpClient http,
+            string baseUrl)
         {
             Api = api;
             Tokens = tokens;
@@ -191,10 +192,12 @@ namespace B_VIP.Desktop.Services
             License = new LicenseMonitorService(api, session, log, dispatcher);
             Cloud = new CloudServiceMonitor(api, log, dispatcher);
 
-            // Chipset loader bundles (Qualcomm / MediaTek / Unisoc) are fetched from the release
-            // page on first use and cached under Loaders\ beside the executable.
+            // Chipset loader bundles (Qualcomm / MediaTek / Unisoc) are downloaded on first use and
+            // cached under Loaders\ beside the executable. The cloud service proxies the release
+            // archive, because the release CDN is unreachable from some networks; the release URL
+            // remains as the fallback when the service cannot deliver it.
             Loaders = new LoaderProvisioner(http, LoaderProvisioner.DefaultRootDirectory,
-                message => log.Info(message));
+                message => log.Info(message), baseUrl);
         }
 
         public BVipApiClient Api { get; }

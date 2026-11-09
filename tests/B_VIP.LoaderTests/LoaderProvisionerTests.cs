@@ -95,6 +95,64 @@ namespace B_VIP.LoaderTests
             Assert.False(result.Succeeded);
             Assert.Equal(LoaderStatus.Error, result.Status);
             Assert.False(provisioner.IsReady(package));
+
+            // What the operator reads is a status line, never a folder or a release URL.
+            Assert.DoesNotContain(_root, result.Message);
+            Assert.DoesNotContain("http", result.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain(".zip", result.Message, StringComparison.OrdinalIgnoreCase);
+        }
+
+        [Fact]
+        public async Task The_cloud_service_is_asked_before_the_release_asset()
+        {
+            List<Uri> seen = new();
+            RecordingHandler handler = new(request =>
+            {
+                seen.Add(request.RequestUri!);
+                return Zip("mtkclient-main/da.bin", new byte[] { 9 });
+            });
+
+            LoaderProvisioner provisioner = new(new HttpClient(handler), _root, null, "https://b-vip.test/");
+            LoaderProvisionResult result = await provisioner.EnsureAsync(LoaderCatalog.Mtk);
+
+            Assert.True(result.Succeeded, result.Message);
+            Assert.Single(seen);
+            Assert.Equal("https://b-vip.test/api/v1/loaders/download/mtk", seen[0].ToString());
+        }
+
+        [Fact]
+        public async Task A_proxy_that_cannot_deliver_falls_back_to_the_release_asset()
+        {
+            List<Uri> seen = new();
+            RecordingHandler handler = new(request =>
+            {
+                Uri uri = request.RequestUri!;
+                seen.Add(uri);
+
+                return uri.Host == "b-vip.test"
+                    ? new HttpResponseMessage(HttpStatusCode.BadGateway)
+                    : Zip("Loaders-main/programmer.elf", new byte[] { 3, 3 });
+            });
+
+            LoaderProvisioner provisioner = new(new HttpClient(handler), _root, null, "https://b-vip.test");
+            LoaderProvisionResult result = await provisioner.EnsureAsync(LoaderCatalog.Qualcomm);
+
+            Assert.True(result.Succeeded, result.Message);
+            Assert.Equal(2, seen.Count);
+            Assert.Equal("https://b-vip.test/api/v1/loaders/download/qualcomm", seen[0].ToString());
+            Assert.Contains("/B_VIP-Loaders/releases/download/", seen[1].ToString());
+            Assert.True(provisioner.IsReady(LoaderCatalog.Qualcomm));
+        }
+
+        [Fact]
+        public void The_proxy_address_is_omitted_when_no_service_is_configured()
+        {
+            Assert.Null(LoaderCatalog.ProxyUrl(null, LoaderCatalog.Mtk));
+            Assert.Null(LoaderCatalog.ProxyUrl("  ", LoaderCatalog.Mtk));
+            Assert.Equal("https://b-vip.test/api/v1/loaders/download/spd",
+                LoaderCatalog.ProxyUrl("https://b-vip.test/", LoaderCatalog.Spreadtrum));
+            Assert.Same(LoaderCatalog.Qualcomm, LoaderCatalog.Find("QUALCOMM"));
+            Assert.Null(LoaderCatalog.Find("unknown"));
         }
 
         [Fact]
