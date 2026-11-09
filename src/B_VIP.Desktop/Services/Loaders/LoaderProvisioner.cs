@@ -27,6 +27,22 @@ namespace B_VIP.Desktop.Services.Loaders
     public sealed record LoaderProvisionResult(bool Succeeded, LoaderStatus Status, string Directory, string Message);
 
     /// <summary>
+    /// How long each phase of a loader download may take.
+    ///
+    /// <see cref="Connect"/> bounds only the wait for the response headers, so a slow but reachable
+    /// host still surfaces as a quick error. <see cref="Download"/> bounds the payload as a whole
+    /// (the Qualcomm archive alone is 154 MB) and <see cref="Idle"/> is the longest silence tolerated
+    /// between two chunks; it restarts every time data arrives so a merely slow connection keeps going.
+    /// </summary>
+    public sealed record LoaderTimeoutPolicy(TimeSpan Connect, TimeSpan Download, TimeSpan Idle)
+    {
+        public static LoaderTimeoutPolicy Default { get; } = new(
+            TimeSpan.FromSeconds(30),
+            TimeSpan.FromMinutes(10),
+            TimeSpan.FromSeconds(60));
+    }
+
+    /// <summary>
     /// Downloads, unpacks and cleans up a loader bundle.
     ///
     /// The bundle lives under <c>Loaders/&lt;Chipset&gt;</c> next to the executable, so a portable
@@ -38,21 +54,17 @@ namespace B_VIP.Desktop.Services.Loaders
     {
         private const int BufferSize = 81920;
 
-        /// <summary>
-        /// A stalled release CDN must surface as an error instead of an endless progress bar, so
-        /// every attempt is abandoned after this long.
-        /// </summary>
-        private static readonly TimeSpan AttemptTimeout = TimeSpan.FromSeconds(30);
-
         private readonly HttpClient _http;
         private readonly Action<string>? _log;
         private readonly string? _downloadBaseUrl;
+        private readonly LoaderTimeoutPolicy _timeouts;
 
         public LoaderProvisioner(
             HttpClient http,
             string rootDirectory,
             Action<string>? log = null,
-            string? downloadBaseUrl = null)
+            string? downloadBaseUrl = null,
+            LoaderTimeoutPolicy? timeouts = null)
         {
             _http = http ?? throw new ArgumentNullException(nameof(http));
             RootDirectory = string.IsNullOrWhiteSpace(rootDirectory)
@@ -60,6 +72,7 @@ namespace B_VIP.Desktop.Services.Loaders
                 : Path.GetFullPath(rootDirectory);
             _log = log;
             _downloadBaseUrl = string.IsNullOrWhiteSpace(downloadBaseUrl) ? null : downloadBaseUrl.Trim();
+            _timeouts = timeouts ?? LoaderTimeoutPolicy.Default;
         }
 
         /// <summary>The <c>Loaders</c> folder beside the executable.</summary>
@@ -191,8 +204,8 @@ namespace B_VIP.Desktop.Services.Loaders
 
         /// <summary>
         /// Streams the archive, trying the cloud service first and the published release asset only
-        /// when the service cannot deliver it. Every attempt is bounded by <see cref="AttemptTimeout"/>,
-        /// so an ISP block on the release CDN becomes a retryable error instead of a frozen bar.
+        /// when the service cannot deliver it. An unreachable source fails on the connect timeout, so
+        /// an ISP block on the release CDN becomes a retryable error instead of a frozen bar.
         /// </summary>
         private async Task<DownloadOutcome> DownloadAsync(
             LoaderPackage package, string archivePath, IProgress<int>? progress, CancellationToken ct)
@@ -216,9 +229,9 @@ namespace B_VIP.Desktop.Services.Loaders
                 {
                     throw;
                 }
-                catch (OperationCanceledException)
+                catch (TimeoutException)
                 {
-                    // The linked timeout fired, not the operator's cancel.
+                    // Only the connect timer or the streaming watchdogs fired, not the operator.
                     timedOut = true;
                     _log?.Invoke("A loader download timed out; trying the next source.");
                 }
@@ -253,55 +266,91 @@ namespace B_VIP.Desktop.Services.Loaders
         private async Task<bool> DownloadFromAsync(
             Uri source, string archivePath, IProgress<int>? progress, CancellationToken ct)
         {
-            using CancellationTokenSource attempt =
-                CancellationTokenSource.CreateLinkedTokenSource(ct);
-            attempt.CancelAfter(AttemptTimeout);
+            HttpResponseMessage response = await OpenAsync(source, ct).ConfigureAwait(false);
 
-            using HttpResponseMessage response = await _http
-                .GetAsync(source, HttpCompletionOption.ResponseHeadersRead, attempt.Token)
-                .ConfigureAwait(false);
-
-            if (!response.IsSuccessStatusCode)
+            using (response)
             {
-                _log?.Invoke($"Loader archive answered HTTP {(int)response.StatusCode}.");
-                progress?.Report(-1);
-                return false;
-            }
-
-            long? total = response.Content.Headers.ContentLength;
-            long written = 0;
-            int lastReported = -1;
-
-            await using Stream body = await response.Content.ReadAsStreamAsync(attempt.Token).ConfigureAwait(false);
-            await using FileStream destination = new(archivePath, FileMode.Create, FileAccess.Write, FileShare.None,
-                BufferSize, useAsync: true);
-
-            byte[] buffer = new byte[BufferSize];
-            int read;
-            while ((read = await body.ReadAsync(buffer, attempt.Token).ConfigureAwait(false)) > 0)
-            {
-                await destination.WriteAsync(buffer.AsMemory(0, read), attempt.Token).ConfigureAwait(false);
-                written += read;
-
-                if (total is > 0)
+                if (!response.IsSuccessStatusCode)
                 {
-                    int percent = (int)Math.Clamp(written * 100 / total.Value, 0, 100);
-                    if (percent != lastReported)
+                    _log?.Invoke($"Loader archive answered HTTP {(int)response.StatusCode}.");
+                    progress?.Report(-1);
+                    return false;
+                }
+
+                long? total = response.Content.Headers.ContentLength;
+                long written = 0;
+                int lastReported = -1;
+
+                // Two independent bounds on the payload: an overall ceiling for the whole archive and
+                // an inactivity window that restarts on every chunk, so a slow-but-alive link is never
+                // mistaken for a dead one and a stalled one never hangs the progress bar.
+                using CancellationTokenSource download = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                download.CancelAfter(_timeouts.Download);
+                using CancellationTokenSource idle = CancellationTokenSource.CreateLinkedTokenSource(download.Token);
+                idle.CancelAfter(_timeouts.Idle);
+
+                try
+                {
+                    await using Stream body = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+                    await using FileStream destination = new(archivePath, FileMode.Create, FileAccess.Write,
+                        FileShare.None, BufferSize, useAsync: true);
+
+                    byte[] buffer = new byte[BufferSize];
+                    int read;
+                    while ((read = await body.ReadAsync(buffer, idle.Token).ConfigureAwait(false)) > 0)
                     {
-                        lastReported = percent;
-                        progress?.Report(percent);
+                        await destination.WriteAsync(buffer.AsMemory(0, read), idle.Token).ConfigureAwait(false);
+                        written += read;
+
+                        // Data is flowing again: push the inactivity deadline out by another window.
+                        idle.CancelAfter(_timeouts.Idle);
+
+                        if (total is > 0)
+                        {
+                            int percent = (int)Math.Clamp(written * 100 / total.Value, 0, 100);
+                            if (percent != lastReported)
+                            {
+                                lastReported = percent;
+                                progress?.Report(percent);
+                            }
+                        }
+                        else if (lastReported < 0)
+                        {
+                            // No Content-Length (chunked reply): the bar shows indeterminate progress.
+                            lastReported = -1;
+                            progress?.Report(-1);
+                        }
                     }
                 }
-                else if (lastReported < 0)
+                catch (OperationCanceledException) when (!ct.IsCancellationRequested)
                 {
-                    // No Content-Length (chunked reply): the bar shows indeterminate progress.
-                    lastReported = -1;
-                    progress?.Report(-1);
+                    throw new TimeoutException("The loader download stopped sending data.");
                 }
-            }
 
-            progress?.Report(total is > 0 ? 100 : -1);
-            return written > 0;
+                progress?.Report(total is > 0 ? 100 : -1);
+                return written > 0;
+            }
+        }
+
+        /// <summary>
+        /// Starts the request and returns as soon as the response headers arrive. Only this step is
+        /// bounded by the connect timeout; the body that follows is governed by the streaming bounds.
+        /// </summary>
+        private async Task<HttpResponseMessage> OpenAsync(Uri source, CancellationToken ct)
+        {
+            using CancellationTokenSource connect = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            connect.CancelAfter(_timeouts.Connect);
+
+            try
+            {
+                return await _http
+                    .GetAsync(source, HttpCompletionOption.ResponseHeadersRead, connect.Token)
+                    .ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                throw new TimeoutException("The loader host did not answer in time.");
+            }
         }
 
         private void TryDelete(string path)

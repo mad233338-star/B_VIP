@@ -134,6 +134,8 @@ namespace B_VIP.Desktop.Services
     {
         private static AppServices? _current;
 
+        private readonly HttpClient _loaderHttp;
+
         public static AppServices Current => _current ?? throw new InvalidOperationException("The desktop services were not initialised.");
 
         /// <summary>Null before startup and after the application has been torn down.</summary>
@@ -195,8 +197,11 @@ namespace B_VIP.Desktop.Services
             // Chipset loader bundles (Qualcomm / MediaTek / Unisoc) are downloaded on first use and
             // cached under Loaders\ beside the executable. The cloud service proxies the release
             // archive, because the release CDN is unreachable from some networks; the release URL
-            // remains as the fallback when the service cannot deliver it.
-            Loaders = new LoaderProvisioner(http, LoaderProvisioner.DefaultRootDirectory,
+            // remains as the fallback when the service cannot deliver it. The archives are large, so
+            // they get their own client without a whole-request timeout: the provisioner bounds the
+            // connect and streaming phases itself.
+            _loaderHttp = new HttpClient { Timeout = System.Threading.Timeout.InfiniteTimeSpan };
+            Loaders = new LoaderProvisioner(_loaderHttp, LoaderProvisioner.DefaultRootDirectory,
                 message => log.Info(message), baseUrl);
         }
 
@@ -263,6 +268,7 @@ namespace B_VIP.Desktop.Services
                 Cloud.Dispose();
                 Monitor.Dispose();
                 License.Dispose();
+                _loaderHttp.Dispose();
             }
             finally
             {

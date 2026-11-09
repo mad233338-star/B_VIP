@@ -209,22 +209,100 @@ namespace B_VIP.LoaderTests
             });
         }
 
+        [Fact]
+        public async Task A_slow_payload_is_not_cut_off_by_the_connect_timeout()
+        {
+            // Headers arrive immediately; the 154 MB archive then streams for minutes. A connect
+            // timeout of a few hundred milliseconds must not abort the transfer.
+            LoaderTimeoutPolicy timeouts = new(
+                Connect: TimeSpan.FromMilliseconds(150),
+                Download: TimeSpan.FromSeconds(30),
+                Idle: TimeSpan.FromSeconds(5));
+
+            byte[] archive = ZipBytes("Loaders-main/programmer.elf", new byte[96]);
+            RecordingHandler handler = new(_ => new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ChunkedContent(archive, chunkSize: 24, delay: TimeSpan.FromMilliseconds(250))
+            });
+
+            LoaderProvisioner provisioner = new(new HttpClient(handler), _root, null, null, timeouts);
+            LoaderProvisionResult result = await provisioner.EnsureAsync(LoaderCatalog.Qualcomm);
+
+            Assert.True(result.Succeeded, result.Message);
+            Assert.True(provisioner.IsReady(LoaderCatalog.Qualcomm));
+        }
+
+        [Fact]
+        public async Task A_stalled_payload_times_out_and_reports_a_retryable_error()
+        {
+            LoaderTimeoutPolicy timeouts = new(
+                Connect: TimeSpan.FromSeconds(5),
+                Download: TimeSpan.FromMinutes(5),
+                Idle: TimeSpan.FromMilliseconds(150));
+
+            RecordingHandler handler = new(_ => new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ChunkedContent(ZipBytes("mtkclient-main/da.bin", new byte[16]),
+                    chunkSize: 8, delay: TimeSpan.Zero, startDelay: TimeSpan.FromSeconds(5))
+            });
+
+            LoaderProvisioner provisioner = new(new HttpClient(handler), _root, null, null, timeouts);
+            LoaderProvisionResult result = await provisioner.EnsureAsync(LoaderCatalog.Mtk);
+
+            Assert.False(result.Succeeded);
+            Assert.Equal(LoaderStatus.Error, result.Status);
+            Assert.Contains("timed out", result.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.False(provisioner.IsReady(LoaderCatalog.Mtk));
+        }
+
+        [Fact]
+        public async Task A_host_that_never_answers_the_headers_fails_on_the_connect_timeout()
+        {
+            LoaderTimeoutPolicy timeouts = new(
+                Connect: TimeSpan.FromMilliseconds(120),
+                Download: TimeSpan.FromMinutes(5),
+                Idle: TimeSpan.FromSeconds(5));
+
+            SlowHeaderHandler handler = new(TimeSpan.FromSeconds(5));
+            LoaderProvisioner provisioner = new(new HttpClient(handler), _root, null, null, timeouts);
+
+            LoaderProvisionResult result = await provisioner.EnsureAsync(LoaderCatalog.Spreadtrum);
+
+            Assert.False(result.Succeeded);
+            Assert.Equal(LoaderStatus.Error, result.Status);
+            Assert.Contains("timed out", result.Message, StringComparison.OrdinalIgnoreCase);
+        }
+
         private static HttpResponseMessage Zip(string entryName, byte[] content, bool omitFile = false)
+        {
+            byte[] bytes = omitFile ? ZipBytesEmpty() : ZipBytes(entryName, content);
+
+            ByteArrayContent body = new(bytes);
+            body.Headers.ContentLength = bytes.Length;
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = body };
+        }
+
+        private static byte[] ZipBytes(string entryName, byte[] content)
         {
             using MemoryStream buffer = new();
             using (ZipArchive archive = new(buffer, ZipArchiveMode.Create, leaveOpen: true))
             {
-                if (!omitFile)
-                {
-                    ZipArchiveEntry entry = archive.CreateEntry(entryName);
-                    using Stream stream = entry.Open();
-                    stream.Write(content);
-                }
+                ZipArchiveEntry entry = archive.CreateEntry(entryName);
+                using Stream stream = entry.Open();
+                stream.Write(content);
             }
 
-            ByteArrayContent body = new(buffer.ToArray());
-            body.Headers.ContentLength = buffer.Length;
-            return new HttpResponseMessage(HttpStatusCode.OK) { Content = body };
+            return buffer.ToArray();
+        }
+
+        private static byte[] ZipBytesEmpty()
+        {
+            using MemoryStream buffer = new();
+            using (new ZipArchive(buffer, ZipArchiveMode.Create, leaveOpen: true))
+            {
+            }
+
+            return buffer.ToArray();
         }
 
         private sealed class RecordingHandler : HttpMessageHandler
@@ -241,6 +319,123 @@ namespace B_VIP.LoaderTests
                 Requests++;
                 return Task.FromResult(_responder(request));
             }
+        }
+
+        /// <summary>Answers after a delay, honouring the caller's cancellation token.</summary>
+        private sealed class SlowHeaderHandler : HttpMessageHandler
+        {
+            private readonly TimeSpan _delay;
+
+            public SlowHeaderHandler(TimeSpan delay) => _delay = delay;
+
+            protected override async Task<HttpResponseMessage> SendAsync(
+                HttpRequestMessage request, CancellationToken cancellationToken)
+            {
+                await Task.Delay(_delay, cancellationToken);
+                return new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(Array.Empty<byte>()) };
+            }
+        }
+
+        /// <summary>
+        /// A response body that hands out small chunks with a pause between them, so a test can show
+        /// that streaming is governed by the inactivity window instead of the connect timeout.
+        /// </summary>
+        private sealed class ChunkedContent : HttpContent
+        {
+            private readonly byte[] _payload;
+            private readonly int _chunkSize;
+            private readonly TimeSpan _delay;
+            private readonly TimeSpan _startDelay;
+
+            public ChunkedContent(byte[] payload, int chunkSize, TimeSpan delay, TimeSpan startDelay = default)
+            {
+                _payload = payload;
+                _chunkSize = chunkSize;
+                _delay = delay;
+                _startDelay = startDelay;
+            }
+
+            protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context)
+                => throw new NotSupportedException();
+
+            protected override bool TryComputeLength(out long length)
+            {
+                length = _payload.Length;
+                return true;
+            }
+
+            protected override Task<Stream> CreateContentReadStreamAsync()
+                => Task.FromResult<Stream>(new ChunkedStream(_payload, _chunkSize, _delay, _startDelay));
+        }
+
+        private sealed class ChunkedStream : Stream
+        {
+            private readonly byte[] _payload;
+            private readonly int _chunkSize;
+            private readonly TimeSpan _delay;
+            private readonly TimeSpan _startDelay;
+            private int _sent;
+
+            public ChunkedStream(byte[] payload, int chunkSize, TimeSpan delay, TimeSpan startDelay)
+            {
+                _payload = payload;
+                _chunkSize = chunkSize;
+                _delay = delay;
+                _startDelay = startDelay;
+            }
+
+            public override bool CanRead => true;
+
+            public override bool CanSeek => false;
+
+            public override bool CanWrite => false;
+
+            public override long Length => _payload.Length;
+
+            public override long Position
+            {
+                get => _sent;
+                set => throw new NotSupportedException();
+            }
+
+            public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+            {
+                if (_sent >= _payload.Length)
+                {
+                    return 0;
+                }
+
+                if (_sent == 0 && _startDelay > TimeSpan.Zero)
+                {
+                    await Task.Delay(_startDelay, cancellationToken);
+                }
+
+                if (_delay > TimeSpan.Zero)
+                {
+                    await Task.Delay(_delay, cancellationToken);
+                }
+
+                int count = Math.Min(Math.Min(buffer.Length, _chunkSize), _payload.Length - _sent);
+                _payload.AsSpan(_sent, count).CopyTo(buffer.Span);
+                _sent += count;
+                return count;
+            }
+
+            public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+                => ReadAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
+
+            public override int Read(byte[] buffer, int offset, int count)
+                => ReadAsync(buffer.AsMemory(offset, count), CancellationToken.None).AsTask().GetAwaiter().GetResult();
+
+            public override void Flush()
+            {
+            }
+
+            public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+            public override void SetLength(long value) => throw new NotSupportedException();
+
+            public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
         }
 
         private sealed class RecordingProgress<T> : IProgress<T>
