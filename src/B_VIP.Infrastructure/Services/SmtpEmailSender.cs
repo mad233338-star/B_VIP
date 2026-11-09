@@ -23,8 +23,33 @@ namespace B_VIP.Infrastructure.Services
             _logger = logger;
         }
 
+        /// <summary>How long one SMTP conversation may take before it is abandoned.</summary>
+        public const int DeliveryTimeoutMilliseconds = 8000;
+
         public bool IsConfigured =>
             !string.IsNullOrWhiteSpace(_options.Host) && !string.IsNullOrWhiteSpace(_options.From);
+
+        /// <summary>
+        /// The relay port, read from <c>Email__Port</c> first so a hosting platform can point the
+        /// same build at 587 or 465 without editing configuration files.
+        /// </summary>
+        private int ResolvePort()
+        {
+            string? configured = Environment.GetEnvironmentVariable("Email__Port");
+            if (int.TryParse(configured, out int port) && port > 0 && port <= 65535)
+            {
+                return port;
+            }
+
+            return _options.Port is > 0 and <= 65535 ? _options.Port : 587;
+        }
+
+        /// <summary>STARTTLS on/off from <c>Email__EnableSsl</c>, falling back to configuration.</summary>
+        private bool ResolveEnableSsl()
+        {
+            string? configured = Environment.GetEnvironmentVariable("Email__EnableSsl");
+            return bool.TryParse(configured, out bool enableSsl) ? enableSsl : _options.EnableSsl;
+        }
 
         public async Task<bool> SendAsync(EmailMessage message, CancellationToken ct = default)
         {
@@ -56,13 +81,13 @@ namespace B_VIP.Infrastructure.Services
                     mail.AlternateViews.Add(AlternateView.CreateAlternateViewFromString(message.HtmlBody, null, "text/html"));
                 }
 
-                using SmtpClient client = new(_options.Host, _options.Port)
+                using SmtpClient client = new(_options.Host, ResolvePort())
                 {
-                    EnableSsl = _options.EnableSsl,
+                    EnableSsl = ResolveEnableSsl(),
                     DeliveryMethod = SmtpDeliveryMethod.Network,
-                    // A relay that does not answer must fail the request quickly instead of holding
-                    // the registration response open until the platform timeout.
-                    Timeout = 15000
+                    // A relay that does not answer must fail quickly instead of holding a socket
+                    // open until the platform timeout.
+                    Timeout = DeliveryTimeoutMilliseconds
                 };
 
                 if (!string.IsNullOrWhiteSpace(_options.UserName))

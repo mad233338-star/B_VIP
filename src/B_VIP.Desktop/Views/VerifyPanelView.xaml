@@ -45,7 +45,7 @@
                         <Button DockPanel.Dock="Right" Content="{Binding [verify.submitCode], Source={x:Static loc:Localizer.Instance}}"
                                 Style="{StaticResource Button.Primary}" Command="{Binding VerifyCodeCommand}"
                                 MinWidth="150" Margin="8,0,0,0" />
-                        <TextBox Style="{StaticResource Input.Text}" MaxLength="6" FontFamily="Consolas"
+                        <TextBox x:Name="CodeBox" Style="{StaticResource Input.Text}" MaxLength="6" FontFamily="Consolas"
                                  FontSize="18" Padding="8,4" Text="{Binding VerificationCode, UpdateSourceTrigger=PropertyChanged}" />
                     </DockPanel>
                 </StackPanel>

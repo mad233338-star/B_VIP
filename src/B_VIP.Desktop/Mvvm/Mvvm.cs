@@ -222,9 +222,15 @@ namespace B_VIP.Desktop.Mvvm
                 _backStack.Push(_currentKey);
             }
 
+            ViewModelBase? previous = _current;
             ViewModelBase viewModel = factory();
             Current = viewModel;
             CurrentKey = moduleKey;
+            if (previous is not null && !ReferenceEquals(previous, viewModel))
+            {
+                _ = previous.OnNavigatedFromAsync();
+            }
+
             _ = viewModel.OnNavigatedToAsync();
             Navigated?.Invoke(moduleKey);
         }
@@ -239,9 +245,15 @@ namespace B_VIP.Desktop.Mvvm
             string key = _backStack.Pop();
             if (_factories.TryGetValue(key, out Func<ViewModelBase>? factory))
             {
+                ViewModelBase? previous = _current;
                 ViewModelBase viewModel = factory();
                 Current = viewModel;
                 CurrentKey = key;
+                if (previous is not null)
+                {
+                    _ = previous.OnNavigatedFromAsync();
+                }
+
                 _ = viewModel.OnNavigatedToAsync();
                 Navigated?.Invoke(key);
             }
@@ -289,5 +301,11 @@ namespace B_VIP.Desktop.Mvvm
         public bool HasError => !string.IsNullOrEmpty(ErrorMessage);
 
         public virtual Task OnNavigatedToAsync() => Task.CompletedTask;
+
+        /// <summary>
+        /// Called once when another screen replaces this one, so a screen can drop event
+        /// subscriptions and timers instead of keeping itself alive behind the scenes.
+        /// </summary>
+        public virtual Task OnNavigatedFromAsync() => Task.CompletedTask;
     }
 }

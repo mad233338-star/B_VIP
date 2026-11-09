@@ -56,6 +56,30 @@ namespace B_VIP.Contracts.Operations
         bool Verified);
 
     public sealed record CancelOperationResponse(bool Cancelled, string Status, string Message);
+
+    /// <summary>
+    /// One task in the cloud service queue. The fields are plain strings so a task that the
+    /// backend describes loosely still renders, and every value is optional for the same reason.
+    /// </summary>
+    public sealed record ServiceQueueTaskDto(
+        string? Id = null,
+        string? Type = null,
+        string? Status = null,
+        string? User = null,
+        DateTime? QueuedUtc = null,
+        string? Result = null);
+
+    /// <summary>
+    /// The service queue envelope: <c>success</c>, <c>status</c> and <c>tasks</c> are always
+    /// present, so an empty queue is a connected queue rather than an error.
+    /// </summary>
+    public sealed record ServiceQueueResponse(
+        bool Success = false,
+        string? Status = null,
+        bool Authenticated = false,
+        string? UserName = null,
+        DateTime? GeneratedUtc = null,
+        IReadOnlyList<ServiceQueueTaskDto>? Tasks = null);
 }
 
 namespace B_VIP.Contracts.Reports

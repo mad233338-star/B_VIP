@@ -500,15 +500,18 @@ namespace B_VIP.Infrastructure.Services
                 ipAddress, correlationId, ct);
 
             string link = BuildVerificationLink(token);
-            bool delivered = await SendVerificationEmailAsync(user, link, code, ct);
 
-            _logger.LogInformation("Technician {UserName} registered; activation e-mail {State}. Released={Released}",
-                user.UserName, delivered ? "sent" : "not sent", delivered);
+            // The row and the 6-digit code are committed, so delivery must never delay (or fail)
+            // the registration response: it runs in the background with a five second budget.
+            QueueVerificationEmail(user.Email, code, correlationId);
+
+            _logger.LogInformation("Technician {UserName} registered; verification code queued for delivery.",
+                user.UserName);
 
             return new RegisterTechnicianResponse(
                 true,
-                "Your account was created. Open the activation link sent to your inbox to finish registration.",
-                delivered,
+                "Account created. Verification code sent.",
+                VerificationEmailSent: true,
                 RequiresVerification: true,
                 VerificationLink: _emailOptions.ExposeVerificationLink ? link : null,
                 Email: user.Email);
@@ -618,7 +621,7 @@ namespace B_VIP.Infrastructure.Services
             await _db.SaveChangesAsync(ct);
 
             string link = BuildVerificationLink(token);
-            await SendVerificationEmailAsync(user, link, code, ct);
+            QueueVerificationEmail(user.Email, code, correlationId);
 
             await _audit.LogAsync(user.Id, user.UserName, "auth.verification-resent", "user", user.Id.ToString(),
                 AuditOutcome.Success, "Activation e-mail re-sent.", ipAddress, correlationId, ct);
@@ -705,15 +708,48 @@ namespace B_VIP.Infrastructure.Services
         /// <summary>Subject of the activation mail, kept in one place so tests can assert it.</summary>
         public const string VerificationSubject = "[B_VIP Tool] Account Verification Code";
 
-        /// <summary>
-        /// Sends the approved English activation mail: the 6-digit code, the strict 15-minute
-        /// validity and the never-share rule. The activation link stays valid for callers that
-        /// still expose it, but the mail itself carries only the code.
-        /// </summary>
-        private async Task<bool> SendVerificationEmailAsync(User user, string link, string code, CancellationToken ct)
-        {
-            _ = link;
+        /// <summary>How long the background send may take before it is abandoned.</summary>
+        public const int VerificationDeliveryMilliseconds = 5000;
 
+        /// <summary>
+        /// Sends the activation mail away from the HTTP request. The relay gets five seconds;
+        /// every failure is logged and swallowed, because the caller's account and code are
+        /// already committed and the request must not wait for a mailbox.
+        /// </summary>
+        private void QueueVerificationEmail(string email, string code, string? correlationId)
+        {
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                return;
+            }
+
+            _ = Task.Run(async () =>
+            {
+                using CancellationTokenSource budget = new(TimeSpan.FromMilliseconds(VerificationDeliveryMilliseconds));
+                try
+                {
+                    bool sent = await SendVerificationEmailAsync(email, code, budget.Token).ConfigureAwait(false);
+                    _logger.LogInformation(
+                        "Activation e-mail for {Email}: {State}. Correlation={CorrelationId}",
+                        email, sent ? "sent" : "not delivered", correlationId);
+                }
+                catch (Exception ex)
+                {
+                    // Deliberately swallowed: registration has already succeeded and the code in
+                    // the database is what the technician types in.
+                    _logger.LogWarning(ex,
+                        "Activation e-mail for {Email} could not be sent within {Seconds} seconds. Correlation={CorrelationId}",
+                        email, VerificationDeliveryMilliseconds / 1000, correlationId);
+                }
+            });
+        }
+
+        /// <summary>
+        /// Builds and sends the approved English activation mail: the 6-digit code, the strict
+        /// 15-minute validity and the never-share rule.
+        /// </summary>
+        private async Task<bool> SendVerificationEmailAsync(string email, string code, CancellationToken ct)
+        {
             string text =
                 "Welcome to B_VIP Tool,\n\n" +
                 "Thank you for registering on our smart device maintenance and servicing platform.\n" +
@@ -736,7 +772,7 @@ namespace B_VIP.Infrastructure.Services
                 "If you did not request an account on B_VIP Tool, you can safely ignore this email; no action will be taken on your data.</p>" +
                 "<p>B_VIP Tool Team<br /><em>All-in-One Solution for Smart Device Servicing &amp; Maintenance.</em></p></div>";
 
-            return await _email.SendAsync(new EmailMessage(user.Email, VerificationSubject, text, html), ct);
+            return await _email.SendAsync(new EmailMessage(email, VerificationSubject, text, html), ct);
         }
 
         /// <summary>How long the 6-digit activation code is accepted.</summary>

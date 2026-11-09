@@ -6,7 +6,7 @@
              xmlns:vm="clr-namespace:B_VIP.Desktop.ViewModels"
              xmlns:loc="clr-namespace:B_VIP.Desktop.Localization"
              mc:Ignorable="d"
-             d:DataContext="{d:DesignInstance Type=vm:OperationsViewModel}">
+             d:DataContext="{d:DesignInstance Type=vm:ServiceOperationsViewModel}">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -15,8 +15,8 @@
         </Grid.RowDefinitions>
 
         <DockPanel Grid.Row="0" Margin="0,0,0,12">
-            <Button DockPanel.Dock="Right" Content="{Binding [common.refresh], Source={x:Static loc:Localizer.Instance}}"
-                    Style="{StaticResource Button.Outline}" Command="{Binding RefreshCommand}" />
+            <Button DockPanel.Dock="Right" Content="Sync now" ToolTip="Poll the service queue immediately"
+                    Style="{StaticResource Button.Outline}" Command="{Binding SyncCommand}" />
             <TextBlock Text="{Binding [operations.title], Source={x:Static loc:Localizer.Instance}}"
                        Style="{StaticResource Text.PageTitle}" />
         </DockPanel>
@@ -64,15 +64,43 @@
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <DataGrid Grid.Column="0" Style="{StaticResource Grid.Data}" ItemsSource="{Binding ServerOperations}" Margin="0,0,10,0">
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="Type" Binding="{Binding OperationType}" Width="*" />
-                    <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="100" />
-                    <DataGridTextColumn Header="User" Binding="{Binding UserName}" Width="110" />
-                    <DataGridTextColumn Header="Queued" Binding="{Binding QueuedUtc, StringFormat=MM-dd HH:mm}" Width="120" />
-                    <DataGridTextColumn Header="Result" Binding="{Binding Summary}" Width="2*" />
-                </DataGrid.Columns>
-            </DataGrid>
+            <DockPanel Grid.Column="0" Margin="0,0,10,0">
+                <!-- The cloud link state, worded only: no endpoint, host or route is ever shown. -->
+                <Border DockPanel.Dock="Top" Background="{StaticResource Brush.PanelAlt}"
+                        BorderBrush="{StaticResource Brush.Line}" BorderThickness="1"
+                        CornerRadius="6" Padding="10,6" Margin="0,0,0,8">
+                    <DockPanel>
+                        <Ellipse DockPanel.Dock="Left" Width="8" Height="8" VerticalAlignment="Center" Margin="0,0,8,0">
+                            <Ellipse.Style>
+                                <Style TargetType="Ellipse">
+                                    <Setter Property="Fill" Value="{StaticResource Brush.Grey}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsCloudConnected}" Value="True">
+                                            <Setter Property="Fill" Value="{StaticResource Brush.Success}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Ellipse.Style>
+                        </Ellipse>
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding QueueCountText}"
+                                   Foreground="{StaticResource Brush.Grey}" FontSize="11.5"
+                                   VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding CloudStatusText}" ToolTip="{Binding CloudDetail}"
+                                   Foreground="{StaticResource Brush.White}" FontSize="12"
+                                   FontWeight="SemiBold" VerticalAlignment="Center" />
+                    </DockPanel>
+                </Border>
+
+                <DataGrid Style="{StaticResource Grid.Data}" ItemsSource="{Binding QueueTasks}">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="*" />
+                        <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="110" />
+                        <DataGridTextColumn Header="User" Binding="{Binding User}" Width="120" />
+                        <DataGridTextColumn Header="Queued" Binding="{Binding Queued}" Width="150" />
+                        <DataGridTextColumn Header="Result" Binding="{Binding Result}" Width="2*" />
+                    </DataGrid.Columns>
+                </DataGrid>
+            </DockPanel>
 
             <DataGrid Grid.Column="1" Style="{StaticResource Grid.Data}" ItemsSource="{Binding LocalHistory}">
                 <DataGrid.Columns>

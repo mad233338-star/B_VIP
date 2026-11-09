@@ -47,7 +47,7 @@
             <DataTemplate DataType="{x:Type vm:GoogleRecoveryViewModel}">
                 <views:GoogleRecoveryView />
             </DataTemplate>
-            <DataTemplate DataType="{x:Type vm:OperationsViewModel}">
+            <DataTemplate DataType="{x:Type vm:ServiceOperationsViewModel}">
                 <views:OperationsView />
             </DataTemplate>
             <DataTemplate DataType="{x:Type vm:ReportsViewModel}">

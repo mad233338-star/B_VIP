@@ -16,14 +16,20 @@ using B_VIP.Desktop.Services;
 
 namespace B_VIP.Desktop.ViewModels
 {
-    public sealed class OperationsViewModel : ViewModelBase
+    /// <summary>
+    /// The Service Operations screen: it runs a maintenance routine on this workstation and shows
+    /// the cloud service queue beside it. The queue comes from one shared poller, so an empty but
+    /// reachable queue renders as an "Online / Listening for tasks..." row instead of an error.
+    /// </summary>
+    public sealed class ServiceOperationsViewModel : ViewModelBase
     {
         private readonly AppServices _services;
         private string _selectedOperationType;
         private string _parametersJson = "{}";
         private bool _confirmDataLoss;
+        private bool _isSubscribed;
 
-        public OperationsViewModel()
+        public ServiceOperationsViewModel()
         {
             _services = AppServices.Current;
             OperationTypes = Core.Operations.OperationTypes.All
@@ -32,10 +38,13 @@ namespace B_VIP.Desktop.ViewModels
             _selectedOperationType = OperationTypes.FirstOrDefault() ?? string.Empty;
 
             LocalHistory = new ObservableCollection<LocalOperation>();
-            ServerOperations = new ObservableCollection<OperationDto>();
+            QueueTasks = new ObservableCollection<ServiceQueueRow>();
 
             RunCommand = new AsyncRelayCommand(_ => RunAsync());
-            RefreshCommand = new AsyncRelayCommand(_ => LoadServerAsync());
+            SyncCommand = new AsyncRelayCommand(_ => SyncAsync());
+
+            Subscribe();
+            RebuildQueueRows();
         }
 
         public string this[string key] => Localizer.Instance[key];
@@ -44,11 +53,26 @@ namespace B_VIP.Desktop.ViewModels
 
         public ObservableCollection<LocalOperation> LocalHistory { get; }
 
-        public ObservableCollection<OperationDto> ServerOperations { get; }
+        /// <summary>The service queue as the table renders it, including the empty-queue live row.</summary>
+        public ObservableCollection<ServiceQueueRow> QueueTasks { get; }
 
         public AsyncRelayCommand RunCommand { get; }
 
-        public AsyncRelayCommand RefreshCommand { get; }
+        /// <summary>Manual re-poll of the queue; the shared poller keeps ticking in the background.</summary>
+        public AsyncRelayCommand SyncCommand { get; }
+
+        /// <summary>"Cloud Service: Connected" or "Cloud Service: Connecting..." — never a URL.</summary>
+        public string CloudStatusText => _services.Cloud.StatusText;
+
+        public bool IsCloudConnected => _services.Cloud.IsConnected;
+
+        public string CloudDetail => _services.Cloud.Detail;
+
+        public bool HasQueueTasks => _services.Cloud.HasTasks;
+
+        public string QueueCountText => _services.Cloud.HasTasks
+            ? $"{_services.Cloud.Tasks.Count} queued task(s)"
+            : "No queued tasks";
 
         public string SelectedOperationType
         {
@@ -70,8 +94,58 @@ namespace B_VIP.Desktop.ViewModels
 
         public override async Task OnNavigatedToAsync()
         {
+            Subscribe();
             ReloadLocal();
-            await LoadServerAsync();
+            await SyncAsync();
+        }
+
+        public override Task OnNavigatedFromAsync()
+        {
+            Unsubscribe();
+            return Task.CompletedTask;
+        }
+
+        private void Subscribe()
+        {
+            if (_isSubscribed)
+            {
+                return;
+            }
+
+            _services.Cloud.Updated += OnCloudUpdated;
+            _isSubscribed = true;
+        }
+
+        private void Unsubscribe()
+        {
+            if (!_isSubscribed)
+            {
+                return;
+            }
+
+            _services.Cloud.Updated -= OnCloudUpdated;
+            _isSubscribed = false;
+        }
+
+        private void OnCloudUpdated()
+        {
+            RebuildQueueRows();
+            OnPropertyChanged(nameof(CloudStatusText));
+            OnPropertyChanged(nameof(IsCloudConnected));
+            OnPropertyChanged(nameof(CloudDetail));
+            OnPropertyChanged(nameof(HasQueueTasks));
+            OnPropertyChanged(nameof(QueueCountText));
+        }
+
+        /// <summary>Re-polls the queue immediately; the shared poller keeps its own beat.</summary>
+        private async Task SyncAsync()
+        {
+            await _services.Cloud.RefreshAsync();
+            OnCloudUpdated();
+            StatusMessage = _services.Cloud.IsConnected
+                ? "Service queue is in sync."
+                : "Waiting for the cloud service...";
+            ErrorMessage = null;
         }
 
         private void ReloadLocal()
@@ -101,7 +175,7 @@ namespace B_VIP.Desktop.ViewModels
                 StatusMessage = result.Summary;
                 ErrorMessage = result.Errors.Count > 0 ? string.Join(Environment.NewLine, result.Errors) : null;
                 ReloadLocal();
-                await LoadServerAsync();
+                await SyncAsync();
             }
             catch (Exception ex)
             {
@@ -125,26 +199,67 @@ namespace B_VIP.Desktop.ViewModels
             }
         }
 
-        private async Task LoadServerAsync()
+        /// <summary>
+        /// Builds the table locally and swaps it in one pass, so the bound collection is never
+        /// mutated while WPF is laying the rows out.
+        /// </summary>
+        private void RebuildQueueRows()
         {
-            try
+            List<ServiceQueueRow> rows = new();
+
+            foreach (ServiceQueueTaskDto task in _services.Cloud.Tasks)
             {
-                OperationListResponse response = await _services.Api.SearchOperationsAsync(null, null, null, 1, 25);
-                ServerOperations.Clear();
-                foreach (OperationDto operation in response.Items)
+                rows.Add(new ServiceQueueRow
                 {
-                    ServerOperations.Add(operation);
+                    Type = string.IsNullOrWhiteSpace(task.Type) ? "Service task" : task.Type!,
+                    Status = string.IsNullOrWhiteSpace(task.Status) ? "Queued" : task.Status!,
+                    User = string.IsNullOrWhiteSpace(task.User)
+                        ? (string.IsNullOrWhiteSpace(_services.Session.DisplayName) ? "—" : _services.Session.DisplayName)
+                        : task.User!,
+                    Queued = task.QueuedUtc?.ToLocalTime().ToString("MM-dd HH:mm") ?? "—",
+                    Result = task.Result ?? string.Empty
+                });
+            }
+
+            if (rows.Count == 0)
+            {
+                // A connected queue with nothing in it is still a live link, and it must say so
+                // rather than showing an empty grid the operator would read as a failure.
+                bool online = _services.Cloud.IsConnected;
+                rows.Add(new ServiceQueueRow
+                {
+                    Type = "Cloud Sync",
+                    Status = online ? "Online" : "Connecting...",
+                    User = _services.Session.IsSignedIn ? "Authenticated" : "Pending sign-in",
+                    Queued = online ? "Listening for tasks..." : "Waiting for the service...",
+                    Result = online ? "Live link active" : "No response yet"
+                });
+            }
+
+            List<ServiceQueueRow> snapshot = rows;
+            UiThread.Invoke(() =>
+            {
+                QueueTasks.Clear();
+                foreach (ServiceQueueRow row in snapshot)
+                {
+                    QueueTasks.Add(row);
                 }
-            }
-            catch (ApiException ex)
-            {
-                ErrorMessage = ex.Message;
-            }
-            catch (HttpRequestException)
-            {
-                ErrorMessage = "The server is not reachable; only local results are shown.";
-            }
+            });
         }
+    }
+
+    /// <summary>One row of the service queue table; strings throughout so odd payloads still render.</summary>
+    public sealed class ServiceQueueRow
+    {
+        public string Type { get; init; } = "—";
+
+        public string Status { get; init; } = "—";
+
+        public string User { get; init; } = "—";
+
+        public string Queued { get; init; } = "—";
+
+        public string Result { get; init; } = string.Empty;
     }
 
     public sealed class ReportsViewModel : ViewModelBase

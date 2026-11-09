@@ -259,6 +259,13 @@ namespace B_VIP.CloudClient
             => GetAsync<IReadOnlyList<LicenseVerificationEventDto>>($"api/licenses/{licenseId}/verification-events?limit={limit}", ct);
 
         // ---- Operations and reports -------------------------------------
+
+        /// <summary>
+        /// The cloud service queue the technician's Service Operations screen polls. It returns
+        /// <c>success</c>/<c>status</c>/<c>tasks</c> and answers 200 even for an empty queue.
+        /// </summary>
+        public Task<ServiceQueueResponse> GetServiceQueueAsync(CancellationToken ct = default)
+            => GetAsync<ServiceQueueResponse>("api/operations/queue", ct);
         public Task<OperationCreatedResponse> CreateOperationAsync(CreateOperationRequest request, CancellationToken ct = default)
             => PostAsync<OperationCreatedResponse>("api/device-operations", request, ct);
 

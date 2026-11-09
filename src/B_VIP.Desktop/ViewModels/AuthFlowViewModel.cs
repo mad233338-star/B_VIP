@@ -478,10 +478,15 @@ namespace B_VIP.Desktop.ViewModels
                 RegisterTechnicianResponse response = await _services.Api.RegisterTechnicianAsync(new RegisterTechnicianRequest(
                     UserName.Trim(), Email.Trim(), Password, AcceptedTerms, hardwareId));
 
+                // The account exists from this moment on, so the next panel is always the code
+                // entry. The address typed here is the fallback when the server omits it.
+                string registeredEmail = string.IsNullOrWhiteSpace(response.Email) ? Email.Trim() : response.Email.Trim();
+                string registeredUserName = UserName.Trim();
+
                 Password = string.Empty;
                 ConfirmPassword = string.Empty;
 
-                _flow.ShowVerify(response.Email, response.VerificationLink, response.VerificationEmailSent, UserName.Trim());
+                _flow.ShowVerify(registeredEmail, response.VerificationLink, response.VerificationEmailSent, registeredUserName);
             }
             catch (ApiException ex)
             {

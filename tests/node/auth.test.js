@@ -456,6 +456,46 @@ test('registration validates e-mail, password and creates a 15-minute code witho
     }
 });
 
+test('registration answers 200 even when the SMTP relay never replies', async () => {
+    const store = createMemoryStore();
+    let started = false;
+    const mailer = {
+        configured: true,
+        // A relay that accepts the send and then goes quiet: the response must not wait for it.
+        sendVerificationCode() {
+            started = true;
+            return new Promise(() => {});
+        }
+    };
+
+    const api = await startApi(store, mailer);
+    try {
+        const begin = Date.now();
+        const ok = await api.post('/api/auth/register', {
+            userName: 'slow.relay',
+            email: 'slow.relay@example.com',
+            password: 'LongEnough1',
+            acceptedTerms: true
+        });
+        const elapsed = Date.now() - begin;
+
+        assert.equal(ok.status, 200);
+        assert.equal(ok.json.success, true);
+        assert.equal(ok.json.message, 'Account created. Verification code sent.');
+        assert.equal(ok.json.requiresVerification, true);
+        assert.equal(ok.json.email, 'slow.relay@example.com');
+        assert.ok(elapsed < 2000, `registration waited ${elapsed} ms for the relay`);
+        assert.equal(started, true, 'the send should still have been attempted');
+
+        // The account and its code exist regardless of what the mailbox does.
+        const created = [...store.users.values()][0];
+        assert.equal(created.isVerified, false);
+        assert.match(created.otpCode, /^\d{6}$/);
+    } finally {
+        await api.close();
+    }
+});
+
 test('expired verification codes are refused', async () => {
     const store = createMemoryStore();
     await addUser(store, {
@@ -833,6 +873,70 @@ test('resetting a trial is refused for the administrator account', async () => {
             `/api/admin/technicians/${adminId}/reset-trial`, {}, admin.json.tokens.accessToken);
         assert.equal(result.status, 400);
         assert.equal(result.json.error.code, 'admin-protected');
+    } finally {
+        await api.close();
+    }
+});
+// ---------------------------------------------------------------------------
+// The service queue the desktop polls. It must never answer 404/401, and an empty queue must
+// still read as a connected service: that is what keeps "Endpoint not found" off the screen.
+test('the service queue answers 200 with the documented envelope without a token', async () => {
+    const api = await startApi(createMemoryStore());
+    try {
+        const result = await api.get('/api/operations/queue');
+        assert.equal(result.status, 200);
+        assert.equal(result.json.success, true);
+        assert.equal(result.json.status, 'connected');
+        assert.equal(result.json.authenticated, false);
+        assert.deepEqual(result.json.tasks, []);
+    } finally {
+        await api.close();
+    }
+});
+
+test('the service queue accepts a technician token and reports the signed-in account', async () => {
+    const store = createMemoryStore();
+    const { user } = await addUser(store, {});
+    const api = await startApi(store);
+    try {
+        const login = await api.post('/api/auth/login', { userName: 'tech.one', password: 'Technician!Pass1' });
+        assert.equal(login.status, 200);
+
+        const result = await api.get('/api/operations/queue', login.json.tokens.accessToken);
+        assert.equal(result.status, 200);
+        assert.equal(result.json.success, true);
+        assert.equal(result.json.status, 'connected');
+        assert.equal(result.json.authenticated, true);
+        assert.equal(result.json.userName, 'tech.one');
+        assert.deepEqual(result.json.tasks, []);
+    } finally {
+        await api.close();
+    }
+});
+
+test('the service queue treats a stale token as an empty queue, not a 401', async () => {
+    const store = createMemoryStore();
+    const { user } = await addUser(store, {});
+    const api = await startApi(store);
+    try {
+        const now = Math.floor(Date.now() / 1000);
+        const expired = signToken({ sub: user.id, typ: 'access', exp: now - 10 }, SIGNING_KEY);
+        const result = await api.get('/api/operations/queue', expired);
+        assert.equal(result.status, 200);
+        assert.equal(result.json.authenticated, false);
+        assert.deepEqual(result.json.tasks, []);
+    } finally {
+        await api.close();
+    }
+});
+
+test('the v1 service queue alias answers the same envelope', async () => {
+    const api = await startApi(createMemoryStore());
+    try {
+        const result = await api.get('/api/v1/service/queue');
+        assert.equal(result.status, 200);
+        assert.equal(result.json.status, 'connected');
+        assert.deepEqual(result.json.tasks, []);
     } finally {
         await api.close();
     }

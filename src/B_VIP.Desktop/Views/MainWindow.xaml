@@ -161,6 +161,23 @@
                     <TextBlock Text="{Binding License.StatusText}" Foreground="{StaticResource Brush.AccentSoft}"
                                FontSize="12" VerticalAlignment="Center" Margin="0,0,14,0" />
 
+                    <!-- Cloud service link. Wording only: the endpoint is never shown or logged. -->
+                    <Ellipse Width="7" Height="7" VerticalAlignment="Center" Margin="0,0,7,0">
+                        <Ellipse.Style>
+                            <Style TargetType="Ellipse">
+                                <Setter Property="Fill" Value="{StaticResource Brush.Grey}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Cloud.IsConnected}" Value="True">
+                                        <Setter Property="Fill" Value="{StaticResource Brush.Success}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Ellipse.Style>
+                    </Ellipse>
+                    <TextBlock Text="{Binding Cloud.StatusText}" ToolTip="{Binding Cloud.Detail}"
+                               Foreground="{StaticResource Brush.Grey}" FontSize="12"
+                               VerticalAlignment="Center" Margin="0,0,14,0" />
+
                     <!-- Determinate / indeterminate progress with a cancel action. -->
                     <ProgressBar Width="120" Height="5" Minimum="0" Maximum="100"
                                  Value="{Binding Progress.Percent, Mode=OneWay}"

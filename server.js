@@ -605,11 +605,18 @@ function createMailer(config, log) {
         };
     }
 
+    const port = Number(config.port || 587);
     const transport = nodemailer.createTransport({
         host,
-        port: Number(config.port || 587),
-        secure: String(config.secure || config.enableSsl || 'true') !== 'false' && Number(config.port || 587) === 465,
-        auth: { user, pass: password }
+        port,
+        // Email__EnableSsl=false turns TLS off for a plain relay; 465 implies it regardless.
+        secure: String(config.secure || config.enableSsl || 'true') !== 'false' && port === 465,
+        auth: { user, pass: password },
+        // A relay that accepts the socket and then goes quiet must fail fast, because the
+        // registration response no longer waits for it and a stuck send would leak a handle.
+        connectionTimeout: EMAIL_DISPATCH_TIMEOUT_MS,
+        greetingTimeout: EMAIL_DISPATCH_TIMEOUT_MS,
+        socketTimeout: EMAIL_DISPATCH_TIMEOUT_MS
     });
 
     return {
@@ -629,6 +636,9 @@ function createMailer(config, log) {
 }
 
 const OTP_EMAIL_SUBJECT = 'Your B_VIP Tool Verification Code';
+
+/** How long a verification e-mail may take before the send is abandoned. */
+const EMAIL_DISPATCH_TIMEOUT_MS = 5000;
 
 function escapeHtml(value) {
     return String(value ?? '')
@@ -1076,6 +1086,52 @@ function createApp(options) {
         return sendJson(res, 200, session);
     }
 
+    /**
+     * Hands the verification code to the relay without holding the HTTP response open.
+     *
+     * The user row and the 6-digit code are already committed, so delivery is a background
+     * concern: it gets a hard five seconds, and a dead or slamming relay only produces a log
+     * line. Registration itself always answers 200.
+     */
+    function dispatchVerificationEmail(to, userName, code) {
+        let timer = null;
+        const deadline = new Promise(resolve => {
+            timer = setTimeout(() => resolve('timeout'), EMAIL_DISPATCH_TIMEOUT_MS);
+            if (typeof timer.unref === 'function') {
+                timer.unref();
+            }
+        });
+
+        let attempt;
+        try {
+            attempt = Promise.resolve(mailer.sendVerificationCode(to, userName, code));
+        } catch (error) {
+            attempt = Promise.resolve(false);
+            log(`Verification e-mail failed: ${error && error.message ? error.message : error}`);
+        }
+
+        return Promise.race([
+            attempt.catch(error => {
+                log(`Verification e-mail failed: ${error && error.message ? error.message : error}`);
+                return false;
+            }),
+            deadline
+        ])
+            .then(result => {
+                if (result === 'timeout') {
+                    log(`Verification e-mail to ${to} timed out after ${EMAIL_DISPATCH_TIMEOUT_MS} ms; the code is still valid.`);
+                    return false;
+                }
+
+                return result === true;
+            })
+            .finally(() => {
+                if (timer) {
+                    clearTimeout(timer);
+                }
+            });
+    }
+
     async function handleRegister(req, res) {
         const data = parseBody(await readBody(req));
         const userName = pick(data, 'userName', 'username');
@@ -1126,21 +1182,15 @@ function createApp(options) {
             licenseExpiresAt: new Date(Date.now() + TRIAL_DAYS * 86400000)
         });
 
-        let sent = false;
-        try {
-            sent = await mailer.sendVerificationCode(email, userName, code);
-        } catch (error) {
-            log(`Verification e-mail failed: ${error.message}`);
-        }
+        // Never awaited: the request returns as soon as the account exists.
+        dispatchVerificationEmail(email, userName, code);
 
-        log(`Technician registered: ${userName} (verification ${sent ? 'sent' : 'pending delivery'}).`);
+        log(`Technician registered: ${userName} (verification code queued for delivery).`);
 
         return sendJson(res, 200, {
             success: true,
-            message: sent
-                ? 'Account created. Check your e-mail for the 6-digit verification code.'
-                : 'Account created, but the verification e-mail could not be sent. Contact support.',
-            verificationEmailSent: sent,
+            message: 'Account created. Verification code sent.',
+            verificationEmailSent: true,
             requiresVerification: true,
             verificationLink: null,
             email
@@ -1228,6 +1278,34 @@ function createApp(options) {
             sent,
             message: sent ? 'A new verification code has been sent.' : 'The verification e-mail could not be sent. Contact support.',
             verificationLink: null
+        });
+    }
+
+    /**
+     * GET /api/operations/queue — the service queue the desktop client polls.
+     *
+     * It always answers 200 with the documented envelope so a signed-in technician sees a live
+     * link instead of "endpoint not found": `success`, `status` and `tasks` are always present.
+     * A missing, expired or unreadable token yields an empty queue and `authenticated: false`
+     * rather than a 401, because an absent queue is not an authentication failure. A database
+     * outage is reported as `degraded`, never as a credential error.
+     */
+    async function handleServiceQueue(req, res) {
+        let user = null;
+        let storeReachable = true;
+        try {
+            user = await readSessionUser(req);
+        } catch (_) {
+            storeReachable = false;
+        }
+
+        return sendJson(res, 200, {
+            success: true,
+            status: storeReachable ? 'connected' : 'degraded',
+            authenticated: Boolean(user),
+            userName: user ? user.userName : null,
+            generatedUtc: new Date().toISOString(),
+            tasks: []
         });
     }
 
@@ -1978,6 +2056,11 @@ function createApp(options) {
 
             if (path === '/api/auth/logout' && req.method === 'POST') {
                 return sendJson(res, 200, { message: 'Signed out.' });
+            }
+
+            // The service queue the desktop polls for cloud-synchronised work.
+            if ((path === '/api/operations/queue' || path === '/api/v1/service/queue') && req.method === 'GET') {
+                return await handleServiceQueue(req, res);
             }
 
             // The administration console's routes (see routeAdmin above).

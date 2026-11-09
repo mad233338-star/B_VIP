@@ -1,4 +1,7 @@
+using System;
+using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Threading;
 
 namespace B_VIP.Desktop.Views
 {
@@ -8,6 +11,29 @@ namespace B_VIP.Desktop.Views
         public VerifyPanelView()
         {
             InitializeComponent();
+
+            // Registration ends here, so the technician should be able to type the code without
+            // clicking the field first.
+            Loaded += OnLoaded;
+        }
+
+        private void OnLoaded(object sender, RoutedEventArgs e)
+        {
+            if (!IsVisible)
+            {
+                return;
+            }
+
+            Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
+            {
+                if (!CodeBox.IsVisible)
+                {
+                    return;
+                }
+
+                CodeBox.Focus();
+                CodeBox.CaretIndex = CodeBox.Text?.Length ?? 0;
+            }));
         }
     }
 }

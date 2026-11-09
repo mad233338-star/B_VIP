@@ -66,6 +66,11 @@ namespace B_VIP.Desktop.ViewModels
             LiveLog = new ConsoleViewModel(_services.Log);
             ToggleConsoleCommand = new RelayCommand(_ => IsConsoleVisible = !IsConsoleVisible);
 
+            // The status strip's cloud indicator: one shared poller drives it and the Service
+            // Operations screen, and it starts as soon as the technician reaches the shell.
+            Cloud.Start();
+            _ = Cloud.RefreshAsync();
+
             LogoutCommand = new AsyncRelayCommand(LogoutAsync);
             ResendVerificationCommand = new AsyncRelayCommand(_ => ResendVerificationAsync(), _ => !IsBusy && _resendSeconds == 0);
 
@@ -121,6 +126,9 @@ namespace B_VIP.Desktop.ViewModels
 
         /// <summary>Trial/subscription state: remaining time, lock flag and the lockout banner.</summary>
         public LicenseMonitorService License => _services.License;
+
+        /// <summary>Live link state of the cloud service queue (never the endpoint itself).</summary>
+        public CloudServiceMonitor Cloud => _services.Cloud;
 
         /// <summary>
         /// False while the trial or subscription has lapsed, so every device screen is disabled at
@@ -309,7 +317,7 @@ namespace B_VIP.Desktop.ViewModels
             "spreadtrum" => new SpdViewModel(),
             Core.ModuleKeys.Drivers => new DriversViewModel(),
             "google-recovery" => new GoogleRecoveryViewModel(),
-            "service-operations" => new OperationsViewModel(),
+            "service-operations" => new ServiceOperationsViewModel(),
             "diagnostic-reports" => new ReportsViewModel(),
             "license-activation" => new SubscriptionViewModel(),
             "support-center" => new SupportViewModel(),

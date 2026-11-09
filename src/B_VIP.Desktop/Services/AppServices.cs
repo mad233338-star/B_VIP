@@ -187,6 +187,7 @@ namespace B_VIP.Desktop.Services
             Monitor = new DeviceMonitorService(Ports, Detector, Log, dispatcher);
             Progress = new ViewModels.OperationProgressViewModel(Log);
             License = new LicenseMonitorService(api, session, log, dispatcher);
+            Cloud = new CloudServiceMonitor(api, log, dispatcher);
         }
 
         public BVipApiClient Api { get; }
@@ -232,11 +233,18 @@ namespace B_VIP.Desktop.Services
         /// <summary>Startup + one-minute heartbeat that locks the workspace when the plan lapses.</summary>
         public LicenseMonitorService License { get; }
 
+        /// <summary>
+        /// The cloud service queue: one poller shared by the status bar and the Service Operations
+        /// screen, so both show the same connection state without ever naming the endpoint.
+        /// </summary>
+        public CloudServiceMonitor Cloud { get; }
+
         /// <summary>Stops the watchers and flushes the console before the process goes away.</summary>
         public void Shutdown()
         {
             try
             {
+                Cloud.Dispose();
                 Monitor.Dispose();
                 License.Dispose();
             }
