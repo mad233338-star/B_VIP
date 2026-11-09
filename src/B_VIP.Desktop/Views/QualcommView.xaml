@@ -19,12 +19,21 @@
                 <TextBlock Text="QUALCOMM · SAHARA / FIREHOSE / 9008" FontSize="10" FontWeight="SemiBold"
                            Foreground="{StaticResource Brush.Accent}" />
             </Border>
+            <!-- Micro status pill: the loader state at a glance, without opening the card. -->
+            <Border DockPanel.Dock="Right" Style="{StaticResource Badge.Status}" VerticalAlignment="Center"
+                    Margin="0,0,8,0"
+                    BorderBrush="{Binding Loaders.Status, Converter={StaticResource StatusToBrush}}">
+                <TextBlock Text="{Binding Loaders.HeaderStatusText}" FontSize="10" FontWeight="SemiBold"
+                           Foreground="{Binding Loaders.Status, Converter={StaticResource StatusToBrush}}" />
+            </Border>
             <TextBlock Text="Qualcomm EDL" Style="{StaticResource Text.PageTitle}" Margin="0" />
         </DockPanel>
 
         <Border Grid.Row="1" Style="{StaticResource Panel.Card}" Margin="0,0,0,12">
             <StackPanel>
-                <DockPanel>
+                <!-- LastChildFill stays off so the primary action keeps its own width instead of
+                     stretching across the header when it is the last dock child. -->
+                <DockPanel LastChildFill="False">
                     <TextBlock DockPanel.Dock="Left" Text="Interfaces" Style="{StaticResource Text.Label}"
                                VerticalAlignment="Center" Margin="0,0,10,0" />
                     <Button DockPanel.Dock="Right" Content="Refresh" Style="{StaticResource Button.Outline}"
@@ -54,9 +63,9 @@
                             ToolTip="The programmer (prog_firehose_*.elf / .mbn) that matches this SoC." />
                     <TextBlock DockPanel.Dock="Left" Text="Programmer" Style="{StaticResource Text.Label}"
                                VerticalAlignment="Center" Margin="0,0,10,0" />
-                    <TextBox Style="{StaticResource Input.Text}" VerticalAlignment="Center"
-                             Text="{Binding FirehosePath, UpdateSourceTrigger=PropertyChanged}"
-                             ToolTip="Path of the Firehose programmer the Sahara stage uploads." />
+                    <TextBox Style="{StaticResource Input.Text}" VerticalAlignment="Center" IsReadOnly="True"
+                             Text="{Binding FirehoseName, Mode=OneWay}"
+                             ToolTip="{Binding FirehoseTooltip}" />
                 </DockPanel>
 
                 <DockPanel Margin="0,8,0,0">
@@ -93,8 +102,10 @@
             </StackPanel>
         </Border>
 
-        <!-- Loader bundle: downloaded on first visit, then reused from Loaders\Qualcomm. -->
-        <Border Grid.Row="2" Style="{StaticResource Panel.Card}" Margin="0,0,0,12">
+        <!-- Loader bundle: only on screen while it is missing, moving or failed. An installed
+             bundle collapses the card and hands its height to the results grid below. -->
+        <Border Grid.Row="2" Style="{StaticResource Panel.Card}" Margin="0,0,0,12"
+                Visibility="{Binding Loaders.ShowCard, Converter={StaticResource BoolToVisibility}}">
             <StackPanel>
                 <DockPanel>
                     <TextBlock DockPanel.Dock="Left" Text="Loaders" Style="{StaticResource Text.Label}"
@@ -109,6 +120,7 @@
                             Visibility="{Binding Loaders.IsProvisioning, Converter={StaticResource BoolToVisibility}}" />
                     <Button DockPanel.Dock="Right" Content="{Binding Loaders.PrepareButtonText}" Style="{StaticResource Button.Outline}"
                             Command="{Binding Loaders.PrepareCommand}" Margin="8,0,0,0" VerticalAlignment="Center"
+                            Visibility="{Binding Loaders.ShowPrepareButton, Converter={StaticResource BoolToVisibility}}"
                             ToolTip="Fetches and installs the Qualcomm loader bundle." />
                     <TextBlock Style="{StaticResource Text.Muted}" Text="{Binding Loaders.PackageName}"
                                VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
@@ -117,6 +129,7 @@
                 <ProgressBar Height="4" Margin="0,10,0,0" Minimum="0" Maximum="100"
                              Value="{Binding Loaders.Progress, Mode=OneWay}"
                              IsIndeterminate="{Binding Loaders.IsIndeterminate}"
+                             Visibility="{Binding Loaders.ShowProgressBar, Converter={StaticResource BoolToVisibility}}"
                              Background="{StaticResource Brush.Line}" Foreground="{StaticResource Brush.Accent}" />
 
                 <TextBlock Style="{StaticResource Text.Muted}" Text="{Binding Loaders.Detail}"

@@ -101,19 +101,50 @@ namespace B_VIP.Desktop.ViewModels
 
         private string _fdl1Path;
 
+        /// <summary>
+        /// FDL1 loader image. The engine is handed the absolute path; the screen only ever shows
+        /// <see cref="Fdl1Name"/>.
+        /// </summary>
         public string Fdl1Path
         {
             get => _fdl1Path;
-            set => SetProperty(ref _fdl1Path, value);
+            set
+            {
+                if (SetProperty(ref _fdl1Path, value))
+                {
+                    OnPropertyChanged(nameof(Fdl1Name));
+                    OnPropertyChanged(nameof(Fdl1Tooltip));
+                }
+            }
         }
+
+        /// <summary>The FDL1 image's bare file name.</summary>
+        public string Fdl1Name => string.IsNullOrEmpty(_fdl1Path) ? string.Empty : Path.GetFileName(_fdl1Path);
+
+        /// <summary>The full path, offered only while the pointer rests on the field.</summary>
+        public string? Fdl1Tooltip => string.IsNullOrWhiteSpace(_fdl1Path) ? null : _fdl1Path;
 
         private string _fdl2Path;
 
+        /// <summary>Optional FDL2 loader image; same display rule as <see cref="Fdl1Path"/>.</summary>
         public string Fdl2Path
         {
             get => _fdl2Path;
-            set => SetProperty(ref _fdl2Path, value);
+            set
+            {
+                if (SetProperty(ref _fdl2Path, value))
+                {
+                    OnPropertyChanged(nameof(Fdl2Name));
+                    OnPropertyChanged(nameof(Fdl2Tooltip));
+                }
+            }
         }
+
+        /// <summary>The FDL2 image's bare file name.</summary>
+        public string Fdl2Name => string.IsNullOrEmpty(_fdl2Path) ? string.Empty : Path.GetFileName(_fdl2Path);
+
+        /// <summary>The full path, offered only while the pointer rests on the field.</summary>
+        public string? Fdl2Tooltip => string.IsNullOrWhiteSpace(_fdl2Path) ? null : _fdl2Path;
 
         private string _selectedPort;
 
@@ -133,7 +164,10 @@ namespace B_VIP.Desktop.ViewModels
 
         private string _pacPath;
 
-        /// <summary>Firmware packet the FDL stages are extracted from.</summary>
+        /// <summary>
+        /// Firmware packet the FDL stages are extracted from. Kept absolute for the extractor; the
+        /// field shows only <see cref="PacName"/>.
+        /// </summary>
         public string PacPath
         {
             get => _pacPath;
@@ -141,10 +175,18 @@ namespace B_VIP.Desktop.ViewModels
             {
                 if (SetProperty(ref _pacPath, value))
                 {
+                    OnPropertyChanged(nameof(PacName));
+                    OnPropertyChanged(nameof(PacTooltip));
                     ExtractPacCommand.RaiseCanExecuteChanged();
                 }
             }
         }
+
+        /// <summary>The packet's bare file name, so no workshop folder appears on screen.</summary>
+        public string PacName => string.IsNullOrEmpty(_pacPath) ? string.Empty : Path.GetFileName(_pacPath);
+
+        /// <summary>The full path, offered only while the pointer rests on the field.</summary>
+        public string? PacTooltip => string.IsNullOrWhiteSpace(_pacPath) ? null : _pacPath;
 
         private string _pacSummary;
 
@@ -280,7 +322,7 @@ namespace B_VIP.Desktop.ViewModels
                     ? $"{result.Entries.Count} header(s); FDL1 extracted from the packet (no FDL2 entry)."
                     : $"{result.Entries.Count} header(s); FDL1 and FDL2 extracted from the packet.";
 
-                StatusMessage = $"FDL stages ready in {result.WorkDirectory}.";
+                StatusMessage = "FDL loader stages are ready.";
                 Services.Log.Success(
                     $"PAC loader stages extracted: FDL1 {Path.GetFileName(result.Fdl1Path)}, FDL2 {Path.GetFileName(result.Fdl2Path ?? "(none)")}.");
             }

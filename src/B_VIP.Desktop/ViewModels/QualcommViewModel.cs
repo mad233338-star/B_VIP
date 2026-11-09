@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Windows;
 using B_VIP.Contracts.Devices;
 using B_VIP.Core.Operations;
@@ -88,12 +89,28 @@ namespace B_VIP.Desktop.ViewModels
 
         private string _firehosePath;
 
-        /// <summary>Programmer binary (prog_firehose_*.elf / .mbn) for the connected SoC.</summary>
+        /// <summary>
+        /// Programmer binary (prog_firehose_*.elf / .mbn) for the connected SoC. The absolute path is
+        /// what the engine receives; the screen shows only <see cref="FirehoseName"/>.
+        /// </summary>
         public string FirehosePath
         {
             get => _firehosePath;
-            set => SetProperty(ref _firehosePath, value);
+            set
+            {
+                if (SetProperty(ref _firehosePath, value))
+                {
+                    OnPropertyChanged(nameof(FirehoseName));
+                    OnPropertyChanged(nameof(FirehoseTooltip));
+                }
+            }
         }
+
+        /// <summary>The programmer's bare file name, so no workshop folder appears on screen.</summary>
+        public string FirehoseName => string.IsNullOrEmpty(_firehosePath) ? string.Empty : Path.GetFileName(_firehosePath);
+
+        /// <summary>The full path, offered only while the pointer rests on the field.</summary>
+        public string? FirehoseTooltip => string.IsNullOrWhiteSpace(_firehosePath) ? null : _firehosePath;
 
         private string _selectedFirehosePort;
 

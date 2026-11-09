@@ -52,12 +52,13 @@ namespace B_VIP.Desktop.Converters
         {
             string? status = value?.ToString()?.ToLowerInvariant() ?? string.Empty;
 
-            if (status is "pass" or "passed" or "succeeded" or "success" or "active" or "healthy" or "connected" or "available" or "resolved" or "done")
+            if (status is "pass" or "passed" or "succeeded" or "success" or "active" or "healthy" or "connected" or "available" or "resolved" or "done" or "ready" or "installed")
             {
                 return Success;
             }
 
-            if (status is "warn" or "warning" or "pending" or "requiresattention" or "inprogress" or "degraded" or "waitingforuser" or "waitingforsupport" or "reopened" or "open")
+            if (status is "warn" or "warning" or "pending" or "requiresattention" or "inprogress" or "degraded" or "waitingforuser" or "waitingforsupport" or "reopened" or "open"
+                or "downloading" or "extracting" or "missing" or "provisioning")
             {
                 return Warning;
             }

@@ -43,11 +43,15 @@ namespace B_VIP.Desktop.ViewModels
                 if (SetProperty(ref _status, value))
                 {
                     OnPropertyChanged(nameof(StatusText));
+                    OnPropertyChanged(nameof(HeaderStatusText));
                     OnPropertyChanged(nameof(IsProvisioning));
                     OnPropertyChanged(nameof(IsReady));
                     OnPropertyChanged(nameof(IsFailed));
                     OnPropertyChanged(nameof(IsIndeterminate));
                     OnPropertyChanged(nameof(IsIdle));
+                    OnPropertyChanged(nameof(ShowCard));
+                    OnPropertyChanged(nameof(ShowPrepareButton));
+                    OnPropertyChanged(nameof(ShowProgressBar));
                     OnPropertyChanged(nameof(PrepareButtonText));
                     PrepareCommand.RaiseCanExecuteChanged();
                     CancelCommand.RaiseCanExecuteChanged();
@@ -64,6 +68,33 @@ namespace B_VIP.Desktop.ViewModels
             LoaderStatus.Error => "Error",
             _ => "Idle"
         };
+
+        /// <summary>
+        /// The micro badge in the screen header: green once the bundle is on disk, amber while it is
+        /// being fetched or still missing. The dot is part of the text so it keeps its shape at any
+        /// DPI without an extra glyph element.
+        /// </summary>
+        public string HeaderStatusText => Status switch
+        {
+            LoaderStatus.Ready => "● Ready",
+            LoaderStatus.Downloading => "● Downloading…",
+            LoaderStatus.Extracting => "● Extracting…",
+            LoaderStatus.Error => "● Retry needed",
+            _ => "● Missing"
+        };
+
+        /// <summary>
+        /// The loader card is only worth screen space while it still has something to say: a missing
+        /// bundle, a transfer in flight or a failure to retry. Once the bundle is installed the card
+        /// collapses, and the results grid above it takes the freed height.
+        /// </summary>
+        public bool ShowCard => !IsReady;
+
+        /// <summary>The action button only makes sense when nothing is running.</summary>
+        public bool ShowPrepareButton => !IsProvisioning;
+
+        /// <summary>The bar is only drawn while an archive is moving.</summary>
+        public bool ShowProgressBar => IsProvisioning;
 
         /// <summary>0-100 for the bar; a negative value means "total unknown".</summary>
         public int Progress

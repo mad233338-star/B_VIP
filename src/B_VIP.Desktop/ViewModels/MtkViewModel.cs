@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Windows;
 using B_VIP.Contracts.Devices;
 using B_VIP.Core.Operations;
@@ -81,12 +82,28 @@ namespace B_VIP.Desktop.ViewModels
 
         private string _scatterPath;
 
-        /// <summary>Path of the scatter XML/TXT to parse (and optionally flash from).</summary>
+        /// <summary>
+        /// Path of the scatter XML/TXT to parse (and optionally flash from). The engine gets this
+        /// absolute path; the screen shows only <see cref="ScatterName"/>.
+        /// </summary>
         public string ScatterPath
         {
             get => _scatterPath;
-            set => SetProperty(ref _scatterPath, value);
+            set
+            {
+                if (SetProperty(ref _scatterPath, value))
+                {
+                    OnPropertyChanged(nameof(ScatterName));
+                    OnPropertyChanged(nameof(ScatterTooltip));
+                }
+            }
         }
+
+        /// <summary>The scatter file's bare name, so no workshop folder appears on screen.</summary>
+        public string ScatterName => string.IsNullOrEmpty(_scatterPath) ? string.Empty : Path.GetFileName(_scatterPath);
+
+        /// <summary>The full path, offered only while the pointer rests on the field.</summary>
+        public string? ScatterTooltip => string.IsNullOrWhiteSpace(_scatterPath) ? null : _scatterPath;
 
         public AsyncRelayCommand ReadInfoCommand { get; }
 
