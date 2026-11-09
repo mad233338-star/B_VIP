@@ -47,7 +47,10 @@ services:
         value: https://b-vip.onrender.com
 
       # Transactional e-mail for the technician OTP. Fill these in under Environment after the
-      # first deploy (never commit real credentials here).
+      # first deploy (never commit real credentials here). When Email__WebhookUrl is set the code is
+      # posted to that endpoint as JSON over HTTPS and the SMTP values below are not used.
+      - key: Email__WebhookUrl
+        sync: false
       - key: Email__Host
         sync: false
       - key: Email__Port

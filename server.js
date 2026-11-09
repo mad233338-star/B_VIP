@@ -620,8 +620,28 @@ function createMailer(config, log) {
     const password = config.password;
     const from = config.from || user || 'no-reply@b-vip.onrender.com';
 
+    const webhookUrl = (config.webhookUrl || '').trim();
+
+    // Preferred transport: an HTTPS mail webhook. It is one JSON POST on port 443, so delivery
+    // still works where outbound SMTP ports are filtered by the hosting network.
+    if (webhookUrl) {
+        return {
+            configured: true,
+            transport: 'webhook',
+            async sendVerificationCode(to, userName, code) {
+                await postWebhook(webhookUrl, {
+                    to,
+                    subject: OTP_EMAIL_SUBJECT,
+                    body: buildOtpWebhookHtml(code)
+                });
+                log(`Verification code sent to ${to} through the mail webhook.`);
+                return true;
+            }
+        };
+    }
+
     if (!host || !user || !password) {
-        log('SMTP is not configured (Email__Host / Email__UserName / Email__Password); verification codes cannot be delivered.');
+        log('No mail transport configured (Email__WebhookUrl or Email__Host / Email__UserName / Email__Password); verification codes cannot be delivered.');
         return {
             configured: false,
             async sendVerificationCode() {
@@ -660,7 +680,69 @@ function createMailer(config, log) {
     };
 }
 
-const OTP_EMAIL_SUBJECT = 'Your B_VIP Tool Verification Code';
+const OTP_EMAIL_SUBJECT = 'B_VIP Tool - Account Verification Code';
+
+/** How long the mail webhook has to answer before the dispatch is abandoned. */
+const EMAIL_WEBHOOK_TIMEOUT_MS = 8000;
+
+/**
+ * Posts one JSON document to the configured mail webhook and resolves only on a 2xx answer.
+ * A single HTTPS POST on port 443 keeps delivery working on networks that block SMTP ports.
+ */
+function postWebhook(url, payload, timeoutMs = EMAIL_WEBHOOK_TIMEOUT_MS) {
+    return new Promise((resolve, reject) => {
+        let target;
+        try {
+            target = new URL(url);
+        } catch (error) {
+            reject(new Error('Email__WebhookUrl is not a valid URL.'));
+            return;
+        }
+
+        const body = JSON.stringify(payload);
+        const transport = target.protocol === 'http:' ? require('http') : require('https');
+        const request = transport.request({
+            protocol: target.protocol,
+            hostname: target.hostname,
+            port: target.port || (target.protocol === 'http:' ? 80 : 443),
+            path: `${target.pathname}${target.search}`,
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(body)
+            }
+        }, response => {
+            const chunks = [];
+            response.on('data', chunk => chunks.push(chunk));
+            response.on('end', () => {
+                if (response.statusCode >= 200 && response.statusCode < 300) {
+                    resolve(true);
+                    return;
+                }
+
+                const detail = Buffer.concat(chunks).toString('utf8').slice(0, 200);
+                reject(new Error(`mail webhook answered HTTP ${response.statusCode}${detail ? `: ${detail}` : ''}`));
+            });
+        });
+
+        request.setTimeout(timeoutMs, () => request.destroy(new Error('mail webhook timed out')));
+        request.on('error', reject);
+        request.write(body);
+        request.end();
+    });
+}
+
+/** The exact HTML the relay is asked to deliver: light card, cyan code, 15-minute notice. */
+function buildOtpWebhookHtml(code) {
+    return "<div style='font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 10px; background-color: #ffffff; color: #1a202c;'>" +
+        "<h2 style='color: #0f172a; margin-bottom: 8px;'>Welcome to B_VIP Tool</h2>" +
+        "<p style='color: #475569; font-size: 15px;'>Thank you for registering with our smart device maintenance and servicing platform.</p>" +
+        "<p style='color: #334155; font-size: 15px;'>To complete your account activation and start your <b>3-day free trial</b>, enter the following verification code inside the application:</p>" +
+        "<div style='text-align: center; margin: 25px 0;'><span style='display: inline-block; font-size: 30px; font-weight: bold; letter-spacing: 6px; color: #0284c7; background: #f0f9ff; border: 1px dashed #0284c7; padding: 12px 28px; border-radius: 8px;'>" + code + "</span></div>" +
+        "<ul style='color: #64748b; font-size: 13px; line-height: 1.6; padding-left: 20px;'><li><b>Validity:</b> This code is valid for 15 minutes only.</li><li><b>Security Notice:</b> B_VIP support will never ask you for this code. Do not share it with anyone.</li></ul>" +
+        "<p style='color: #94a3b8; font-size: 12px; margin-top: 25px; border-top: 1px solid #f1f5f9; padding-top: 15px;'>If you did not request an account with B_VIP Tool, you can safely ignore this email; no action will be taken on your data.</p>" +
+        "<p style='margin-top: 15px; font-size: 14px; color: #0f172a;'>Best regards,<br><b>B_VIP Tool Team</b><br><span style='font-size: 12px; color: #64748b;'>Integrated ecosystem for smart device maintenance and servicing</span></p></div>";
+}
 
 /** How long a verification e-mail may take before the send is abandoned. */
 const EMAIL_DISPATCH_TIMEOUT_MS = 5000;
@@ -2278,7 +2360,8 @@ async function startServer() {
         password: process.env.Email__Password || process.env.SMTP_PASSWORD || '',
         from: process.env.Email__From || process.env.SMTP_FROM || '',
         fromName: process.env.Email__FromName || 'B_VIP Tool',
-        enableSsl: process.env.Email__EnableSsl || 'true'
+        enableSsl: process.env.Email__EnableSsl || 'true',
+        webhookUrl: process.env.Email__WebhookUrl || ''
     }, log);
 
     const app = createApp({ store, signingKey, mailer, log });
@@ -2379,6 +2462,8 @@ module.exports = {
     TRIAL_DAYS,
     OTP_TTL_MINUTES,
     OTP_EMAIL_SUBJECT,
+    postWebhook,
+    buildOtpWebhookHtml,
     buildOtpText,
     buildOtpHtml,
     toGuidString

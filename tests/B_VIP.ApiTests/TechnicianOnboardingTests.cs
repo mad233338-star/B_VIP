@@ -11,7 +11,7 @@ namespace B_VIP.ApiTests
 {
     /// <summary>
     /// Technician onboarding and the administration around it: self-registration, e-mail
-    /// activation, workstation binding, HWID decoupling and subscription extension.
+    /// activation, multi-workstation sign-in, HWID decoupling and subscription extension.
     /// </summary>
     [Collection(ApiCollection.Name)]
     public sealed class TechnicianOnboardingTests
@@ -70,12 +70,12 @@ namespace B_VIP.ApiTests
             Assert.Equal(HttpStatusCode.OK, login.StatusCode);
             SessionResponse session = await login.ReadJsonRequiredAsync<SessionResponse>();
             Assert.True(session.User.EmailVerified);
-            Assert.Equal("HWID-ALPHA-0001", session.User.HardwareId);
+            Assert.Null(session.User.HardwareId);
             Assert.Contains("User", session.User.Roles);
         }
 
         [Fact]
-        public async Task A_technician_cannot_sign_in_from_an_unregistered_workstation()
+        public async Task A_technician_signs_in_from_any_workstation()
         {
             (TestUser user, _) = await _host.CreateUserSessionAsync();
             HttpClient anonymous = _host.CreateClient();
@@ -88,6 +88,7 @@ namespace B_VIP.ApiTests
             });
             Assert.Equal(HttpStatusCode.OK, first.StatusCode);
 
+            // A second machine is not a second-class citizen: no machine is bound to the account.
             HttpResponseMessage second = await anonymous.PostAsJsonAsync("/api/auth/login", new
             {
                 userName = user.UserName,
@@ -95,33 +96,33 @@ namespace B_VIP.ApiTests
                 deviceFingerprint = "HWID-SECOND-PC"
             });
 
-            Assert.Equal(HttpStatusCode.Forbidden, second.StatusCode);
-            Assert.Equal("device-mismatch", (await second.ReadErrorAsync()).Code);
+            Assert.Equal(HttpStatusCode.OK, second.StatusCode);
+            SessionResponse session = await second.ReadJsonRequiredAsync<SessionResponse>();
+            Assert.Null(session.User.HardwareId);
         }
 
         [Fact]
-        public async Task A_bound_account_is_refused_when_the_client_sends_no_fingerprint()
+        public async Task An_account_signs_in_when_the_client_sends_no_fingerprint()
         {
             (TestUser user, _) = await _host.CreateUserSessionAsync();
             HttpClient anonymous = _host.CreateClient();
 
-            HttpResponseMessage bind = await anonymous.PostAsJsonAsync("/api/auth/login", new
+            HttpResponseMessage withFingerprint = await anonymous.PostAsJsonAsync("/api/auth/login", new
             {
                 userName = user.UserName,
                 password = user.Password,
                 deviceFingerprint = "HWID-BOUND-PC"
             });
-            Assert.Equal(HttpStatusCode.OK, bind.StatusCode);
+            Assert.Equal(HttpStatusCode.OK, withFingerprint.StatusCode);
 
-            // Omitting the fingerprint must not be a way around the binding.
             HttpResponseMessage omitted = await anonymous.PostAsJsonAsync("/api/auth/login", new
             {
                 userName = user.UserName,
                 password = user.Password
             });
 
-            Assert.Equal(HttpStatusCode.Forbidden, omitted.StatusCode);
-            Assert.Equal("device-mismatch", (await omitted.ReadErrorAsync()).Code);
+            Assert.Equal(HttpStatusCode.OK, omitted.StatusCode);
+            Assert.Null((await omitted.ReadJsonRequiredAsync<SessionResponse>()).User.HardwareId);
         }
 
         [Fact]
@@ -149,18 +150,18 @@ namespace B_VIP.ApiTests
         }
 
         [Fact]
-        public async Task An_administrator_decouples_the_hwid_and_the_new_machine_binds_on_next_sign_in()
+        public async Task An_administrator_can_still_clear_a_legacy_hwid_and_the_account_signs_in_elsewhere()
         {
             (TestUser user, _) = await _host.CreateUserSessionAsync();
             HttpClient anonymous = _host.CreateClient();
 
-            HttpResponseMessage bind = await anonymous.PostAsJsonAsync("/api/auth/login", new
+            HttpResponseMessage signIn = await anonymous.PostAsJsonAsync("/api/auth/login", new
             {
                 userName = user.UserName,
                 password = user.Password,
                 deviceFingerprint = "HWID-WORKSHOP-1"
             });
-            Assert.Equal(HttpStatusCode.OK, bind.StatusCode);
+            Assert.Equal(HttpStatusCode.OK, signIn.StatusCode);
 
             HttpClient admin = await _host.CreateAdminClientAsync();
             HttpResponseMessage reset = await admin.PostAsJsonAsync($"/api/admin/technicians/{user.Id}/reset-hwid", new { });
@@ -168,8 +169,8 @@ namespace B_VIP.ApiTests
 
             ResetHardwareIdResponse decoupled = await reset.ReadJsonRequiredAsync<ResetHardwareIdResponse>();
             Assert.Null(decoupled.HardwareId);
-            Assert.Equal(1, decoupled.HardwareIdResetCount);
 
+            // A different machine is accepted, and nothing is bound to it.
             HttpResponseMessage moved = await anonymous.PostAsJsonAsync("/api/auth/login", new
             {
                 userName = user.UserName,
@@ -179,16 +180,14 @@ namespace B_VIP.ApiTests
             Assert.Equal(HttpStatusCode.OK, moved.StatusCode);
 
             SessionResponse session = await moved.ReadJsonRequiredAsync<SessionResponse>();
-            Assert.Equal("HWID-WORKSHOP-2", session.User.HardwareId);
-            Assert.Equal(1, session.User.HardwareIdResetCount);
+            Assert.Null(session.User.HardwareId);
 
             PagedResponse<UserSummaryDto> directory = await admin
                 .GetFromJsonAsync<PagedResponse<UserSummaryDto>>($"/api/admin/technicians?q={Uri.EscapeDataString(user.UserName)}&page=1&pageSize=10")
                 ?? throw new InvalidOperationException("The technician directory returned no body.");
 
             UserSummaryDto row = Assert.Single(directory.Items);
-            Assert.Equal("HWID-WORKSHOP-2", row.HardwareId);
-            Assert.Equal(1, row.HardwareIdResetCount);
+            Assert.Null(row.HardwareId);
         }
 
         [Fact]

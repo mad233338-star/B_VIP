@@ -23,8 +23,10 @@ const {
     MASTER_ADMIN,
     ERRORS,
     OTP_EMAIL_SUBJECT,
+    createMailer,
     buildOtpText,
-    buildOtpHtml
+    buildOtpHtml,
+    buildOtpWebhookHtml
 } = require('../../server.js');
 
 const SIGNING_KEY = 'test-signing-key-0123456789-abcdefghijklmnop';
@@ -714,7 +716,7 @@ test('the admin console routes answer live data instead of 404', async () => {
 });
 
 test('the verification e-mail uses the approved English subject and body', () => {
-    assert.equal(OTP_EMAIL_SUBJECT, 'Your B_VIP Tool Verification Code');
+    assert.equal(OTP_EMAIL_SUBJECT, 'B_VIP Tool - Account Verification Code');
 
     const text = buildOtpText('428913');
     assert.match(text, /Welcome to B_VIP Tool,/);
@@ -731,6 +733,65 @@ test('the verification e-mail uses the approved English subject and body', () =>
     assert.match(html, /428913/);
     assert.match(html, /#38BDF8/);
     assert.match(html, /Welcome to B_VIP Tool, tech\.one/);
+});
+
+test('the mail webhook receives the exact JSON payload and skips SMTP', async () => {
+    const received = [];
+    const relay = http.createServer((req, res) => {
+        const chunks = [];
+        req.on('data', chunk => chunks.push(chunk));
+        req.on('end', () => {
+            received.push({
+                method: req.method,
+                contentType: req.headers['content-type'],
+                body: JSON.parse(Buffer.concat(chunks).toString('utf8'))
+            });
+            res.writeHead(202, { 'Content-Type': 'application/json' });
+            res.end('{"ok":true}');
+        });
+    });
+
+    await new Promise(resolve => relay.listen(0, '127.0.0.1', resolve));
+    const webhookUrl = `http://127.0.0.1:${relay.address().port}/otp`;
+
+    try {
+        // Host/user/password are deliberately empty: the webhook alone must carry the message.
+        const mailer = createMailer({ webhookUrl }, () => {});
+        assert.equal(mailer.configured, true);
+        assert.equal(mailer.transport, 'webhook');
+
+        const sent = await mailer.sendVerificationCode('tech.one@example.com', 'tech.one', '428913');
+        assert.equal(sent, true);
+
+        assert.equal(received.length, 1);
+        assert.equal(received[0].method, 'POST');
+        assert.equal(received[0].contentType, 'application/json');
+        assert.deepEqual(Object.keys(received[0].body).sort(), ['body', 'subject', 'to']);
+        assert.equal(received[0].body.to, 'tech.one@example.com');
+        assert.equal(received[0].body.subject, 'B_VIP Tool - Account Verification Code');
+        assert.equal(received[0].body.body, buildOtpWebhookHtml('428913'));
+    } finally {
+        await new Promise(resolve => relay.close(resolve));
+    }
+});
+
+test('a failing webhook surfaces as an undelivered code without throwing at the caller', async () => {
+    const relay = http.createServer((req, res) => {
+        res.writeHead(500, { 'Content-Type': 'text/plain' });
+        res.end('relay down');
+    });
+
+    await new Promise(resolve => relay.listen(0, '127.0.0.1', resolve));
+    const webhookUrl = `http://127.0.0.1:${relay.address().port}/otp`;
+
+    try {
+        const mailer = createMailer({ webhookUrl }, () => {});
+        await assert.rejects(
+            () => mailer.sendVerificationCode('tech.one@example.com', 'tech.one', '428913'),
+            /HTTP 500/);
+    } finally {
+        await new Promise(resolve => relay.close(resolve));
+    }
 });
 
 test('unknown endpoints return a 404 error envelope', async () => {

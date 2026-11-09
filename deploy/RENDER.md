@@ -6,7 +6,7 @@ implementations in this repository and only one should be deployed:
 
 | Runtime | Entry point | Notes |
 | --- | --- | --- |
-| Node.js | `server.js` (`npm start`) | The service that has been running on `b-vip.onrender.com`. Real PostgreSQL + BCrypt authentication, HWID binding, OTP mail, remote-support WebSocket relay. |
+| Node.js | `server.js` (`npm start`) | The service that has been running on `b-vip.onrender.com`. Real PostgreSQL + BCrypt authentication, no machine binding, OTP mail over webhook or SMTP, remote-support WebSocket relay. |
 | .NET | `Dockerfile` → `src/B_VIP.Backend` | The full ASP.NET Core API (users, licences, tickets, audit). Verified with `dotnet publish -r linux-x64`. |
 
 Deploy one of them. The verification steps at the end apply to both.
@@ -14,11 +14,9 @@ Deploy one of them. The verification steps at the end apply to both.
 ## What is already in this repository
 
 - `server.js` — the Node service. Its login endpoint verifies the BCrypt password, refuses unknown
-  accounts and wrong passwords with `401 invalid-credentials`, binds a technician account to the
-  first workstation that signs in, refuses any other machine with
-  `403 device-mismatch` ("This account is bound to another computer. Please contact administrator
-  to reset HWID."), exempts administrators from both the HWID check and the e-mail OTP step, and
-  returns role-based JWT claims. When the database is unreachable it answers
+  accounts and wrong passwords with `401 invalid-credentials`, and binds no account to a machine:
+  a technician may sign in from any number of computers. Administrators skip the e-mail OTP step.
+  Every session carries role-based JWT claims. When the database is unreachable it answers
   `503 database-unavailable` — it never answers a login with a canned session.
 - `server.js` also migrates an older `users` table on start: a legacy integer `id` column is widened
   to `varchar(100)` (this was the `invalid input syntax for type integer` error), missing
@@ -61,12 +59,13 @@ Render derives the public hostname from the **service name**, so the hostname st
 | --- | --- | --- |
 | `DATABASE_URL` | Node | the *Internal Database URL* of the Render PostgreSQL instance (or let the Blueprint inject it) |
 | `Auth__SigningKey` | Node + .NET | random string, at least 32 characters; keep it stable, it signs every JWT |
-| `Email__Host` / `Email__Port` / `Email__UserName` / `Email__Password` / `Email__From` | both | SMTP account for the technician verification code (587 with SSL for most providers) |
+| `Email__WebhookUrl` | both | HTTPS endpoint that relays the OTP mail; takes precedence over SMTP |
+| `Email__Host` / `Email__Port` / `Email__UserName` / `Email__Password` / `Email__From` | both | SMTP fallback for the technician verification code (587 with SSL for most providers) |
 | `Database__Provider` | .NET only | `postgres` (prevents the silent SQLite fallback, whose data is wiped on each deploy) |
 | `ConnectionStrings__Default` | .NET only | same database as `DATABASE_URL` |
 | `Cors__AllowedOrigins__0` | .NET only | `https://b-vip.onrender.com` |
 
-Without the `Email__*` values the server logs that verification codes cannot be delivered;
+Without `Email__WebhookUrl` or the SMTP `Email__*` values the server logs that verification codes cannot be delivered;
 registration still succeeds and the account stays unverified, but the master administrator login
 does not depend on e-mail at all.
 
@@ -89,7 +88,7 @@ curl -s -X POST https://b-vip.onrender.com/api/auth/login \
 ```
 
 A login with the wrong password for a real account must be `401 invalid-credentials`, and a
-technician signing in from a second computer must be `403 device-mismatch`.
+technician signing in from a second computer must also answer `200` — no machine is bound.
 
 ## Step 5 — desktop client
 

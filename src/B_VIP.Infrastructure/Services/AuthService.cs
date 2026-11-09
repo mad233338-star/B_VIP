@@ -108,8 +108,8 @@ namespace B_VIP.Infrastructure.Services
                 throw new B_VIP.Core.Common.DomainException("account-suspended", "This account is suspended.", 403);
             }
 
-            await BindHardwareIdAsync(user, request.DeviceFingerprint, ipAddress, correlationId, ct);
-
+            // No workstation binding: an account may sign in from any computer, and the device
+            // fingerprint is neither stored nor compared.
             user.AccessFailedCount = 0;
             user.LockoutEndUtc = null;
             user.LastLoginUtc = now;
@@ -630,72 +630,6 @@ namespace B_VIP.Infrastructure.Services
                 _emailOptions.ExposeVerificationLink ? link : null);
         }
 
-        /// <summary>
-        /// Binds the workstation on first sign-in. A different machine is refused for technicians;
-        /// the master administrator and every administrator role are exempt, so the management
-        /// console can be opened from any PC. An administrator decouples an account, after which
-        /// the next sign-in binds that account to the new workstation.
-        /// </summary>
-        private async Task BindHardwareIdAsync(User user, string? fingerprint, string? ipAddress, string? correlationId, CancellationToken ct)
-        {
-            if (IsAdministrator(user))
-            {
-                return;
-            }
-
-            string? provided = NormalizeHardwareId(fingerprint);
-            string? bound = NormalizeHardwareId(user.HardwareId);
-
-            if (string.IsNullOrEmpty(bound))
-            {
-                // First sign-in binds this workstation. A request without a fingerprint leaves the
-                // account unbound; it binds on the next successful sign-in that carries one.
-                if (provided is null)
-                {
-                    return;
-                }
-
-                user.HardwareId = provided;
-                user.UpdatedUtc = DateTime.UtcNow;
-                await _db.SaveChangesAsync(ct);
-
-                await _audit.LogAsync(user.Id, user.UserName, "auth.hwid-bound", "user", user.Id.ToString(),
-                    AuditOutcome.Success, "Workstation hardware ID bound on first sign-in.", ipAddress, correlationId, ct);
-                return;
-            }
-
-            if (provided is not null && string.Equals(bound, provided, StringComparison.OrdinalIgnoreCase))
-            {
-                return;
-            }
-
-            // Either another workstation or a request that omits the fingerprint: both are refused
-            // once the account is bound, so the check cannot be skipped by leaving the value out.
-            await _audit.LogAsync(user.Id, user.UserName, "auth.hwid-mismatch", "user", user.Id.ToString(),
-                AuditOutcome.Denied, "Sign-in attempted from an unregistered workstation.", ipAddress, correlationId, ct);
-
-            throw new B_VIP.Core.Common.DomainException("device-mismatch",
-                "This account is bound to another computer. Please contact administrator to reset HWID.", 403);
-        }
-
-        /// <summary>
-        /// Administrator accounts are never tied to one machine: the shipped master administrator,
-        /// the Administrator role and any role carrying "admin" in its name sign in from anywhere.
-        /// </summary>
-        private static bool IsAdministrator(User user)
-        {
-            if (string.Equals(user.Email, DataSeeder.MasterAdminEmail, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-
-            return user.UserRoles.Any(ur =>
-                ur.Role is not null &&
-                (ur.Role.Name.Contains("admin", StringComparison.OrdinalIgnoreCase) ||
-                 ur.Role.NormalizedName.Contains("ADMIN", StringComparison.Ordinal)));
-        }
-
-
         private string BuildVerificationLink(string token)
         {
             string baseUrl = string.IsNullOrWhiteSpace(_emailOptions.PublicBaseUrl)
@@ -706,7 +640,7 @@ namespace B_VIP.Infrastructure.Services
         }
 
         /// <summary>Subject of the activation mail, kept in one place so tests can assert it.</summary>
-        public const string VerificationSubject = "[B_VIP Tool] Account Verification Code";
+        public const string VerificationSubject = "B_VIP Tool - Account Verification Code";
 
         /// <summary>How long the background send may take before it is abandoned.</summary>
         public const int VerificationDeliveryMilliseconds = 5000;
@@ -761,16 +695,16 @@ namespace B_VIP.Infrastructure.Services
                 "B_VIP Tool Team\n" +
                 "All-in-One Solution for Smart Device Servicing & Maintenance.";
 
+            // The approved light card: navy heading, cyan code block, validity and never-share rules.
             string html =
-                "<div style=\"font-family:'Segoe UI',Arial,sans-serif;color:#E1E1E1;background:#0B132B;padding:24px;border-radius:8px;\">" +
-                "<p>Welcome to <strong>B_VIP Tool</strong>,</p>" +
-                "<p>Thank you for registering on our smart device maintenance and servicing platform.<br />" +
-                "To complete your account activation and start your 3-day free trial, use the following verification code inside the tool:</p>" +
-                $"<p style=\"font-size:26px;letter-spacing:8px;font-weight:700;color:#00D2FF;\">{code}</p>" +
-                $"<p><strong>Validity:</strong> This code is valid for {VerificationCodeMinutes} minutes only.<br />" +
-                "<strong>Security:</strong> The B_VIP support team will never ask for this code. Do not share it with anyone.<br />" +
-                "If you did not request an account on B_VIP Tool, you can safely ignore this email; no action will be taken on your data.</p>" +
-                "<p>B_VIP Tool Team<br /><em>All-in-One Solution for Smart Device Servicing &amp; Maintenance.</em></p></div>";
+                "<div style='font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 10px; background-color: #ffffff; color: #1a202c;'>" +
+                "<h2 style='color: #0f172a; margin-bottom: 8px;'>Welcome to B_VIP Tool</h2>" +
+                "<p style='color: #475569; font-size: 15px;'>Thank you for registering with our smart device maintenance and servicing platform.</p>" +
+                $"<p style='color: #334155; font-size: 15px;'>To complete your account activation and start your <b>{LicenseRules.TrialDays}-day free trial</b>, enter the following verification code inside the application:</p>" +
+                $"<div style='text-align: center; margin: 25px 0;'><span style='display: inline-block; font-size: 30px; font-weight: bold; letter-spacing: 6px; color: #0284c7; background: #f0f9ff; border: 1px dashed #0284c7; padding: 12px 28px; border-radius: 8px;'>{code}</span></div>" +
+                $"<ul style='color: #64748b; font-size: 13px; line-height: 1.6; padding-left: 20px;'><li><b>Validity:</b> This code is valid for {VerificationCodeMinutes} minutes only.</li><li><b>Security Notice:</b> B_VIP support will never ask you for this code. Do not share it with anyone.</li></ul>" +
+                "<p style='color: #94a3b8; font-size: 12px; margin-top: 25px; border-top: 1px solid #f1f5f9; padding-top: 15px;'>If you did not request an account with B_VIP Tool, you can safely ignore this email; no action will be taken on your data.</p>" +
+                "<p style='margin-top: 15px; font-size: 14px; color: #0f172a;'>Best regards,<br><b>B_VIP Tool Team</b><br><span style='font-size: 12px; color: #64748b;'>Integrated ecosystem for smart device maintenance and servicing</span></p></div>";
 
             return await _email.SendAsync(new EmailMessage(email, VerificationSubject, text, html), ct);
         }
