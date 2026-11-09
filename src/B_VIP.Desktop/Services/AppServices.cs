@@ -4,6 +4,7 @@ using System.Text.Json;
 using B_VIP.CloudClient;
 using B_VIP.Contracts.Auth;
 using B_VIP.Desktop.Mvvm;
+using B_VIP.Desktop.Services.Loaders;
 using B_VIP.Hardware;
 using B_VIP.Modules;
 
@@ -154,7 +155,7 @@ namespace B_VIP.Desktop.Services
             ConsoleLoggerService log = new(dispatcher);
 
             _current = new AppServices(api, tokens, new SessionService(), new NavigationService(),
-                toolOptions ?? new ToolLocatorOptions(), log, dispatcher);
+                toolOptions ?? new ToolLocatorOptions(), log, dispatcher, http);
             return _current;
         }
 
@@ -165,7 +166,8 @@ namespace B_VIP.Desktop.Services
             NavigationService navigation,
             ToolLocatorOptions toolOptions,
             ConsoleLoggerService log,
-            System.Windows.Threading.Dispatcher? dispatcher)
+            System.Windows.Threading.Dispatcher? dispatcher,
+            HttpClient http)
         {
             Api = api;
             Tokens = tokens;
@@ -188,6 +190,11 @@ namespace B_VIP.Desktop.Services
             Progress = new ViewModels.OperationProgressViewModel(Log);
             License = new LicenseMonitorService(api, session, log, dispatcher);
             Cloud = new CloudServiceMonitor(api, log, dispatcher);
+
+            // Chipset loader bundles (Qualcomm / MediaTek / Unisoc) are fetched from the release
+            // page on first use and cached under Loaders\ beside the executable.
+            Loaders = new LoaderProvisioner(http, LoaderProvisioner.DefaultRootDirectory,
+                message => log.Info(message));
         }
 
         public BVipApiClient Api { get; }
@@ -238,6 +245,12 @@ namespace B_VIP.Desktop.Services
         /// screen, so both show the same connection state without ever naming the endpoint.
         /// </summary>
         public CloudServiceMonitor Cloud { get; }
+
+        /// <summary>
+        /// Downloads and keeps the chipset loader bundles (Qualcomm, MediaTek, Unisoc) that live under
+        /// <c>Loaders\</c> beside the executable.
+        /// </summary>
+        public LoaderProvisioner Loaders { get; }
 
         /// <summary>Stops the watchers and flushes the console before the process goes away.</summary>
         public void Shutdown()

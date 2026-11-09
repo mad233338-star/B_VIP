@@ -1,9 +1,11 @@
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Windows;
 using B_VIP.Contracts.Devices;
 using B_VIP.Core.Operations;
 using B_VIP.Desktop.Mvvm;
 using B_VIP.Desktop.Services;
+using B_VIP.Desktop.Services.Loaders;
 using B_VIP.Hardware;
 using B_VIP.Modules;
 
@@ -20,8 +22,15 @@ namespace B_VIP.Desktop.ViewModels
         /// <summary>Keeps the routine on whichever SPD port the engine finds first.</summary>
         public const string AutoPortOption = "(auto-detect)";
 
+        private readonly SpreadtrumService _spreadtrum;
+
         public SpdViewModel()
         {
+            // Two loader sources feed the boot-ROM upload: the release bundle in Loaders\SPD and a
+            // .pac firmware whose own FDL1/FDL2 are extracted on demand.
+            _spreadtrum = new SpreadtrumService(Services.Loaders);
+            Loaders = new LoaderPanelViewModel(_spreadtrum.Loaders, "Spreadtrum loader package");
+
             Rows = new ObservableCollection<DiagnosticRow>();
             Ports = new ObservableCollection<SpdPort>();
             PortChoices = new ObservableCollection<string>();
@@ -31,6 +40,8 @@ namespace B_VIP.Desktop.ViewModels
             _selectedPort = AutoPortOption;
             _fdl1Path = string.Empty;
             _fdl2Path = string.Empty;
+            _pacPath = string.Empty;
+            _pacSummary = "Select a .pac firmware to pull its FDL1/FDL2 out of the packet.";
 
             RefreshPorts();
 
@@ -63,6 +74,12 @@ namespace B_VIP.Desktop.ViewModels
                 Fdl2Path = Browse("Select the FDL2 loader (optional)") ?? Fdl2Path;
                 return Task.CompletedTask;
             });
+            SelectPacCommand = new AsyncRelayCommand(_ =>
+            {
+                SelectPac();
+                return Task.CompletedTask;
+            });
+            ExtractPacCommand = new AsyncRelayCommand(_ => ExtractPacAsync(), _ => !IsBusy);
             RefreshPortsCommand = new AsyncRelayCommand(_ =>
             {
                 StatusMessage = $"{RefreshPorts()} Unisoc interface(s).";
@@ -71,6 +88,9 @@ namespace B_VIP.Desktop.ViewModels
         }
 
         public ObservableCollection<DiagnosticRow> Rows { get; }
+
+        /// <summary>Download state of the Unisoc loader bundle (Loaders\SPD).</summary>
+        public LoaderPanelViewModel Loaders { get; }
 
         /// <summary>Live list of Unisoc USB/COM interfaces found on this computer.</summary>
         public ObservableCollection<SpdPort> Ports { get; }
@@ -111,6 +131,30 @@ namespace B_VIP.Desktop.ViewModels
             set => SetProperty(ref _selectedRebootTarget, value);
         }
 
+        private string _pacPath;
+
+        /// <summary>Firmware packet the FDL stages are extracted from.</summary>
+        public string PacPath
+        {
+            get => _pacPath;
+            set
+            {
+                if (SetProperty(ref _pacPath, value))
+                {
+                    ExtractPacCommand.RaiseCanExecuteChanged();
+                }
+            }
+        }
+
+        private string _pacSummary;
+
+        /// <summary>What the selected packet contains, and where its FDL stages landed.</summary>
+        public string PacSummary
+        {
+            get => _pacSummary;
+            private set => SetProperty(ref _pacSummary, value);
+        }
+
         public AsyncRelayCommand ReadInfoCommand { get; }
 
         public AsyncRelayCommand HandshakeCommand { get; }
@@ -127,12 +171,129 @@ namespace B_VIP.Desktop.ViewModels
 
         public AsyncRelayCommand BrowseFdl2Command { get; }
 
+        /// <summary>Chooses the .pac firmware whose FDL1/FDL2 are extracted.</summary>
+        public AsyncRelayCommand SelectPacCommand { get; }
+
+        /// <summary>Reads the PAC header table and unpacks FDL1/FDL2 into %TEMP%\BVIP_SPD.</summary>
+        public AsyncRelayCommand ExtractPacCommand { get; }
+
         public AsyncRelayCommand RefreshPortsCommand { get; }
+
+        /// <summary>
+        /// Opening the screen also makes sure the loader bundle is on disk; a copy that is already
+        /// there is reused, so an offline workshop still works.
+        /// </summary>
+        public override async Task OnNavigatedToAsync()
+        {
+            await base.OnNavigatedToAsync();
+            await Loaders.EnsureReadyAsync();
+
+            // The release bundle usually carries the SC9863A FDL stages: offer them straight away.
+            if (Loaders.IsReady && string.IsNullOrWhiteSpace(Fdl1Path))
+            {
+                PrefillFromBundle();
+            }
+        }
 
         protected override void OnOperationCompleted(OperationExecutionResult result)
         {
             ApplyRows(Rows, result);
             RefreshPorts();
+        }
+
+        /// <summary>Offers the FDL1/FDL2 images the release bundle ships, when it has any.</summary>
+        private void PrefillFromBundle()
+        {
+            try
+            {
+                if (!System.IO.Directory.Exists(Loaders.Directory))
+                {
+                    return;
+                }
+
+                string? fdl1 = System.IO.Directory
+                    .EnumerateFiles(Loaders.Directory, "*fdl1*", SearchOption.AllDirectories)
+                    .FirstOrDefault();
+                string? fdl2 = System.IO.Directory
+                    .EnumerateFiles(Loaders.Directory, "*fdl2*", SearchOption.AllDirectories)
+                    .FirstOrDefault();
+
+                Fdl1Path = fdl1 ?? string.Empty;
+                Fdl2Path = fdl2 ?? string.Empty;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                Services.Log.Warn($"The bundled FDL images could not be listed: {ex.Message}");
+            }
+        }
+
+        private void SelectPac()
+        {
+            Microsoft.Win32.OpenFileDialog dialog = new()
+            {
+                Title = "Select a Spreadtrum .pac firmware",
+                Filter = "PAC firmware (*.pac)|*.pac|All files (*.*)|*.*",
+                CheckFileExists = true
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                PacPath = dialog.FileName;
+                PacSummary = $"{Path.GetFileName(PacPath)} selected. Extract the loader stages to use it.";
+            }
+        }
+
+        /// <summary>
+        /// Parses the selected packet and hands its FDL1/FDL2 to the boot-ROM upload. Only those two
+        /// payloads are written, into %TEMP%\BVIP_SPD; the firmware file itself is only read.
+        /// </summary>
+        private async Task ExtractPacAsync()
+        {
+            if (string.IsNullOrWhiteSpace(PacPath))
+            {
+                ErrorMessage = "Choose a .pac firmware first.";
+                return;
+            }
+
+            IsBusy = true;
+            ErrorMessage = null;
+            ExtractPacCommand.RaiseCanExecuteChanged();
+
+            try
+            {
+                PacSummary = "Reading the PAC header table…";
+
+                PacExtractionResult result = await _spreadtrum.ExtractLoadersAsync(PacPath);
+
+                if (!result.Success)
+                {
+                    ErrorMessage = result.Error ?? "The PAC packet could not be read.";
+                    PacSummary = "Extraction failed.";
+                    Services.Log.Error($"PAC extraction failed: {result.Error}");
+                    return;
+                }
+
+                Fdl1Path = result.Fdl1Path ?? Fdl1Path;
+                Fdl2Path = result.Fdl2Path ?? Fdl2Path;
+
+                PacSummary = string.IsNullOrEmpty(result.Fdl2Path)
+                    ? $"{result.Entries.Count} header(s); FDL1 extracted from the packet (no FDL2 entry)."
+                    : $"{result.Entries.Count} header(s); FDL1 and FDL2 extracted from the packet.";
+
+                StatusMessage = $"FDL stages ready in {result.WorkDirectory}.";
+                Services.Log.Success(
+                    $"PAC loader stages extracted: FDL1 {Path.GetFileName(result.Fdl1Path)}, FDL2 {Path.GetFileName(result.Fdl2Path ?? "(none)")}.");
+            }
+            catch (Exception ex)
+            {
+                ErrorMessage = ex.Message;
+                PacSummary = "Extraction failed.";
+            }
+            finally
+            {
+                IsBusy = false;
+                ExtractPacCommand.RaiseCanExecuteChanged();
+            }
         }
 
         private int RefreshPorts()

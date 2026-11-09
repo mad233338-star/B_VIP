@@ -4,6 +4,7 @@ using B_VIP.Contracts.Devices;
 using B_VIP.Core.Operations;
 using B_VIP.Desktop.Mvvm;
 using B_VIP.Desktop.Services;
+using B_VIP.Desktop.Services.Loaders;
 using B_VIP.Hardware;
 using B_VIP.Modules;
 
@@ -20,8 +21,14 @@ namespace B_VIP.Desktop.ViewModels
         /// <summary>Stand-in entry that keeps the programmer on the port the loader was opened on.</summary>
         public const string SamePortOption = "(same port as the loader)";
 
+        private readonly QualcommLoaderManager _loaders;
+
         public QualcommViewModel()
         {
+            // The programmer bundle lives in Loaders\Qualcomm and is provisioned on first visit.
+            _loaders = new QualcommLoaderManager(Services.Loaders);
+            Loaders = new LoaderPanelViewModel(_loaders.Loaders, "Qualcomm loader package");
+
             Rows = new ObservableCollection<DiagnosticRow>();
             Ports = new ObservableCollection<QualcommPort>();
             PowerTargets = ["reset", "off", "edl"];
@@ -67,6 +74,9 @@ namespace B_VIP.Desktop.ViewModels
         }
 
         public ObservableCollection<DiagnosticRow> Rows { get; }
+
+        /// <summary>Download state of the Qualcomm loader bundle (Loaders\Qualcomm).</summary>
+        public LoaderPanelViewModel Loaders { get; }
 
         /// <summary>Live list of Qualcomm USB/COM interfaces found on this computer.</summary>
         public ObservableCollection<QualcommPort> Ports { get; }
@@ -117,6 +127,21 @@ namespace B_VIP.Desktop.ViewModels
         public AsyncRelayCommand BrowseFirehoseCommand { get; }
 
         public AsyncRelayCommand RefreshPortsCommand { get; }
+
+        /// <summary>
+        /// Opening the screen also makes sure the loader bundle is on disk. A workshop computer that
+        /// is offline keeps the copy it already has, so this is a folder check in the normal case.
+        /// </summary>
+        public override async Task OnNavigatedToAsync()
+        {
+            await base.OnNavigatedToAsync();
+            await Loaders.EnsureReadyAsync();
+
+            if (Loaders.IsReady && string.IsNullOrWhiteSpace(FirehosePath))
+            {
+                FirehosePath = _loaders.FindProgrammers().FirstOrDefault() ?? string.Empty;
+            }
+        }
 
         protected override void OnOperationCompleted(OperationExecutionResult result)
         {

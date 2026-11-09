@@ -4,6 +4,7 @@ using B_VIP.Contracts.Devices;
 using B_VIP.Core.Operations;
 using B_VIP.Desktop.Mvvm;
 using B_VIP.Desktop.Services;
+using B_VIP.Desktop.Services.Loaders;
 using B_VIP.Hardware;
 using B_VIP.Modules;
 
@@ -17,8 +18,14 @@ namespace B_VIP.Desktop.ViewModels
     /// </summary>
     public sealed class MtkViewModel : DeviceScreenViewModel
     {
+        private readonly MtkLoaderManager _loaders;
+
         public MtkViewModel()
         {
+            // The mtkclient bundle lives in Loaders\MTK and is provisioned on first visit.
+            _loaders = new MtkLoaderManager(Services.Loaders);
+            Loaders = new LoaderPanelViewModel(_loaders.Loaders, "MediaTek loader package");
+
             Rows = new ObservableCollection<DiagnosticRow>();
             Ports = new ObservableCollection<MtkPort>();
             RebootTargets = ["system", "fastboot", "recovery"];
@@ -55,6 +62,9 @@ namespace B_VIP.Desktop.ViewModels
         }
 
         public ObservableCollection<DiagnosticRow> Rows { get; }
+
+        /// <summary>Download state of the MediaTek loader bundle (Loaders\MTK).</summary>
+        public LoaderPanelViewModel Loaders { get; }
 
         /// <summary>Live list of MediaTek USB/COM interfaces found on this computer.</summary>
         public ObservableCollection<MtkPort> Ports { get; }
@@ -93,6 +103,16 @@ namespace B_VIP.Desktop.ViewModels
         public AsyncRelayCommand BrowseScatterCommand { get; }
 
         public AsyncRelayCommand RefreshPortsCommand { get; }
+
+        /// <summary>
+        /// Opening the screen also makes sure the loader bundle is on disk. An existing copy is reused
+        /// without touching the network, which keeps an offline workshop running.
+        /// </summary>
+        public override async Task OnNavigatedToAsync()
+        {
+            await base.OnNavigatedToAsync();
+            await Loaders.EnsureReadyAsync();
+        }
 
         protected override void OnOperationCompleted(OperationExecutionResult result)
         {

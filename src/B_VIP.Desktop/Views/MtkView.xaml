@@ -11,6 +11,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
@@ -80,7 +81,40 @@
             </StackPanel>
         </Border>
 
-        <DataGrid Grid.Row="2" Style="{StaticResource Grid.Data}" ItemsSource="{Binding Rows}">
+        <!-- Loader bundle: downloaded on first visit, then reused from Loaders\MTK. -->
+        <Border Grid.Row="2" Style="{StaticResource Panel.Card}" Margin="0,0,0,12">
+            <StackPanel>
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Left" Text="Loaders" Style="{StaticResource Text.Label}"
+                               VerticalAlignment="Center" Margin="0,0,10,0" />
+                    <Border DockPanel.Dock="Right" Style="{StaticResource Badge.Status}" VerticalAlignment="Center"
+                            Margin="8,0,0,0">
+                        <TextBlock Text="{Binding Loaders.StatusText}" FontSize="10" FontWeight="SemiBold"
+                                   Foreground="{StaticResource Brush.Accent}" />
+                    </Border>
+                    <Button DockPanel.Dock="Right" Content="Cancel" Style="{StaticResource Button.Outline}"
+                            Command="{Binding Loaders.CancelCommand}" Margin="8,0,0,0" VerticalAlignment="Center"
+                            Visibility="{Binding Loaders.IsProvisioning, Converter={StaticResource BoolToVisibility}}" />
+                    <Button DockPanel.Dock="Right" Content="Download" Style="{StaticResource Button.Outline}"
+                            Command="{Binding Loaders.PrepareCommand}" Margin="8,0,0,0" VerticalAlignment="Center"
+                            ToolTip="Fetches the published mtkclient bundle into Loaders\MTK." />
+                    <TextBlock Style="{StaticResource Text.Muted}" Text="{Binding Loaders.PackageName}"
+                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                </DockPanel>
+
+                <ProgressBar Height="4" Margin="0,10,0,0" Minimum="0" Maximum="100"
+                             Value="{Binding Loaders.Progress, Mode=OneWay}"
+                             IsIndeterminate="{Binding Loaders.IsIndeterminate}"
+                             Background="{StaticResource Brush.Line}" Foreground="{StaticResource Brush.Accent}" />
+
+                <TextBlock Style="{StaticResource Text.Muted}" Text="{Binding Loaders.Detail}"
+                           TextWrapping="Wrap" Margin="0,6,0,0" />
+                <TextBlock Style="{StaticResource Text.Muted}" Text="{Binding Loaders.Directory}"
+                           FontFamily="Consolas" FontSize="11" TextTrimming="CharacterEllipsis" Margin="0,2,0,0" />
+            </StackPanel>
+        </Border>
+
+        <DataGrid Grid.Row="3" Style="{StaticResource Grid.Data}" ItemsSource="{Binding Rows}">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Check" Binding="{Binding Name}" Width="*" />
                 <DataGridTextColumn Header="Result" Binding="{Binding Status}" Width="90" />

@@ -1,0 +1,197 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.IO.Compression;
+using System.Linq;
+using System.Net;
+using System.Net.Http;
+using System.Threading;
+using System.Threading.Tasks;
+using B_VIP.Desktop.Services.Loaders;
+using Xunit;
+
+namespace B_VIP.LoaderTests
+{
+    /// <summary>
+    /// Provisioning is exercised against a fake handler, so the test covers the real streaming,
+    /// extraction and cleanup paths (and the "already installed => no second download" rule)
+    /// without reaching the release page.
+    /// </summary>
+    public sealed class LoaderProvisionerTests : IDisposable
+    {
+        private readonly string _root;
+
+        public LoaderProvisionerTests()
+        {
+            _root = Path.Combine(Path.GetTempPath(), "bvip-loader-tests-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(_root);
+        }
+
+        public void Dispose()
+        {
+            try
+            {
+                Directory.Delete(_root, recursive: true);
+            }
+            catch (IOException)
+            {
+                // Best effort.
+            }
+        }
+
+        [Fact]
+        public async Task A_missing_bundle_is_downloaded_extracted_and_the_archive_is_removed()
+        {
+            RecordingHandler handler = new(_ => Zip("mtkclient-main/loader.bin", new byte[] { 1, 2, 3, 4 }));
+            LoaderProvisioner provisioner = new(new HttpClient(handler), _root);
+            LoaderPackage package = LoaderCatalog.Mtk;
+
+            List<LoaderStatus> stages = new();
+            List<int> percents = new();
+            RecordingProgress<int> progress = new(percents);
+            RecordingProgress<LoaderStatus> statuses = new(stages);
+
+            LoaderProvisionResult result = await provisioner.EnsureAsync(package, progress, statuses);
+
+            Assert.True(result.Succeeded, result.Message);
+            Assert.Equal(LoaderStatus.Ready, result.Status);
+            Assert.True(provisioner.IsReady(package));
+            Assert.Contains(stages, s => s == LoaderStatus.Downloading);
+            Assert.Contains(stages, s => s == LoaderStatus.Extracting);
+            Assert.Equal(LoaderStatus.Ready, stages.Last());
+
+            string extracted = Path.Combine(provisioner.DirectoryFor(package), "mtkclient-main", "loader.bin");
+            Assert.True(File.Exists(extracted));
+            Assert.Equal(new byte[] { 1, 2, 3, 4 }, File.ReadAllBytes(extracted));
+
+            // The archive is a delivery vehicle only: no *.zip survives in the temp folder for this run.
+            Assert.Empty(Directory.EnumerateFiles(Path.GetTempPath(), "bvip-mtk-*.zip"));
+
+            Assert.Contains(100, percents);
+            Assert.Equal(1, handler.Requests);
+        }
+
+        [Fact]
+        public async Task A_bundle_that_is_already_there_is_not_downloaded_again()
+        {
+            RecordingHandler handler = new(_ => Zip("payload.bin", new byte[] { 7 }));
+            LoaderProvisioner provisioner = new(new HttpClient(handler), _root);
+
+            await provisioner.EnsureAsync(LoaderCatalog.Qualcomm);
+            await provisioner.EnsureAsync(LoaderCatalog.Qualcomm);
+
+            Assert.Equal(1, handler.Requests);
+        }
+
+        [Fact]
+        public async Task A_failed_download_reports_error_and_leaves_nothing_ready()
+        {
+            RecordingHandler handler = new(_ => new HttpResponseMessage(HttpStatusCode.NotFound));
+            LoaderProvisioner provisioner = new(new HttpClient(handler), _root);
+            LoaderPackage package = LoaderCatalog.Spreadtrum;
+
+            LoaderProvisionResult result = await provisioner.EnsureAsync(package);
+
+            Assert.False(result.Succeeded);
+            Assert.Equal(LoaderStatus.Error, result.Status);
+            Assert.False(provisioner.IsReady(package));
+        }
+
+        [Fact]
+        public async Task An_empty_archive_is_not_mistaken_for_an_installed_bundle()
+        {
+            RecordingHandler handler = new(_ => Zip("readme.txt", Array.Empty<byte>(), omitFile: true));
+            LoaderProvisioner provisioner = new(new HttpClient(handler), _root);
+
+            LoaderProvisionResult result = await provisioner.EnsureAsync(LoaderCatalog.Mtk);
+
+            Assert.False(result.Succeeded);
+            Assert.False(provisioner.IsReady(LoaderCatalog.Mtk));
+        }
+
+        [Fact]
+        public async Task The_installation_mirrors_the_stages_and_ends_ready()
+        {
+            RecordingHandler handler = new(_ => Zip("mtkclient-main/da.bin", new byte[] { 5, 5, 5 }));
+            LoaderProvisioner provisioner = new(new HttpClient(handler), _root);
+            LoaderInstallation installation = new(LoaderCatalog.Mtk, provisioner);
+
+            Assert.Equal(LoaderStatus.Idle, installation.Status);
+
+            List<LoaderStatus> seen = new();
+            installation.Changed += (_, _) => seen.Add(installation.Status);
+
+            bool ready = await installation.EnsureAsync();
+
+            Assert.True(ready);
+            Assert.True(installation.IsReady);
+            Assert.Equal(100, installation.Progress);
+            Assert.Contains(LoaderStatus.Downloading, seen);
+            Assert.Equal(LoaderStatus.Ready, installation.Status);
+        }
+
+        [Fact]
+        public void The_catalog_points_every_platform_at_its_own_folder_and_release_asset()
+        {
+            Assert.Equal(3, LoaderCatalog.All.Count);
+            Assert.Equal(3, LoaderCatalog.All.Select(p => p.FolderName).Distinct().Count());
+
+            Assert.Equal("Qualcomm", LoaderCatalog.Qualcomm.FolderName);
+            Assert.Equal("MTK", LoaderCatalog.Mtk.FolderName);
+            Assert.Equal("SPD", LoaderCatalog.Spreadtrum.FolderName);
+
+            Assert.EndsWith("/Loaders-main.zip", LoaderCatalog.Qualcomm.DownloadUrl);
+            Assert.EndsWith("/mtkclient-main.zip", LoaderCatalog.Mtk.DownloadUrl);
+            Assert.EndsWith("/SPD_Loaders.zip.zip", LoaderCatalog.Spreadtrum.DownloadUrl);
+
+            Assert.All(LoaderCatalog.All, package =>
+            {
+                Assert.StartsWith("https://", package.DownloadUrl);
+                Assert.Contains("/B_VIP-Loaders/releases/download/", package.DownloadUrl);
+            });
+        }
+
+        private static HttpResponseMessage Zip(string entryName, byte[] content, bool omitFile = false)
+        {
+            using MemoryStream buffer = new();
+            using (ZipArchive archive = new(buffer, ZipArchiveMode.Create, leaveOpen: true))
+            {
+                if (!omitFile)
+                {
+                    ZipArchiveEntry entry = archive.CreateEntry(entryName);
+                    using Stream stream = entry.Open();
+                    stream.Write(content);
+                }
+            }
+
+            ByteArrayContent body = new(buffer.ToArray());
+            body.Headers.ContentLength = buffer.Length;
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = body };
+        }
+
+        private sealed class RecordingHandler : HttpMessageHandler
+        {
+            private readonly Func<HttpRequestMessage, HttpResponseMessage> _responder;
+
+            public RecordingHandler(Func<HttpRequestMessage, HttpResponseMessage> responder) => _responder = responder;
+
+            public int Requests { get; private set; }
+
+            protected override Task<HttpResponseMessage> SendAsync(
+                HttpRequestMessage request, CancellationToken cancellationToken)
+            {
+                Requests++;
+                return Task.FromResult(_responder(request));
+            }
+        }
+
+        private sealed class RecordingProgress<T> : IProgress<T>
+        {
+            private readonly List<T> _values;
+
+            public RecordingProgress(List<T> values) => _values = values;
+
+            public void Report(T value) => _values.Add(value);
+        }
+    }
+}
