@@ -70,6 +70,9 @@
                     <Button Content="Reset FRP" Style="{StaticResource Button.Outline}"
                             Command="{Binding ResetFrpCommand}" Margin="0,0,8,8"
                             ToolTip="Reboots into the bootloader and erases 'frp' and 'persistent'. Needs an unlocked bootloader." />
+                    <Button Content="Reset FRP (BROM)" Style="{StaticResource Button.Danger}"
+                            Command="{Binding ResetFrpClientCommand}" Margin="0,0,8,8"
+                            ToolTip="mtkclient: erases 'frp' and 'persistent' through the boot ROM, then resets. Works on a locked bootloader. Hold Vol+ and Vol- while connecting the cable." />
                     <Button Content="Factory Reset" Style="{StaticResource Button.Outline}"
                             Command="{Binding FactoryResetCommand}" Margin="0,0,8,8"
                             ToolTip="fastboot -w plus userdata, cache and metadata. NVRAM and radio calibration are never touched." />

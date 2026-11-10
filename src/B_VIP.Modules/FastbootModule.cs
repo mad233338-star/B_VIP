@@ -251,10 +251,25 @@ namespace B_VIP.Modules
             warnings.Add("FRP erasure is only accepted by an unlocked bootloader, and the handset must stay connected until it reboots.");
 
             bool succeeded = frpErased && errors.Count == 0;
+
+            // The sequence ends with a reboot: the setup wizard reads the erase result as it starts,
+            // so leaving the handset in the bootloader only half-completes the routine.
+            if (succeeded)
+            {
+                ProcessResult reboot = await Run(log, ["-s", request.Serial!, "reboot"], 90, ct);
+                checks.Add(new DiagnosticCheckDto("reboot", reboot.Succeeded ? "pass" : "warn",
+                    reboot.Succeeded ? "Reboot to system requested." : "The reboot was refused; power the handset on by hand.",
+                    reboot.DurationMs));
+
+                if (!reboot.Succeeded)
+                {
+                    warnings.Add("The partitions were erased but the handset did not reboot. Unplug it and power it on by hand.");
+                }
+            }
             return new OperationExecutionResult(request.OperationType, succeeded,
                 succeeded ? OperationOutcome.Succeeded : OperationOutcome.Failed,
                 succeeded
-                    ? "FRP partitions erased. Reboot the device to complete the reset."
+                    ? "FRP partitions erased and the handset was rebooted."
                     : errors.FirstOrDefault() ?? "The 'frp' partition was not erased.",
                 checks, log, warnings, errors);
         }

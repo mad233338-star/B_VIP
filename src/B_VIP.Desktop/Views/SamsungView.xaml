@@ -64,11 +64,16 @@
                 </DockPanel>
 
                 <DockPanel Margin="0,10,0,0">
-                    <Button Content="Reset FRP (*#0*# / ADB)" Style="{StaticResource Button.Outline}"
-                            Command="{Binding ResetFrpCommand}" VerticalAlignment="Center" />
+                    <WrapPanel>
+                        <Button Content="Reset FRP (Preloader)" Style="{StaticResource Button.Danger}"
+                                Command="{Binding ResetFrpPreloaderCommand}" Margin="0,0,8,0" VerticalAlignment="Center"
+                                ToolTip="MediaTek Samsung handsets (A04/A05/A06): mtkclient erases 'frp' and 'persistent' through the preloader with Samsung's download agent. Works on a locked bootloader." />
+                        <Button Content="Reset FRP (*#0*# / ADB)" Style="{StaticResource Button.Outline}"
+                                Command="{Binding ResetFrpCommand}" VerticalAlignment="Center" />
+                    </WrapPanel>
                     <TextBlock Style="{StaticResource Text.Muted}" TextWrapping="Wrap" Margin="12,0,0,0"
                                VerticalAlignment="Center"
-                               Text="Handshakes the Samsung modem at 115200 baud, waits for an authorized adb connection, then clears the setup flags and reboots." />
+                               Text="Preloader: hold Vol+ and Vol- while connecting the cable. Modem routine: handshakes the Samsung modem at 115200 baud, waits for an authorized adb connection, then clears the setup flags and reboots." />
                 </DockPanel>
 
                 <TextBlock Style="{StaticResource Text.Muted}" TextWrapping="Wrap" Margin="0,8,0,0"

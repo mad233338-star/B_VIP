@@ -86,6 +86,9 @@
                     <Button Content="Reset FRP" Style="{StaticResource Button.Outline}"
                             Command="{Binding ResetFrpCommand}" Margin="0,0,8,8"
                             ToolTip="Reads the GPT, then erases exactly the 'frp' (or 'config') partition range." />
+                    <Button Content="Reset FRP (fh_loader)" Style="{StaticResource Button.Danger}"
+                            Command="{Binding LoaderFrpCommand}" Margin="0,0,8,8"
+                            ToolTip="fh_loader on the 9008 port: starts the Firehose programmer and erases 'frp' and 'config' directly. Works on a locked bootloader." />
                     <Button Content="Factory format" Style="{StaticResource Button.Outline}"
                             Command="{Binding FactoryResetCommand}" Margin="0,0,8,8"
                             ToolTip="Erases userdata and cache only; modemst1, modemst2, fsg and persist are protected." />

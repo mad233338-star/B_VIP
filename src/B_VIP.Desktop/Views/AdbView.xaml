@@ -46,6 +46,10 @@
                     <Button Content="{Binding [adb.logcat], Source={x:Static loc:Localizer.Instance}}"
                             Style="{StaticResource Button.Outline}" Command="{Binding CollectLogcatCommand}"
                             Margin="0,0,8,8" />
+                    <Button Content="Skip setup wizard" Style="{StaticResource Button.Danger}"
+                            Command="{Binding SetupWizardBypassCommand}"
+                            Margin="0,0,8,8"
+                            ToolTip="Writes user_setup_complete, brings the launcher forward and reboots. Clears the FRP/setup screen over ADB; no data is erased." />
                 </WrapPanel>
 
                 <DockPanel Margin="0,4,0,0">

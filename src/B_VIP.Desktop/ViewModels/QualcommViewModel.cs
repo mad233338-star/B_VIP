@@ -62,6 +62,14 @@ namespace B_VIP.Desktop.ViewModels
                 parameters["target"] = SelectedPowerTarget;
                 return RunOperationAsync(OperationTypes.QualcommReboot, parameters);
             });
+
+            // fh_loader route: the programmer is started on the 9008 port and erases the partitions
+            // straight from EDL, which is the only way in on a handset with a locked bootloader.
+            LoaderFrpCommand = new AsyncRelayCommand(_ => ConfirmedAsync(
+                "Reset FRP through fh_loader in EDL?\n\n" +
+                "fh_loader starts the selected Firehose programmer on the 9008 COM port and erases 'frp' and 'config', " +
+                "then resets the handset. This cannot be undone.",
+                () => RunOperationAsync(OperationTypes.QualcommFrpLoader, BuildLoaderParameters(), confirmDataLoss: true)));
             BrowseFirehoseCommand = new AsyncRelayCommand(_ =>
             {
                 BrowseFirehose();
@@ -140,6 +148,9 @@ namespace B_VIP.Desktop.ViewModels
         public AsyncRelayCommand FactoryResetCommand { get; }
 
         public AsyncRelayCommand RebootCommand { get; }
+
+        /// <summary>FRP through fh_loader on the 9008 port, using the Firehose programmer.</summary>
+        public AsyncRelayCommand LoaderFrpCommand { get; }
 
         public AsyncRelayCommand BrowseFirehoseCommand { get; }
 
@@ -231,6 +242,35 @@ namespace B_VIP.Desktop.ViewModels
             parameters["confirm"] = "yes";
             return parameters;
         }
+
+        /// <summary>
+        /// The EDL routine needs the 9008 COM port and the programmer. The selected Firehose port wins;
+        /// otherwise the first COM interface this screen found is used, so the button works without
+        /// the operator selecting anything a second time.
+        /// </summary>
+        private Dictionary<string, string> BuildLoaderParameters()
+        {
+            Dictionary<string, string> parameters = BuildParameters();
+            parameters["confirm"] = "yes";
+
+            string? port = NormaliseSelectedPort(SelectedFirehosePort)
+                ?? PortChoices.Select(NormaliseSelectedPort).FirstOrDefault(p => p is not null)
+                ?? Ports.Select(p => p.PortName).FirstOrDefault(PortLikePort);
+
+            if (port is not null)
+            {
+                parameters["port"] = port;
+            }
+
+            return parameters;
+        }
+
+        private static string? NormaliseSelectedPort(string? value)
+            => PortLikePort(value) ? value!.Trim() : null;
+
+        private static bool PortLikePort(string? value)
+            => !string.IsNullOrWhiteSpace(value) &&
+               value.Trim().StartsWith("COM", StringComparison.OrdinalIgnoreCase);
 
         private void BrowseFirehose()
         {

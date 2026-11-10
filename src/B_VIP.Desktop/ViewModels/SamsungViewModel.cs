@@ -37,6 +37,10 @@ namespace B_VIP.Desktop.ViewModels
             OpenBrowserCommand = new AsyncRelayCommand(_ => OpenBrowserAsync(), DeviceReady);
             ResetFrpCommand = new AsyncRelayCommand(_ => ResetFrpAsync(), DeviceReady);
 
+            // The preloader routine talks to the boot ROM, not to adb: a Samsung in preloader mode is
+            // not in the device list at all, so this button is gated on the busy state only.
+            ResetFrpPreloaderCommand = new AsyncRelayCommand(_ => ResetFrpPreloaderAsync(), _ => !IsBusy);
+
             GateOnDevice(RebootDownloadCommand, RebootSystemCommand, RebootRecoveryCommand, OpenBrowserCommand, ResetFrpCommand);
         }
 
@@ -86,6 +90,13 @@ namespace B_VIP.Desktop.ViewModels
 
         public AsyncRelayCommand ResetFrpCommand { get; }
 
+        /// <summary>
+        /// FRP through the MediaTek preloader (MT6768/MT6765 A-series): mtkclient erases 'frp' and
+        /// 'persistent' with Samsung's own download agent and resets the handset. This is the route
+        /// for a locked bootloader, where the modem/adb routine below cannot clear anything.
+        /// </summary>
+        public AsyncRelayCommand ResetFrpPreloaderCommand { get; }
+
         protected override void OnOperationCompleted(OperationExecutionResult result)
         {
             // The rows are built into a plain list and swapped in on the dispatcher: the MTP/adb read
@@ -113,6 +124,33 @@ namespace B_VIP.Desktop.ViewModels
             }
 
             return RunOperationAsync(OperationTypes.SamsungOpenBrowser, parameters);
+        }
+
+        private async Task ResetFrpPreloaderAsync()
+        {
+            MessageBoxResult answer = MessageBox.Show(
+                "Reset FRP through the MediaTek preloader?\n\n" +
+                "1. Power the handset off.\n" +
+                "2. Hold Vol+ and Vol- together while you connect the USB cable.\n\n" +
+                "mtkclient then erases 'frp' and 'persistent' with Samsung's download agent and resets the phone. " +
+                "The partitions are erased permanently. Continue?",
+                "B_VIP Tool",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning,
+                MessageBoxResult.No);
+
+            if (answer != MessageBoxResult.Yes)
+            {
+                StatusMessage = "Preloader routine cancelled.";
+                return;
+            }
+
+            OnUiThread(() => Rows.Clear());
+            await RunOperationAsync(OperationTypes.SamsungFrpPreloader, new Dictionary<string, string>
+            {
+                ["confirm"] = "yes",
+                ["partitions"] = "frp,persistent"
+            }, confirmDataLoss: true);
         }
 
         private async Task ResetFrpAsync()

@@ -520,7 +520,10 @@ namespace B_VIP.Desktop.ViewModels
                     {
                         new VendorAction("Read device information", OperationTypes.XiaomiReadInfo, false),
                         new VendorAction("Read fastboot variables", OperationTypes.FastbootReadInfo, false),
-                        new VendorAction("Reset FRP (frp + config)", OperationTypes.XiaomiResetFrp, true),
+                        // Routes itself: fastboot erase on an unlocked bootloader, Mi Assistant when locked.
+                        new VendorAction("Reset FRP (automatic)", OperationTypes.FrpAutoReset, true,
+                            AutoFrp("xiaomi", "frp,config")),
+                        new VendorAction("Mi Assistant / sideload", OperationTypes.XiaomiMiAssistant, false),
                         new VendorAction("Bypass Mi Account (ADB)", OperationTypes.XiaomiBypassMiAccount, false),
                         new VendorAction("Factory format (userdata + cache)", OperationTypes.FastbootEraseBatch, true,
                             Partitions("userdata", "cache")),
@@ -533,8 +536,9 @@ namespace B_VIP.Desktop.ViewModels
                     {
                         new VendorAction("Read device information", OperationTypes.InfinixReadInfo, false),
                         new VendorAction("Read fastboot variables", OperationTypes.FastbootReadInfo, false),
-                        new VendorAction("Reset FRP (frp + persistent)", OperationTypes.FastbootEraseBatch, true,
-                            Partitions("frp", "persistent")),
+                        // The chipset decides the engine: MediaTek boot ROM, Unisoc spd_dump or fastboot.
+                        new VendorAction("Reset FRP (automatic)", OperationTypes.FrpAutoReset, true,
+                            AutoFrp("infinix", "frp,persist")),
                         new VendorAction("Factory format (fastboot -w)", OperationTypes.InfinixFactoryFormat, true),
                         new VendorAction("Reboot to System", OperationTypes.VendorReboot, false, Target("system")),
                         new VendorAction("Reboot to Fastboot", OperationTypes.VendorReboot, false, Target("bootloader"))
@@ -544,8 +548,8 @@ namespace B_VIP.Desktop.ViewModels
                     {
                         new VendorAction("Read device information", OperationTypes.TecnoReadInfo, false),
                         new VendorAction("Read fastboot variables", OperationTypes.FastbootReadInfo, false),
-                        new VendorAction("Reset FRP (frp + persistent)", OperationTypes.FastbootEraseBatch, true,
-                            Partitions("frp", "persistent")),
+                        new VendorAction("Reset FRP (automatic)", OperationTypes.FrpAutoReset, true,
+                            AutoFrp("tecno", "frp,frp_p")),
                         new VendorAction("Wipe userdata & cache", OperationTypes.TecnoWipe, true),
                         new VendorAction("Reboot to System", OperationTypes.VendorReboot, false, Target("system")),
                         new VendorAction("Reboot to Fastboot", OperationTypes.VendorReboot, false, Target("bootloader"))
@@ -591,6 +595,13 @@ namespace B_VIP.Desktop.ViewModels
         }
 
         private static Dictionary<string, string> Target(string target) => new() { ["target"] = target };
+
+        /// <summary>
+        /// Parameters for the routed FRP routine: the brand decides the fastboot partitions, and the
+        /// engine is chosen from the chipset the handset reports (or the operator's explicit mode).
+        /// </summary>
+        private static Dictionary<string, string> AutoFrp(string brand, string partitions)
+            => new() { ["brand"] = brand, ["partitions"] = partitions };
 
         private static Dictionary<string, string> Partitions(params string[] partitions)
             => new() { ["partitions"] = string.Join(',', partitions) };

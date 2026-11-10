@@ -116,6 +116,9 @@
                     <Button Content="Reset FRP" Style="{StaticResource Button.Outline}"
                             Command="{Binding ResetFrpCommand}" Margin="0,0,8,8"
                             ToolTip="Erases 'frp' and 'persistent' through fastboot; needs an unlocked bootloader." />
+                    <Button Content="Reset FRP (spd_dump)" Style="{StaticResource Button.Danger}"
+                            Command="{Binding DumpFrpCommand}" Margin="0,0,8,8"
+                            ToolTip="Uploads FDL1 at 0x50000000 and FDL2 at 0x9efffe00, erases 'frp' and resets. Works on a locked bootloader; needs both FDL images." />
                     <Button Content="Factory format" Style="{StaticResource Button.Outline}"
                             Command="{Binding FactoryResetCommand}" Margin="0,0,8,8"
                             ToolTip="Erases userdata and cache only; persist, prodnv, nvram, nvdata and modem are protected." />

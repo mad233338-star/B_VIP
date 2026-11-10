@@ -53,6 +53,10 @@ namespace B_VIP.Desktop.ViewModels
                 "'frp' and 'persistent' are erased through fastboot. Calibration partitions are never touched. " +
                 "This cannot be undone.",
                 () => RunOperationAsync(OperationTypes.SpdResetFrp, WithConfirmation(BuildParameters()), confirmDataLoss: true)));
+
+            // spd_dump route: FDL1 and FDL2 are uploaded to the boot ROM at their base addresses, then
+            // the FRP partition is erased and the handset reset. This works on a locked bootloader.
+            DumpFrpCommand = new AsyncRelayCommand(_ => DumpFrpAsync(), _ => !IsBusy);
             FactoryResetCommand = new AsyncRelayCommand(_ => ConfirmedAsync(
                 "Format this Unisoc handset?\n\n" +
                 "Only userdata and cache are erased; persist, prodnv, nvram, nvdata and modem are protected. " +
@@ -204,6 +208,9 @@ namespace B_VIP.Desktop.ViewModels
         public AsyncRelayCommand UploadFdlCommand { get; }
 
         public AsyncRelayCommand ResetFrpCommand { get; }
+
+        /// <summary>FRP through spd_dump with the FDL stages, for a handset with a locked bootloader.</summary>
+        public AsyncRelayCommand DumpFrpCommand { get; }
 
         public AsyncRelayCommand FactoryResetCommand { get; }
 
@@ -407,6 +414,36 @@ namespace B_VIP.Desktop.ViewModels
         {
             parameters["confirm"] = "yes";
             return parameters;
+        }
+
+        private async Task DumpFrpAsync()
+        {
+            if (string.IsNullOrWhiteSpace(Fdl1Path) || string.IsNullOrWhiteSpace(Fdl2Path))
+            {
+                ErrorMessage = "Select (or extract from a .pac) both the FDL1 and FDL2 loader images first.";
+                return;
+            }
+
+            MessageBoxResult answer = MessageBox.Show(
+                "Reset FRP through spd_dump?\n\n" +
+                "FDL1 is uploaded at 0x50000000 and FDL2 at 0x9efffe00, then the 'frp' partition is erased and the " +
+                "handset reset. This works on a locked bootloader and cannot be undone.\n\nContinue?",
+                "B_VIP Tool",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning,
+                MessageBoxResult.No);
+
+            if (answer != MessageBoxResult.Yes)
+            {
+                StatusMessage = "Routine cancelled.";
+                return;
+            }
+
+            Dictionary<string, string> parameters = WithConfirmation(BuildParameters());
+            parameters["partition"] = "frp";
+
+            OnUiThread(() => Rows.Clear());
+            await RunOperationAsync(OperationTypes.SpdFrpDump, parameters, confirmDataLoss: true);
         }
 
         private Task UploadFdlAsync()

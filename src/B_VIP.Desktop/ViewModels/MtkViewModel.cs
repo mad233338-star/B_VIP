@@ -44,6 +44,20 @@ namespace B_VIP.Desktop.ViewModels
                 "This needs an unlocked bootloader and cannot be undone.",
                 () => RunOperationAsync(OperationTypes.MtkResetFrp,
                     new Dictionary<string, string> { ["confirm"] = "yes" }, confirmDataLoss: true)));
+
+            // The boot-ROM route: works on a locked bootloader because the erase happens before
+            // Android starts. mtkclient is driven from the loader bundle (Loaders\MTK).
+            ResetFrpClientCommand = new AsyncRelayCommand(_ => ConfirmedAsync(
+                "Reset FRP through the MediaTek boot ROM?\n\n" +
+                "1. Power the handset off.\n" +
+                "2. Hold Vol+ (and Vol-) while you connect the USB cable.\n\n" +
+                "mtkclient erases 'frp' and 'persistent' and resets the phone. " +
+                "This works on a locked bootloader and cannot be undone.",
+                () => RunOperationAsync(OperationTypes.MtkFrpClient, new Dictionary<string, string>
+                {
+                    ["confirm"] = "yes",
+                    ["partitions"] = "frp,persistent"
+                }, confirmDataLoss: true)));
             FactoryResetCommand = new AsyncRelayCommand(_ => ConfirmedAsync(
                 "Format the handset?\n\nuserdata, cache and metadata are erased; nvram, nvdata, protect1/2 and modem are left untouched. " +
                 "Every file on the phone is lost.",
@@ -112,6 +126,9 @@ namespace B_VIP.Desktop.ViewModels
         public AsyncRelayCommand RebootCommand { get; }
 
         public AsyncRelayCommand ResetFrpCommand { get; }
+
+        /// <summary>FRP through mtkclient and the boot ROM, for a handset with a locked bootloader.</summary>
+        public AsyncRelayCommand ResetFrpClientCommand { get; }
 
         public AsyncRelayCommand FactoryResetCommand { get; }
 

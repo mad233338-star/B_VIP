@@ -5,6 +5,10 @@
     <Description>Vendor service modules: Samsung, MediaTek, Qualcomm, Apple, Google account recovery.</Description>
   </PropertyGroup>
   <ItemGroup>
+    <!-- The vendor tests exercise the argument builders directly, so they see internal helpers. -->
+    <InternalsVisibleTo Include="B_VIP.HardwareTests" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="../B_VIP.Core/B_VIP.Core.csproj" />
     <ProjectReference Include="../B_VIP.Contracts/B_VIP.Contracts.csproj" />
     <ProjectReference Include="../B_VIP.Hardware/B_VIP.Hardware.csproj" />

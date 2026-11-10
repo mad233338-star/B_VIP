@@ -1,6 +1,7 @@
 using System.Runtime.Versioning;
 using B_VIP.Core.Operations;
 using B_VIP.Hardware;
+using B_VIP.Modules.ExternalTools;
 
 namespace B_VIP.Modules
 {
@@ -32,6 +33,12 @@ namespace B_VIP.Modules
 
         public static IDeviceDiagnostics CreateDiagnostics(IAdbClient? adb = null)
             => new DeviceDiagnostics(adb ?? CreateAdbClient());
+
+        /// <summary>
+        /// The chipset tool resolver. The desktop shell points it at the loader bundles beside the
+        /// executable; tests substitute their own.
+        /// </summary>
+        public static IVendorToolchain? VendorToolchain { get; set; }
 
         [SupportedOSPlatform("windows")]
         public static OperationExecutorRegistry CreateRegistry(
@@ -68,6 +75,14 @@ namespace B_VIP.Modules
                 new Qualcomm.QualcommEdlExecutor(client, locator),
                 // Unisoc: boot-ROM handshake, FDL loader upload and the safe partition routines.
                 new Spreadtrum.SpdModuleExecutor(client, locator, process),
+                // FRP through the chipset tools themselves: mtkclient, fh_loader and spd_dump, plus
+                // the ADB setup-wizard bypass and the router that picks the right one per chipset.
+                new MtkClientFrpExecutor(process, VendorToolchain),
+                new FhLoaderFrpExecutor(process, VendorToolchain),
+                new SpdDumpFrpExecutor(process, VendorToolchain),
+                new SetupWizardBypassExecutor(client),
+                new FrpRouterExecutor(client, process, VendorToolchain),
+                new XiaomiMiAssistantExecutor(client),
                 new GoogleRecoveryExecutor(client),
                 // Reboot routing shared by every vendor tab: adb first, fastboot as the fallback.
                 new VendorRebootExecutor(client)

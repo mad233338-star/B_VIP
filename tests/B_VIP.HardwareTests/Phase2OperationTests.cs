@@ -103,10 +103,12 @@ namespace B_VIP.HardwareTests
             OperationExecutionResult result = await executor.ExecuteAsync(Request(OperationTypes.FastbootResetFrp));
 
             Assert.True(result.Succeeded);
-            Assert.Equal(3, adb.FastbootCalls.Count);
+            Assert.Equal(4, adb.FastbootCalls.Count);
             Assert.Contains(adb.FastbootCalls, call => call.SequenceEqual(["-s", "SER1", "erase", "frp"]));
             Assert.Contains(adb.FastbootCalls, call => call.SequenceEqual(["-s", "SER1", "erase", "config"]));
             Assert.Contains(adb.FastbootCalls, call => call.SequenceEqual(["-s", "SER1", "erase", "persistent"]));
+            // The sequence ends with the reboot: the setup wizard only reads the erase result on boot.
+            Assert.Contains(adb.FastbootCalls, call => call.SequenceEqual(["-s", "SER1", "reboot"]));
             Assert.All(result.Checks, c => Assert.Equal("pass", c.Status));
         }
 
