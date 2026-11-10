@@ -30,11 +30,11 @@ namespace B_VIP.Desktop.ViewModels
             RebootBootloaderCommand = new AsyncRelayCommand(_ => RebootAsync("bootloader"), DeviceReady);
             RebootEdlCommand = new AsyncRelayCommand(_ => RebootAsync("edl"), DeviceReady);
             RebootDownloadCommand = new AsyncRelayCommand(_ => RebootAsync("download"), DeviceReady);
-            SetupWizardBypassCommand = new AsyncRelayCommand(_ => SetupWizardBypassAsync(), DeviceReady);
+            ResetFrpCommand = new AsyncRelayCommand(_ => ResetFrpAsync(), DeviceReady);
 
             GateOnDevice(ReadInfoCommand, ConnectionCheckCommand, CollectLogcatCommand, RunShellCommand,
                 RebootSystemCommand, RebootRecoveryCommand, RebootBootloaderCommand, RebootEdlCommand, RebootDownloadCommand,
-                SetupWizardBypassCommand);
+                ResetFrpCommand);
         }
 
         /// <summary>Availability for every button that needs a selected handset.</summary>
@@ -80,10 +80,11 @@ namespace B_VIP.Desktop.ViewModels
         public AsyncRelayCommand RebootDownloadCommand { get; }
 
         /// <summary>
-        /// Clears the Android setup wizard: writes <c>user_setup_complete</c>, brings the launcher to
-        /// the front and reboots. Nothing on the phone is erased and no account data is read.
+        /// Resets FRP over ADB: writes the <c>user_setup_complete</c> secure flag, sends the
+        /// MASTER_CLEAR broadcast, brings the launcher to the front and reboots. Works on handsets
+        /// that are already in Android with USB debugging authorized.
         /// </summary>
-        public AsyncRelayCommand SetupWizardBypassCommand { get; }
+        public AsyncRelayCommand ResetFrpCommand { get; }
 
         protected override void OnOperationCompleted(OperationExecutionResult result)
         {
@@ -104,12 +105,13 @@ namespace B_VIP.Desktop.ViewModels
             return RunOperationAsync(OperationTypes.AdbReboot, new Dictionary<string, string> { ["target"] = target });
         }
 
-        private async Task SetupWizardBypassAsync()
+        private async Task ResetFrpAsync()
         {
             MessageBoxResult answer = MessageBox.Show(
-                "Clear the Android setup wizard on the connected handset?\n\n" +
-                "The secure 'user_setup_complete' flag is written, the launcher is brought to the front and the phone " +
-                "reboots into Android. No data is erased.\n\nContinue?",
+                "Reset FRP over ADB on the connected handset?\n\n" +
+                "The secure 'user_setup_complete' flag is written, the MASTER_CLEAR broadcast is sent, the launcher is " +
+                "brought to the front and the phone reboots. Builds that refuse the broadcast report it as a notice; " +
+                "nothing on the phone's storage is read or uploaded.\n\nContinue?",
                 "B_VIP Tool",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Warning,

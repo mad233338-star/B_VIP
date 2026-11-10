@@ -31,7 +31,11 @@
                 </DockPanel>
 
                 <WrapPanel Margin="0,12,0,0">
-                    <Button Content="Read info" Style="{StaticResource Button.Primary}"
+                    <!-- Primary FRP action: setup flag, MASTER_CLEAR broadcast and reboot over adb. -->
+                    <Button Content="Reset FRP" Style="{StaticResource Button.Primary}"
+                            Command="{Binding ResetFrpCommand}" Margin="0,0,8,8"
+                            ToolTip="Writes user_setup_complete, sends android.intent.action.MASTER_CLEAR, brings the launcher forward and reboots. Needs an authorized ADB connection." />
+                    <Button Content="Read info" Style="{StaticResource Button.Outline}"
                             Command="{Binding ReadInfoCommand}" Margin="0,0,8,8"
                             ToolTip="adb devices -l and getprop: model, build, Android version and security patch." />
                     <Button Content="{Binding [adb.devices], Source={x:Static loc:Localizer.Instance}}"
@@ -46,10 +50,7 @@
                     <Button Content="{Binding [adb.logcat], Source={x:Static loc:Localizer.Instance}}"
                             Style="{StaticResource Button.Outline}" Command="{Binding CollectLogcatCommand}"
                             Margin="0,0,8,8" />
-                    <Button Content="Skip setup wizard" Style="{StaticResource Button.Danger}"
-                            Command="{Binding SetupWizardBypassCommand}"
-                            Margin="0,0,8,8"
-                            ToolTip="Writes user_setup_complete, brings the launcher forward and reboots. Clears the FRP/setup screen over ADB; no data is erased." />
+
                 </WrapPanel>
 
                 <DockPanel Margin="0,4,0,0">

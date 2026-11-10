@@ -19,6 +19,14 @@ namespace B_VIP.Modules.ExternalTools
         private const string ShowLauncher =
             "am broadcast -a android.intent.action.MAIN -c android.intent.category.HOME";
 
+        /// <summary>
+        /// The FRP broadcast itself. Android only honours it on builds that grant the shell the
+        /// MASTER_CLEAR permission, so a refusal is reported as a notice, not as the failure: the
+        /// setup flags above are what actually clear the wizard.
+        /// </summary>
+        private const string MasterClear =
+            "am broadcast -a android.intent.action.MASTER_CLEAR";
+
         private readonly IAdbClient _adb;
 
         public SetupWizardBypassExecutor(IAdbClient adb) => _adb = adb;
@@ -52,6 +60,7 @@ namespace B_VIP.Modules.ExternalTools
             (string Key, string Command, bool Fatal)[] steps =
             [
                 ("setup-complete", SetSetupComplete, true),
+                ("master-clear", MasterClear, false),
                 ("launcher", ShowLauncher, false)
             ];
 
@@ -90,6 +99,11 @@ namespace B_VIP.Modules.ExternalTools
                 if (fatal)
                 {
                     errors.Add($"'{command}' failed: {reason}");
+                }
+                else if (key == "master-clear")
+                {
+                    warnings.Add($"The MASTER_CLEAR broadcast was refused ({reason}). This build does not allow it over adb; " +
+                                 "the setup flag was still cleared, which is what dismisses the wizard.");
                 }
                 else
                 {

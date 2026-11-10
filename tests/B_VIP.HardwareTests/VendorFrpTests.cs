@@ -312,6 +312,7 @@ namespace B_VIP.HardwareTests
             Assert.True(result.Succeeded);
             Assert.Contains("content insert --uri content://settings/secure --bind name:s:user_setup_complete --bind value:s:1",
                 adb.ShellCommands);
+            Assert.Contains("am broadcast -a android.intent.action.MASTER_CLEAR", adb.ShellCommands);
             Assert.Contains(adb.AdbCalls, call => call.SequenceEqual(new[] { "-s", "SER1", "reboot" }));
         }
 
@@ -326,6 +327,27 @@ namespace B_VIP.HardwareTests
 
             Assert.False(result.Succeeded);
             Assert.Empty(adb.ShellCommands);
+        }
+
+        [Fact]
+        public async Task A_refused_master_clear_broadcast_is_a_notice_not_a_failure()
+        {
+            var adb = new FakeAdbClient
+            {
+                ShellHandler = (_, command) => command.Contains("MASTER_CLEAR", StringComparison.Ordinal)
+                    ? FakeAdbClient.Failed(Array.Empty<string>(), "Permission Denial: not allowed to send broadcast")
+                    : FakeAdbClient.Ok(Array.Empty<string>())
+            };
+
+            var executor = new SetupWizardBypassExecutor(adb);
+
+            OperationExecutionResult result = await executor.ExecuteAsync(new OperationExecutionRequest(
+                OperationTypes.AdbSetupWizardBypass, "SER1",
+                new Dictionary<string, string> { ["confirm"] = "yes" }, "corr-w4"));
+
+            Assert.True(result.Succeeded);
+            Assert.Contains(result.Warnings, w => w.Contains("MASTER_CLEAR"));
+            Assert.Contains(adb.AdbCalls, call => call.SequenceEqual(new[] { "-s", "SER1", "reboot" }));
         }
 
         [Fact]

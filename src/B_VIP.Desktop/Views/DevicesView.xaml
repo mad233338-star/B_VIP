@@ -50,6 +50,16 @@
                     <TextBlock DockPanel.Dock="Top" Text="Detected ports" Style="{StaticResource Text.Section}" />
                     <TextBlock DockPanel.Dock="Top" Text="{Binding Monitor.Summary}"
                                Style="{StaticResource Text.Muted}" Margin="0,4,0,6" />
+
+                    <!-- Connected interfaces: refreshed by the port watcher on every plug/unplug, so
+                         the active COM port is visible the moment the handset enters a service mode. -->
+                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
+                        <TextBlock DockPanel.Dock="Left" Text="Connected devices" Style="{StaticResource Text.Label}"
+                                   VerticalAlignment="Center" Margin="0,0,8,0" />
+                        <ComboBox Style="{StaticResource Input.Select}" ItemsSource="{Binding Monitor.Ports}"
+                                  DisplayMemberPath="Summary" VerticalAlignment="Center"
+                                  ToolTip="{Binding Monitor.ConnectionStatus}" />
+                    </DockPanel>
                     <TextBlock Text="{Binding Monitor.Detail}" Style="{StaticResource Text.Muted}" TextWrapping="Wrap"
                                Visibility="{Binding Monitor.Ports.Count, Converter={StaticResource NullToVisibility}, ConverterParameter=invert}" />
                     <ScrollViewer VerticalScrollBarVisibility="Auto"

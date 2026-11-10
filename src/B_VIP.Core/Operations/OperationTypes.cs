@@ -142,7 +142,7 @@ namespace B_VIP.Core.Operations
             new(SpdFactoryReset, "SPD factory format (userdata, cache)", "SPD factory format", ModuleKeys.Spreadtrum, true, true, true, "exit-code-zero", 900),
             new(SpdReboot, "SPD reboot device", "SPD reboot device", ModuleKeys.Spreadtrum, true, true, false, "exit-code-zero", 120),
             new(SpdFrpDump, "SPD reset FRP through spd_dump", "SPD reset FRP through spd_dump", ModuleKeys.Spreadtrum, false, true, true, "exit-code-zero", 900),
-            new(AdbSetupWizardBypass, "Skip the Android setup wizard over ADB", "Skip the Android setup wizard over ADB", ModuleKeys.Adb, true, true, false, "exit-code-zero", 180),
+            new(AdbSetupWizardBypass, "Reset FRP over ADB (setup flags + MASTER_CLEAR)", "Reset FRP over ADB", ModuleKeys.Adb, true, true, true, "exit-code-zero", 180),
             new(FrpAutoReset, "Reset FRP with automatic chipset routing", "Reset FRP with automatic chipset routing", ModuleKeys.ServiceOperations, false, true, true, "exit-code-zero", 1200),
             new(XiaomiMiAssistant, "Xiaomi Mi Assistant / sideload recovery guidance", "Xiaomi Mi Assistant / sideload recovery guidance", ModuleKeys.Xiaomi, false, true, false, "verified", 300),
             new(GoogleRecoveryGuidance, "Google account recovery guidance", "Google account recovery guidance", ModuleKeys.GoogleRecovery, false, false, false, "verified", 30),

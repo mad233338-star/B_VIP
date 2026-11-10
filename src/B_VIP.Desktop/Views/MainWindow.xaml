@@ -153,6 +153,11 @@
                             </Style>
                         </Ellipse.Style>
                     </Ellipse>
+                    <!-- The mode the handset is sitting in, named even when adb/fastboot are idle. -->
+                    <TextBlock Text="{Binding Monitor.ConnectionStatus}" ToolTip="{Binding Monitor.ActivePortDetail}"
+                               Foreground="{StaticResource Brush.AccentSoft}" FontSize="12"
+                               VerticalAlignment="Center" Margin="0,0,12,0"
+                               TextTrimming="CharacterEllipsis" MaxWidth="300" />
                     <TextBlock Text="{Binding Monitor.Summary}" ToolTip="{Binding Monitor.Detail}"
                                Foreground="{StaticResource Brush.Grey}" FontSize="12"
                                VerticalAlignment="Center" Margin="0,0,14,0" />

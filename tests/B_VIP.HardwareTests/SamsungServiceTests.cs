@@ -123,6 +123,37 @@ namespace B_VIP.HardwareTests
         }
 
         [Fact]
+        public async Task Reboot_to_download_falls_back_to_bootloader_when_the_bootloader_refuses_it()
+        {
+            FakeAdbClient adb = AuthorizedDevice("R58M12345AB");
+            adb.AdbHandler = args => args.Contains("download")
+                ? FakeAdbClient.Failed(args, "error: closed")
+                : FakeAdbClient.Ok(args);
+
+            OperationExecutionResult result = await SamsungTestFactory.Create(adb)
+                .ExecuteAsync(Request(OperationTypes.SamsungRebootDownload, "R58M12345AB"));
+
+            Assert.True(result.Succeeded);
+            Assert.Contains(adb.AdbCalls, call => call.SequenceEqual(new[] { "-s", "R58M12345AB", "reboot", "bootloader" }));
+            Assert.Contains(result.Warnings, w => w.Contains("bootloader"));
+        }
+
+        [Fact]
+        public async Task Reboot_to_download_reports_both_refused_modes_as_the_failure()
+        {
+            FakeAdbClient adb = AuthorizedDevice("R58M12345AB");
+            adb.AdbHandler = args => FakeAdbClient.Failed(args, "error: closed");
+
+            OperationExecutionResult result = await SamsungTestFactory.Create(adb)
+                .ExecuteAsync(Request(OperationTypes.SamsungRebootDownload, "R58M12345AB"));
+
+            Assert.False(result.Succeeded);
+            Assert.Contains(adb.AdbCalls, call => call.SequenceEqual(new[] { "-s", "R58M12345AB", "reboot", "download" }));
+            Assert.Contains(adb.AdbCalls, call => call.SequenceEqual(new[] { "-s", "R58M12345AB", "reboot", "bootloader" }));
+            Assert.Contains(result.Checks, c => c.Name == "reboot" && c.Status == "fail");
+        }
+
+        [Fact]
         public async Task Browser_dispatch_refuses_without_an_authorized_device()
         {
             FakeAdbClient adb = NoDevice();

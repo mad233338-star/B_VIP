@@ -10,6 +10,7 @@ namespace B_VIP.Hardware
     {
         Adb,
         Fastboot,
+        SamsungDownload,
         MediaTekPreloader,
         MediaTekVcom,
         QualcommEdl,
@@ -29,6 +30,9 @@ namespace B_VIP.Hardware
         string? Vendor,
         DateTime DetectedUtc)
     {
+        /// <summary>The USB hardware ID Windows reports, for example <c>USB\VID_05C6&amp;PID_9008</c>.</summary>
+        public string? HardwareId { get; init; }
+
         public string DisplayName => string.IsNullOrWhiteSpace(FriendlyName) ? PortName ?? InstanceId : FriendlyName;
 
         public string CategoryLabel => PortClassifier.Label(Category);
@@ -83,6 +87,25 @@ namespace B_VIP.Hardware
     public static class PortClassifier
     {
         private static readonly Regex ComPortPattern = new(@"\((COM\d+)\)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        private static readonly Regex VendorIdPattern = new(@"VID_([0-9A-F]{4})", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        private static readonly Regex ProductIdPattern = new(@"PID_([0-9A-F]{4})", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+        /// <summary>Reads the USB vendor ID (VID_xxxx) out of a PnP instance or hardware ID.</summary>
+        public static string? ParseVendorId(string? id) => Match(VendorIdPattern, id);
+
+        /// <summary>Reads the USB product ID (PID_xxxx) out of a PnP instance or hardware ID.</summary>
+        public static string? ParseProductId(string? id) => Match(ProductIdPattern, id);
+
+        private static string? Match(Regex pattern, string? id)
+        {
+            if (string.IsNullOrWhiteSpace(id))
+            {
+                return null;
+            }
+
+            Match match = pattern.Match(id);
+            return match.Success ? match.Groups[1].Value.ToUpperInvariant() : null;
+        }
 
         public static string? ExtractPortName(string? text)
         {
@@ -121,13 +144,19 @@ namespace B_VIP.Hardware
         }
 
         public static DetectedPort Classify(string instanceId, string? name, string? description = null,
-            string? service = null, string? manufacturer = null, DateTime? detectedUtc = null)
+            string? service = null, string? manufacturer = null, DateTime? detectedUtc = null,
+            string? hardwareId = null)
         {
             string haystack = string.Join(' ',
                 new[] { name, description, service, manufacturer }.Where(s => !string.IsNullOrWhiteSpace(s)))
                 .ToLowerInvariant();
 
-            PortCategory category = ResolveCategory(haystack);
+            // The PnP instance ID always carries VID/PID, even when Windows publishes no friendly
+            // name, so it is the fallback source for the hardware identity.
+            string? vendorId = ParseVendorId(hardwareId) ?? ParseVendorId(instanceId);
+            string? productId = ParseProductId(hardwareId) ?? ParseProductId(instanceId);
+
+            PortCategory category = ResolveByHardwareId(vendorId, productId, haystack) ?? ResolveCategory(haystack);
             string? port = ExtractPortName(name) ?? ExtractPortName(description);
 
             return new DetectedPort(
@@ -135,9 +164,70 @@ namespace B_VIP.Hardware
                 string.IsNullOrWhiteSpace(name) ? description ?? instanceId : name!,
                 port,
                 category,
-                ResolveVendor(haystack),
-                detectedUtc ?? DateTime.UtcNow);
+                ResolveVendor(haystack) ?? VendorFromId(vendorId),
+                detectedUtc ?? DateTime.UtcNow)
+            {
+                HardwareId = string.IsNullOrWhiteSpace(hardwareId) ? instanceId : hardwareId
+            };
         }
+
+        /// <summary>
+        /// Classifies a port from its USB vendor/product IDs, which is what Windows actually knows
+        /// before a driver supplies a name. Returns null for a vendor that carries no single mode
+        /// (a generic Android phone), so the name-based pass still decides. VID_0000 is the test and
+        /// placeholder value and is ignored.
+        /// </summary>
+        private static PortCategory? ResolveByHardwareId(string? vendorId, string? productId, string haystack)
+        {
+            if (vendorId is null or "0000")
+            {
+                return null;
+            }
+
+            // An explicitly named interface wins: a Samsung ADB interface is an ADB port,
+            // not an MTP device, whatever the vendor ID says.
+            if (haystack.Contains("adb", StringComparison.Ordinal))
+            {
+                return PortCategory.Adb;
+            }
+
+            if (haystack.Contains("fastboot", StringComparison.Ordinal) ||
+                haystack.Contains("bootloader", StringComparison.Ordinal))
+            {
+                return PortCategory.Fastboot;
+            }
+
+            return vendorId switch
+            {
+                // Samsung Download (Odin) mode is the modem/serial personality PID_685D.
+                "04E8" => productId == "685D" ? PortCategory.SamsungDownload : PortCategory.SamsungMtp,
+                "05C6" => productId == "9008" ? PortCategory.QualcommEdl : null,
+                "0E8D" => productId is "2000" or "2001" or "0003"
+                    ? PortCategory.MediaTekPreloader
+                    : PortCategory.MediaTekVcom,
+                "1782" => PortCategory.SpreadtrumDiag,
+                // Google / Xiaomi bootloader interfaces are the ones with a bootloader product ID.
+                "18D1" => productId switch
+                {
+                    "4EE7" => PortCategory.Adb,
+                    "D00D" => PortCategory.Fastboot,
+                    _ => null
+                },
+                "2717" => productId is "FF40" or "FF48" ? PortCategory.Fastboot : null,
+                _ => null
+            };
+        }
+
+        private static string? VendorFromId(string? vendorId) => vendorId switch
+        {
+            "04E8" => "Samsung",
+            "05C6" => "Qualcomm",
+            "0E8D" => "MediaTek",
+            "1782" => "Unisoc",
+            "18D1" => "Google",
+            "2717" => "Xiaomi",
+            _ => null
+        };
 
         private static PortCategory ResolveCategory(string haystack)
         {
@@ -240,6 +330,7 @@ namespace B_VIP.Hardware
         {
             PortCategory.Adb => "ADB",
             PortCategory.Fastboot => "Fastboot",
+            PortCategory.SamsungDownload => "Samsung Download Mode",
             PortCategory.MediaTekPreloader => "MTK Preloader",
             PortCategory.MediaTekVcom => "MTK VCOM",
             PortCategory.QualcommEdl => "Qualcomm EDL 9008",
@@ -260,7 +351,7 @@ namespace B_VIP.Hardware
     public sealed class PortWatcherService : IPortWatcher
     {
         private const string EntityQuery =
-            "SELECT DeviceID, Name, Description, Service, Manufacturer FROM Win32_PnPEntity";
+            "SELECT DeviceID, Name, Description, Service, Manufacturer, HardwareID FROM Win32_PnPEntity";
 
         private const string ArrivalQuery =
             "SELECT * FROM __InstanceCreationEvent WITHIN 1 WHERE TargetInstance ISA 'Win32_PnPEntity'";
@@ -275,6 +366,7 @@ namespace B_VIP.Hardware
         private readonly Func<IReadOnlyList<DetectedPort>> _reader;
         private ManagementEventWatcher? _arrival;
         private ManagementEventWatcher? _removal;
+        private DeviceChangeWatcher? _deviceChanges;
         private Timer? _debounce;
         private Timer? _poll;
         private bool _started;
@@ -340,6 +432,7 @@ namespace B_VIP.Hardware
             }
 
             StartWmiWatchers();
+            StartDeviceChangeWatcher();
 
             lock (_gate)
             {
@@ -356,6 +449,7 @@ namespace B_VIP.Hardware
         {
             ManagementEventWatcher? arrival;
             ManagementEventWatcher? removal;
+            DeviceChangeWatcher? deviceChanges;
             Timer? debounce;
             Timer? poll;
 
@@ -369,16 +463,24 @@ namespace B_VIP.Hardware
                 _started = false;
                 arrival = _arrival;
                 removal = _removal;
+                deviceChanges = _deviceChanges;
                 debounce = _debounce;
                 poll = _poll;
                 _arrival = null;
                 _removal = null;
+                _deviceChanges = null;
                 _debounce = null;
                 _poll = null;
             }
 
             DisposeWatcher(arrival);
             DisposeWatcher(removal);
+
+            if (OperatingSystem.IsWindows())
+            {
+                deviceChanges?.Dispose();
+            }
+
             debounce?.Dispose();
             poll?.Dispose();
 
@@ -441,6 +543,38 @@ namespace B_VIP.Hardware
                         Warning = $"WMI device notifications are unavailable ({ex.Message}); polling every {PollInterval.TotalSeconds:0}s instead."
                     };
                 }
+            }
+        }
+
+        /// <summary>
+        /// Starts the WM_DEVICECHANGE listener. It is a bonus path: when Windows refuses the window
+        /// (or the platform is not Windows) the WMI watchers and the polling fallback still run.
+        /// </summary>
+        private void StartDeviceChangeWatcher()
+        {
+            if (!OperatingSystem.IsWindows())
+            {
+                return;
+            }
+
+            try
+            {
+                DeviceChangeWatcher watcher = new(ScheduleRefresh);
+                if (watcher.Start())
+                {
+                    lock (_gate)
+                    {
+                        _deviceChanges = watcher;
+                    }
+                }
+                else
+                {
+                    watcher.Dispose();
+                }
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or DllNotFoundException or EntryPointNotFoundException or PlatformNotSupportedException)
+            {
+                // No WM_DEVICECHANGE hook: WMI notifications remain the primary source.
             }
         }
 
@@ -553,17 +687,48 @@ namespace B_VIP.Hardware
                     string? description = device["Description"]?.ToString();
                     string? service = device["Service"]?.ToString();
                     string? manufacturer = device["Manufacturer"]?.ToString();
+                    string? hardwareId = ReadHardwareId(device);
 
                     if (!PortClassifier.IsRelevant(instanceId, name ?? description, service))
                     {
                         continue;
                     }
 
-                    ports.Add(PortClassifier.Classify(instanceId!, name, description, service, manufacturer));
+                    ports.Add(PortClassifier.Classify(instanceId!, name, description, service, manufacturer,
+                        hardwareId: hardwareId));
                 }
             }
 
             return ports;
+        }
+
+        /// <summary>Reads the first hardware ID; WMI exposes it as an array of strings.</summary>
+        [SupportedOSPlatform("windows")]
+        private static string? ReadHardwareId(ManagementBaseObject device)
+        {
+            try
+            {
+                object? raw = device["HardwareID"];
+                if (raw is string[] ids && ids.Length > 0)
+                {
+                    return ids[0];
+                }
+
+                if (raw is not null)
+                {
+                    string? text = raw.ToString();
+                    if (!string.IsNullOrWhiteSpace(text))
+                    {
+                        return text;
+                    }
+                }
+
+                return device["DeviceID"]?.ToString();
+            }
+            catch (ManagementException)
+            {
+                return null;
+            }
         }
 
         public void Dispose()

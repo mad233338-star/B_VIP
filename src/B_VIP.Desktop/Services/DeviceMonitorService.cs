@@ -64,6 +64,99 @@ namespace B_VIP.Desktop.Services
             ? _ports.Warning ?? "No USB or COM device is connected."
             : string.Join(Environment.NewLine, _portList.Select(p => p.Summary));
 
+        /// <summary>
+        /// The interface the technician is most likely to act on: a download/boot mode port outranks
+        /// an MTP or generic serial port, so the status bar names the mode the handset is sitting in
+        /// even while the adb and fastboot daemons are idle.
+        /// </summary>
+        public DetectedPort? ActivePort => _portList
+            .OrderBy(p => Priority(p.Category))
+            .FirstOrDefault();
+
+        /// <summary>Status-bar text such as "Connected: Samsung Download Mode (COM3)".</summary>
+        public string ConnectionStatus
+        {
+            get
+            {
+                DetectedPort? port = ActivePort;
+                if (port is null)
+                {
+                    return IsMonitoring ? "No device connected" : "Hardware monitor offline";
+                }
+
+                return port.PortName is null
+                    ? $"Connected: {port.CategoryLabel}"
+                    : $"Connected: {port.CategoryLabel} ({port.PortName})";
+            }
+        }
+
+        /// <summary>The hardware ID behind the active interface, for the status-bar tooltip.</summary>
+        public string ActivePortDetail => ActivePort is { } port
+            ? $"{port.DisplayName}{Environment.NewLine}{port.HardwareId ?? port.InstanceId}"
+            : Detail;
+
+        private static int Priority(PortCategory category) => category switch
+        {
+            PortCategory.SamsungDownload => 0,
+            PortCategory.QualcommEdl => 1,
+            PortCategory.MediaTekPreloader => 2,
+            PortCategory.SpreadtrumDiag => 3,
+            PortCategory.Fastboot => 4,
+            PortCategory.Adb => 5,
+            PortCategory.MediaTekVcom => 6,
+            PortCategory.SamsungMtp => 7,
+            PortCategory.Mtp => 8,
+            PortCategory.Serial => 9,
+            _ => 10
+        };
+
+        /// <summary>
+        /// Re-enumerates every USB/COM interface now and writes each one to the live console. This
+        /// is the hardware half of "scan for devices": it works in download modes where neither adb
+        /// nor fastboot answers.
+        /// </summary>
+        public async Task<int> ScanInterfacesAsync(CancellationToken ct = default)
+        {
+            PortSnapshot snapshot;
+            try
+            {
+                // WMI enumeration is a blocking COM call: keep it off the caller's thread.
+                snapshot = await Task.Run(() => _ports.Refresh(), ct);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _log.Error($"The hardware scan failed: {ex.Message}");
+                return 0;
+            }
+
+            ApplyPorts(snapshot.Ports);
+
+            _log.Info($"Hardware scan complete — {snapshot.Count} USB/COM interface(s) detected.");
+            if (snapshot.Count == 0)
+            {
+                _log.Info("No interface is present. Connect the handset in ADB, fastboot, Download, EDL, preloader or Diag mode.");
+            }
+            else
+            {
+                foreach (DetectedPort port in snapshot.Ports)
+                {
+                    _log.Info($"  {port.CategoryLabel}: {port.DisplayName}" +
+                              (port.PortName is null ? string.Empty : $" on {port.PortName}"));
+                }
+            }
+
+            if (snapshot.Warning is not null)
+            {
+                _log.Warn(snapshot.Warning);
+            }
+
+            return snapshot.Count;
+        }
+
         public void Start()
         {
             if (_started || _disposed)
@@ -85,6 +178,7 @@ namespace B_VIP.Desktop.Services
                     ApplyPorts(_ports.Current.Ports);
                     OnPropertyChanged(nameof(IsMonitoring));
                     OnPropertyChanged(nameof(Detail));
+                    OnPropertyChanged(nameof(ConnectionStatus));
 
                     if (_ports.Warning is not null)
                     {
@@ -190,6 +284,9 @@ namespace B_VIP.Desktop.Services
             }
 
             OnPropertyChanged(nameof(Summary));
+            OnPropertyChanged(nameof(ActivePort));
+            OnPropertyChanged(nameof(ActivePortDetail));
+            OnPropertyChanged(nameof(ConnectionStatus));
         }
 
         private void ApplyDevices(IReadOnlyList<DeviceInfoDto> devices, string? error)

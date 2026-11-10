@@ -207,31 +207,77 @@ namespace B_VIP.Modules.Samsung
                 return VendorSupport.Build(request.OperationType, errors[0], checks, log, warnings, errors);
             }
 
-            List<string> args = ["-s", serial, "reboot"];
-            if (!string.Equals(target, "system", StringComparison.OrdinalIgnoreCase))
+            // Download mode is reached with 'adb reboot download' on most Samsung builds. A few
+            // builds refuse that verb and only honour the generic bootloader reboot, so both are
+            // tried in order before the routine gives up and names the hardware key combination.
+            List<string> attempts = string.Equals(target, "download", StringComparison.OrdinalIgnoreCase)
+                ? ["download", "bootloader"]
+                : [target.ToLowerInvariant()];
+
+            ProcessResult? accepted = null;
+            string acceptedTarget = attempts[0];
+            ProcessResult? lastFailure = null;
+
+            for (int i = 0; i < attempts.Count; i++)
             {
-                args.Add(target.ToLowerInvariant());
+                string attempt = attempts[i];
+                List<string> args = ["-s", serial, "reboot"];
+                if (!string.Equals(attempt, "system", StringComparison.OrdinalIgnoreCase))
+                {
+                    args.Add(attempt);
+                }
+
+                request.Process($"$ adb {string.Join(' ', args)}");
+                log.Add($"$ adb {string.Join(' ', args)}");
+
+                ProcessResult result = await _adb.AdbAsync(args, 60, ct);
+                log.AddRange(AdbOperationExecutor.AppendOutput(result));
+
+                if (result.Succeeded)
+                {
+                    accepted = result;
+                    acceptedTarget = attempt;
+                    checks.Add(new DiagnosticCheckDto("reboot", "pass",
+                        string.Equals(attempt, target, StringComparison.OrdinalIgnoreCase)
+                            ? $"Reboot to {attempt} was accepted; the device leaves the list for a few seconds."
+                            : $"adb reboot {target} was refused; the handset was sent to {attempt} mode instead.",
+                        result.DurationMs));
+                    break;
+                }
+
+                lastFailure = result;
+                string reason = result.FailureReason ?? result.StandardError.Trim();
+                checks.Add(new DiagnosticCheckDto($"reboot-{attempt}", "warn",
+                    string.IsNullOrWhiteSpace(reason) ? "Refused by the bootloader." : reason, result.DurationMs));
+
+                if (i + 1 < attempts.Count)
+                {
+                    warnings.Add($"adb reboot {attempt} was refused; falling back to {attempts[i + 1]} mode.");
+                }
             }
 
-            request.Process($"$ adb {string.Join(' ', args)}");
-            log.Add($"$ adb {string.Join(' ', args)}");
-
-            ProcessResult result = await _adb.AdbAsync(args, 60, ct);
-            log.AddRange(AdbOperationExecutor.AppendOutput(result));
-
-            checks.Add(new DiagnosticCheckDto("reboot", result.Succeeded ? "pass" : "fail",
-                result.Succeeded ? $"Reboot to {target} was accepted; the device leaves the list for a few seconds." : result.FailureReason ?? result.StandardError.Trim(),
-                result.DurationMs));
-
-            if (!result.Succeeded)
+            if (accepted is null)
             {
-                errors.Add(result.FailureReason ?? result.StandardError.Trim());
+                string reason = lastFailure?.FailureReason ?? lastFailure?.StandardError.Trim() ?? "The reboot was refused.";
+                errors.Add(string.IsNullOrWhiteSpace(reason) ? "The reboot was refused." : reason);
+                checks.Add(new DiagnosticCheckDto("reboot", "fail", errors[^1], lastFailure?.DurationMs));
+            }
+
+            if (accepted is not null && !string.Equals(acceptedTarget, target, StringComparison.OrdinalIgnoreCase))
+            {
+                warnings.Add($"The handset is in {acceptedTarget} mode, not {target}. Hold the Download mode key combination " +
+                             "(or run the modem/AT FRP routine) to reach Download mode.");
             }
 
             warnings.Add("If the handset reports the reboot but stays in Android, the bootloader refused the mode switch; use the key combination instead.");
 
             return VendorSupport.Build(request.OperationType,
-                result.Succeeded ? $"Reboot to {target} sent." : "The reboot was refused.", checks, log, warnings, errors);
+                accepted is null
+                    ? "The reboot was refused."
+                    : string.Equals(acceptedTarget, target, StringComparison.OrdinalIgnoreCase)
+                        ? $"Reboot to {target} sent."
+                        : $"adb reboot {target} was refused; {acceptedTarget} mode was entered instead.",
+                checks, log, warnings, errors);
         }
 
         public Task<BrowserOpenResult> OpenBrowserAsync(string? serial, BrowserTarget target, CancellationToken ct)

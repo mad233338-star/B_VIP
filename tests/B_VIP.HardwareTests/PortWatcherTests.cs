@@ -73,6 +73,60 @@ namespace B_VIP.HardwareTests
             Assert.Null(PortClassifier.ExtractPortName(null));
         }
 
+        [Theory]
+        [InlineData("USB\\VID_04E8&PID_685D\\5&1", "SAMSUNG Mobile USB Modem #2 (COM6)", PortCategory.SamsungDownload, "COM6")]
+        [InlineData("USB\\VID_04E8&PID_6860\\5&1", "SAMSUNG Mobile USB Composite Device", PortCategory.SamsungMtp, null)]
+        [InlineData("USB\\VID_05C6&PID_9008\\5&1", "Qualcomm HS-USB QDLoader 9008 (COM5)", PortCategory.QualcommEdl, "COM5")]
+        [InlineData("USB\\VID_0E8D&PID_2000\\5&1", "MediaTek USB Port", PortCategory.MediaTekPreloader, null)]
+        [InlineData("USB\\VID_0E8D&PID_0006\\5&1", "MediaTek USB VCOM (COM9)", PortCategory.MediaTekVcom, "COM9")]
+        [InlineData("USB\\VID_1782&PID_4D00\\5&1", "SPRD Device", PortCategory.SpreadtrumDiag, null)]
+        [InlineData("USB\\VID_18D1&PID_4EE7\\SERIAL", "Android Device", PortCategory.Adb, null)]
+        [InlineData("USB\\VID_18D1&PID_D00D\\SERIAL", "Android Device", PortCategory.Fastboot, null)]
+        [InlineData("USB\\VID_2717&PID_FF40\\SERIAL", "Android Device", PortCategory.Fastboot, null)]
+        public void Classify_maps_usb_hardware_ids_onto_tool_categories(string instanceId, string name,
+            PortCategory expected, string? port)
+        {
+            DetectedPort device = PortClassifier.Classify(instanceId, name);
+
+            Assert.Equal(expected, device.Category);
+            Assert.Equal(port, device.PortName);
+            Assert.Equal(instanceId, device.HardwareId);
+        }
+
+        [Fact]
+        public void Classify_names_the_chipset_vendor_from_the_vendor_id_when_the_name_does_not()
+        {
+            Assert.Equal("MediaTek", PortClassifier.Classify("USB\\VID_0E8D&PID_2000\\5&1", "USB Port").Vendor);
+            Assert.Equal("Qualcomm", PortClassifier.Classify("USB\\VID_05C6&PID_9008\\5&1", "USB Port").Vendor);
+            Assert.Equal("Unisoc", PortClassifier.Classify("USB\\VID_1782&PID_4D00\\5&1", "USB Port").Vendor);
+        }
+
+        [Fact]
+        public void A_named_adb_interface_wins_over_the_samsung_vendor_id()
+        {
+            DetectedPort device = PortClassifier.Classify("USB\\VID_04E8&PID_6860\\5&1", "SAMSUNG Android ADB Interface");
+
+            Assert.Equal(PortCategory.Adb, device.Category);
+            Assert.Equal("Samsung", device.Vendor);
+        }
+
+        [Fact]
+        public void Vendor_and_product_ids_are_read_from_an_instance_or_hardware_id()
+        {
+            Assert.Equal("0E8D", PortClassifier.ParseVendorId("USB\\VID_0e8d&PID_2000\\X"));
+            Assert.Equal("2000", PortClassifier.ParseProductId("USB\\VID_0E8D&PID_2000\\X"));
+            Assert.Null(PortClassifier.ParseVendorId("USB\\SERIAL"));
+            Assert.Null(PortClassifier.ParseProductId(null));
+        }
+
+        [Fact]
+        public void The_placeholder_vendor_id_is_ignored_so_the_name_still_classifies()
+        {
+            DetectedPort device = PortClassifier.Classify("USB\\VID_0000&PID_9008\\X", "Communications Port (COM1)");
+
+            Assert.Equal(PortCategory.Serial, device.Category);
+        }
+
         [Fact]
         public void Summary_includes_the_port_and_the_category_label()
         {

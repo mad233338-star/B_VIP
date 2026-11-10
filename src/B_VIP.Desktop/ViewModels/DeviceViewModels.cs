@@ -164,6 +164,12 @@ namespace B_VIP.Desktop.ViewModels
                 bool completed = await Services.Progress.RunAsync("Scanning for connected devices", async (_, ct) =>
                 {
                     entered = true;
+
+                    // Hardware first: every USB/COM interface is enumerated and streamed to the
+                    // console, so a handset in Download, EDL, preloader or Diag mode is reported
+                    // even while adb and fastboot answer nothing.
+                    await Services.Monitor.ScanInterfacesAsync(ct);
+
                     DeviceListResponse response = await Services.Devices.ScanAsync(ct);
                     string? previous = SelectedDevice?.Serial;
 
@@ -558,7 +564,7 @@ namespace B_VIP.Desktop.ViewModels
                     ("MediaTek", new[]
                     {
                         new VendorAction("Read device information", OperationTypes.MediaTekDiagnostic, false),
-                        new VendorAction("Erase FRP (fastboot)", OperationTypes.FastbootEraseBatch, true, Partitions("frp")),
+                        new VendorAction("Reset FRP (fastboot frp)", OperationTypes.FastbootEraseBatch, true, Partitions("frp")),
                         new VendorAction("Read fastboot variables", OperationTypes.FastbootReadInfo, false),
                         new VendorAction("Reboot to Bootloader", OperationTypes.VendorReboot, false, Target("bootloader"))
                     }),
@@ -567,7 +573,7 @@ namespace B_VIP.Desktop.ViewModels
                     {
                         new VendorAction("Read device information", OperationTypes.QualcommDiagnostic, false),
                         new VendorAction("Reboot to EDL", OperationTypes.VendorReboot, false, Target("edl")),
-                        new VendorAction("Erase config + frp (fastboot)", OperationTypes.FastbootEraseBatch, true,
+                        new VendorAction("Reset FRP (fastboot config + frp)", OperationTypes.FastbootEraseBatch, true,
                             Partitions("config", "frp")),
                         new VendorAction("Read fastboot variables", OperationTypes.FastbootReadInfo, false)
                     }),
@@ -607,6 +613,9 @@ namespace B_VIP.Desktop.ViewModels
             => new() { ["partitions"] = string.Join(',', partitions) };
 
         public VendorKind Kind { get; }
+
+        /// <summary>Every brand routine needs a handset, so the device picker is always shown.</summary>
+        public bool RequiresDevice => true;
 
         public string Title { get; }
 
