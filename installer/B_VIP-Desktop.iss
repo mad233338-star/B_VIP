@@ -64,6 +64,13 @@ Name: "{commonappdata}\{#AppShortName}"; Permissions: users-modify
 
 [Files]
 Source: "{#PayloadDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+; Bundled backend tools: the Samsung Odin engines (heimdall.exe + libusb) and the Xiaomi Mi
+; Assistant payload folder. Shipped explicitly as well as by the payload tree, so the tabs work
+; offline out of the box.
+Source: "{#PayloadDir}\Tools\Xiaomi\*"; DestDir: "{app}\Tools\Xiaomi"; Flags: ignoreversion skipifsourcedoesntexist
+; Samsung Odin engines (odin4.exe / heimdall.exe + their DLLs). Shipped explicitly so the
+; flashing tab always has its engine even if the payload layout changes.
+Source: "{#PayloadDir}\Tools\Samsung\*"; DestDir: "{app}\Tools\Samsung"; Flags: ignoreversion skipifsourcedoesntexist
 ; Default server address; copied to %APPDATA%\B_VIP\settings.json the first time the client runs.
 Source: "..\deploy\appsettings.Desktop.sample.json"; DestDir: "{app}"; DestName: "appsettings.json"; Flags: onlyifdoesntexist uninsneveruninstall
 Source: "..\docs\USER_GUIDE.md"; DestDir: "{app}\docs"; Flags: ignoreversion skipifsourcedoesntexist

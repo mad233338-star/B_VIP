@@ -41,46 +41,69 @@ namespace B_VIP.Desktop.ViewModels
 
             RefreshPorts();
 
-            ReadInfoCommand = new AsyncRelayCommand(_ => RunOperationAsync(OperationTypes.QualcommReadInfo));
-            SaharaCommand = new AsyncRelayCommand(_ => RunOperationAsync(OperationTypes.QualcommSahara, BuildParameters()));
-            GptCommand = new AsyncRelayCommand(_ => RunOperationAsync(OperationTypes.QualcommGpt, BuildParameters()));
-            ResetFrpCommand = new AsyncRelayCommand(_ => ConfirmedAsync(
-                "Erase the FRP partition through EDL?\n\n" +
-                "The partition table is read first, then exactly the 'frp' (or 'config') partition range is erased. " +
-                "This cannot be undone.",
-                () => RunOperationAsync(OperationTypes.QualcommResetFrp,
-                    WithConfirmation(BuildParameters()), confirmDataLoss: true)));
+            // Every operation button is clickable with no handset attached: it listens for the 9008
+            // port and runs the moment one answers. Only a running routine disables the panel.
+            ReadInfoCommand = new AsyncRelayCommand(_ => RunOperationAsync(OperationTypes.QualcommReadInfo,
+                prepare: EdlListener, caption: "Read info (EDL)"), _ => !IsBusy);
+            SaharaCommand = new AsyncRelayCommand(_ => RunOperationAsync(OperationTypes.QualcommSahara, BuildParameters(),
+                prepare: EdlListener, caption: "Sahara handshake"), _ => !IsBusy);
+            GptCommand = new AsyncRelayCommand(_ => RunOperationAsync(OperationTypes.QualcommGpt, BuildParameters(),
+                prepare: EdlListener, caption: "Read GPT"), _ => !IsBusy);
+
             FactoryResetCommand = new AsyncRelayCommand(_ => ConfirmedAsync(
                 "Format the handset through EDL?\n\n" +
                 "userdata and cache are erased; modemst1, modemst2, fsg and persist are never touched. " +
                 "Every file on the phone is lost.",
                 () => RunOperationAsync(OperationTypes.QualcommFactoryReset,
-                    WithConfirmation(BuildParameters()), confirmDataLoss: true)));
+                    WithConfirmation(BuildParameters()), confirmDataLoss: true,
+                    prepare: EdlListener, caption: "Factory format (EDL)")), _ => !IsBusy);
             RebootCommand = new AsyncRelayCommand(_ =>
             {
                 Dictionary<string, string> parameters = BuildParameters();
                 parameters["target"] = SelectedPowerTarget;
-                return RunOperationAsync(OperationTypes.QualcommReboot, parameters);
-            });
+                return RunOperationAsync(OperationTypes.QualcommReboot, parameters,
+                    prepare: EdlListener, caption: $"Power command ({SelectedPowerTarget})");
+            }, _ => !IsBusy);
 
-            // fh_loader route: the programmer is started on the 9008 port and erases the partitions
-            // straight from EDL, which is the only way in on a handset with a locked bootloader.
-            LoaderFrpCommand = new AsyncRelayCommand(_ => ConfirmedAsync(
-                "Reset FRP through fh_loader in EDL?\n\n" +
-                "fh_loader starts the selected Firehose programmer on the 9008 COM port and erases 'frp' and 'config', " +
-                "then resets the handset. This cannot be undone.",
-                () => RunOperationAsync(OperationTypes.QualcommFrpLoader, BuildLoaderParameters(), confirmDataLoss: true)));
+            // The single Reset FRP action: fh_loader starts the selected programmer on the 9008 port
+            // and erases the partitions straight from EDL, which is the only way in on a handset with
+            // a locked bootloader. Always clickable — it listens for the port when nothing is attached.
+            ResetFrpCommand = new AsyncRelayCommand(_ => ResetFrpAsync(), _ => !IsBusy);
             BrowseFirehoseCommand = new AsyncRelayCommand(_ =>
             {
                 BrowseFirehose();
                 return Task.CompletedTask;
             });
+            BrowseRawProgramCommand = new AsyncRelayCommand(_ =>
+            {
+                BrowseXml("rawprogram0.xml", value => RawProgramPath = value);
+                return Task.CompletedTask;
+            });
+            BrowsePatchCommand = new AsyncRelayCommand(_ =>
+            {
+                BrowseXml("patch0.xml", value => PatchPath = value);
+                return Task.CompletedTask;
+            });
+            BrowseImageCommand = new AsyncRelayCommand(_ =>
+            {
+                BrowseImage();
+                return Task.CompletedTask;
+            });
+            FlashFirmwareCommand = new AsyncRelayCommand(_ => FlashFirmwareAsync(), _ => !IsBusy);
+            ReadPartitionCommand = new AsyncRelayCommand(_ => ReadPartitionAsync(), _ => !IsBusy);
+            WritePartitionCommand = new AsyncRelayCommand(_ => WritePartitionAsync(), _ => !IsBusy);
+
+            GateOnBusy(ReadInfoCommand, SaharaCommand, GptCommand, ResetFrpCommand, FactoryResetCommand,
+                RebootCommand, FlashFirmwareCommand, ReadPartitionCommand, WritePartitionCommand);
             RefreshPortsCommand = new AsyncRelayCommand(_ =>
             {
                 StatusMessage = $"{RefreshPorts()} Qualcomm interface(s).";
                 return Task.CompletedTask;
             });
         }
+
+        /// <summary>The prepare delegate every EDL routine uses: press first, plug the cable in after.</summary>
+        private Func<CancellationToken, Task<bool>> EdlListener => FrpListener(FrpWaitMode.QualcommEdl);
 
         public ObservableCollection<DiagnosticRow> Rows { get; }
 
@@ -143,18 +166,100 @@ namespace B_VIP.Desktop.ViewModels
 
         public AsyncRelayCommand GptCommand { get; }
 
+        /// <summary>FRP through fh_loader on the 9008 port, using the Firehose programmer.</summary>
         public AsyncRelayCommand ResetFrpCommand { get; }
 
         public AsyncRelayCommand FactoryResetCommand { get; }
 
         public AsyncRelayCommand RebootCommand { get; }
 
-        /// <summary>FRP through fh_loader on the 9008 port, using the Firehose programmer.</summary>
-        public AsyncRelayCommand LoaderFrpCommand { get; }
-
         public AsyncRelayCommand BrowseFirehoseCommand { get; }
 
         public AsyncRelayCommand RefreshPortsCommand { get; }
+
+        public AsyncRelayCommand BrowseRawProgramCommand { get; }
+
+        public AsyncRelayCommand BrowsePatchCommand { get; }
+
+        public AsyncRelayCommand BrowseImageCommand { get; }
+
+        /// <summary>fh_loader writes the images rawprogram0.xml names, applies patch0, then resets.</summary>
+        public AsyncRelayCommand FlashFirmwareCommand { get; }
+
+        /// <summary>Dumps one partition over the open Firehose link into Backups\Qualcomm.</summary>
+        public AsyncRelayCommand ReadPartitionCommand { get; }
+
+        /// <summary>Writes an image back into its partition. Calibration partitions are refused.</summary>
+        public AsyncRelayCommand WritePartitionCommand { get; }
+
+        private string _rawProgramPath = string.Empty;
+
+        /// <summary>The rawprogram0.xml that came with the package. Only the file name is shown.</summary>
+        public string RawProgramPath
+        {
+            get => _rawProgramPath;
+            set
+            {
+                if (SetProperty(ref _rawProgramPath, value))
+                {
+                    OnPropertyChanged(nameof(RawProgramName));
+                    OnPropertyChanged(nameof(RawProgramTooltip));
+                }
+            }
+        }
+
+        public string RawProgramName => string.IsNullOrEmpty(_rawProgramPath) ? string.Empty : Path.GetFileName(_rawProgramPath);
+
+        public string? RawProgramTooltip => string.IsNullOrWhiteSpace(_rawProgramPath) ? null : _rawProgramPath;
+
+        private string _patchPath = string.Empty;
+
+        /// <summary>The matching patch0.xml; optional, but most packages need it.</summary>
+        public string PatchPath
+        {
+            get => _patchPath;
+            set
+            {
+                if (SetProperty(ref _patchPath, value))
+                {
+                    OnPropertyChanged(nameof(PatchName));
+                    OnPropertyChanged(nameof(PatchTooltip));
+                }
+            }
+        }
+
+        public string PatchName => string.IsNullOrEmpty(_patchPath) ? string.Empty : Path.GetFileName(_patchPath);
+
+        public string? PatchTooltip => string.IsNullOrWhiteSpace(_patchPath) ? null : _patchPath;
+
+        private string _partitionName = string.Empty;
+
+        /// <summary>Partition the read/write actions target, e.g. 'boot' or 'modem'.</summary>
+        public string PartitionName
+        {
+            get => _partitionName;
+            set => SetProperty(ref _partitionName, value.Trim());
+        }
+
+        private string _imagePath = string.Empty;
+
+        /// <summary>Image written by "Write partition". The screen shows only its bare name.</summary>
+        public string ImagePath
+        {
+            get => _imagePath;
+            set
+            {
+                if (SetProperty(ref _imagePath, value))
+                {
+                    OnPropertyChanged(nameof(ImageName));
+                    OnPropertyChanged(nameof(ImageTooltip));
+                }
+            }
+        }
+
+        public string ImageName => string.IsNullOrEmpty(_imagePath) ? string.Empty : Path.GetFileName(_imagePath);
+
+        public string? ImageTooltip => string.IsNullOrWhiteSpace(_imagePath) ? null : _imagePath;
 
         /// <summary>
         /// Opening the screen also makes sure the loader bundle is on disk. A workshop computer that
@@ -272,6 +377,34 @@ namespace B_VIP.Desktop.ViewModels
             => !string.IsNullOrWhiteSpace(value) &&
                value.Trim().StartsWith("COM", StringComparison.OrdinalIgnoreCase);
 
+        private async Task ResetFrpAsync()
+        {
+            MessageBoxResult answer = MessageBox.Show(
+                "Reset FRP through fh_loader in EDL?\n\n" +
+                "fh_loader starts the selected Firehose programmer on the 9008 COM port and erases 'frp' and 'config', " +
+                "then resets the handset. The button waits up to 45 seconds for the 9008 port when no handset is " +
+                "attached. This cannot be undone.\n\nContinue?",
+                "B_VIP Tool",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning,
+                MessageBoxResult.No);
+
+            if (answer != MessageBoxResult.Yes)
+            {
+                StatusMessage = "Routine cancelled.";
+                return;
+            }
+
+            // Refresh the interface list first, so a handset that was already connected is used
+            // instead of the listener waiting on a stale snapshot.
+            RefreshPorts();
+            OnUiThread(() => Rows.Clear());
+
+            await RunOperationAsync(OperationTypes.QualcommFrpLoader, BuildLoaderParameters(), confirmDataLoss: true,
+                prepare: FrpListener(FrpWaitMode.QualcommEdl),
+                caption: "Reset FRP (EDL)");
+        }
+
         private void BrowseFirehose()
         {
             Microsoft.Win32.OpenFileDialog dialog = new()
@@ -285,6 +418,127 @@ namespace B_VIP.Desktop.ViewModels
             {
                 FirehosePath = dialog.FileName;
             }
+        }
+
+        private void BrowseXml(string fileName, Action<string> assign)
+        {
+            Microsoft.Win32.OpenFileDialog dialog = new()
+            {
+                Title = $"Select {fileName} from the firmware package",
+                Filter = "Firehose XML (*.xml)|*.xml|All files (*.*)|*.*",
+                CheckFileExists = true
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                assign(dialog.FileName);
+            }
+        }
+
+        private void BrowseImage()
+        {
+            Microsoft.Win32.OpenFileDialog dialog = new()
+            {
+                Title = "Select the partition image to write",
+                Filter = "Partition images (*.bin;*.img)|*.bin;*.img|All files (*.*)|*.*",
+                CheckFileExists = true
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                ImagePath = dialog.FileName;
+            }
+        }
+
+        private async Task FlashFirmwareAsync()
+        {
+            if (string.IsNullOrWhiteSpace(RawProgramPath))
+            {
+                ErrorMessage = "Select the rawprogram0.xml that came with this firmware package.";
+                return;
+            }
+
+            MessageBoxResult answer = MessageBox.Show(
+                "Flash the firmware through EDL?\n\n" +
+                $"Package: {Path.GetFileName(RawProgramPath)}\n" +
+                (string.IsNullOrWhiteSpace(PatchPath) ? "No patch0.xml selected.\n" : $"Patch: {Path.GetFileName(PatchPath)}\n") +
+                "\nEvery partition the XML names is rewritten. Do not unplug the cable while fh_loader runs. Continue?",
+                "B_VIP Tool",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning,
+                MessageBoxResult.No);
+
+            if (answer != MessageBoxResult.Yes)
+            {
+                StatusMessage = "Flash cancelled.";
+                return;
+            }
+
+            RefreshPorts();
+            OnUiThread(() => Rows.Clear());
+
+            Dictionary<string, string> parameters = BuildLoaderParameters();
+            parameters["rawProgram"] = RawProgramPath.Trim();
+            if (!string.IsNullOrWhiteSpace(PatchPath))
+            {
+                parameters["patch"] = PatchPath.Trim();
+            }
+
+            await RunOperationAsync(OperationTypes.QualcommFlashFirmware, parameters, confirmDataLoss: true,
+                prepare: FrpListener(FrpWaitMode.QualcommEdl), caption: "Flash firmware (EDL)");
+        }
+
+        private async Task ReadPartitionAsync()
+        {
+            if (string.IsNullOrWhiteSpace(PartitionName))
+            {
+                ErrorMessage = "Type the partition to dump (for example 'boot' or 'modem').";
+                return;
+            }
+
+            RefreshPorts();
+            OnUiThread(() => Rows.Clear());
+
+            Dictionary<string, string> parameters = BuildParameters();
+            parameters["partition"] = PartitionName;
+
+            await RunOperationAsync(OperationTypes.QualcommReadPartition, parameters,
+                prepare: FrpListener(FrpWaitMode.QualcommEdl), caption: $"Read {PartitionName}");
+        }
+
+        private async Task WritePartitionAsync()
+        {
+            if (string.IsNullOrWhiteSpace(PartitionName) || string.IsNullOrWhiteSpace(ImagePath))
+            {
+                ErrorMessage = "Name the target partition and choose the image to write.";
+                return;
+            }
+
+            MessageBoxResult answer = MessageBox.Show(
+                $"Write '{Path.GetFileName(ImagePath)}' into partition '{PartitionName}'?\n\n" +
+                "The handset's own partition table is used to place the write, and the image must fit. " +
+                "A wrong image can leave the phone unbootable. Continue?",
+                "B_VIP Tool",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning,
+                MessageBoxResult.No);
+
+            if (answer != MessageBoxResult.Yes)
+            {
+                StatusMessage = "Write cancelled.";
+                return;
+            }
+
+            RefreshPorts();
+            OnUiThread(() => Rows.Clear());
+
+            Dictionary<string, string> parameters = BuildParameters();
+            parameters["confirm"] = "yes";
+            parameters["partition"] = PartitionName;
+            parameters["imagePath"] = ImagePath.Trim();
+
+            await RunOperationAsync(OperationTypes.QualcommWritePartition, parameters, confirmDataLoss: true,
+                prepare: FrpListener(FrpWaitMode.QualcommEdl), caption: $"Write {PartitionName}");
         }
 
         private async Task ConfirmedAsync(string question, Func<Task> action)

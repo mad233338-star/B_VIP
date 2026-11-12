@@ -19,6 +19,9 @@ namespace B_VIP.Core.Modules
             new(ModuleKeys.AndroidDiagnostics, "Android Diagnostics", "تشخيص Android", "devices", "stethoscope", true, false),
             new(ModuleKeys.Adb, "ADB", "ADB", "devices", "terminal", true, true),
             new(ModuleKeys.Fastboot, "Fastboot", "Fastboot", "devices", "zap", true, true),
+            // Firmware flashing is its own workspace: it drives the bundled Odin engine, not the
+            // adb/fastboot toolchain the other screens use, and it sits directly above Samsung.
+            new(ModuleKeys.SamsungOdin, "Samsung Odin", "Samsung Odin", "vendors", "flash", true, true),
             new(ModuleKeys.Samsung, "Samsung", "Samsung", "vendors", "badge", true, true),
             new(ModuleKeys.Xiaomi, "Xiaomi", "Xiaomi", "vendors", "badge", true, true),
             new(ModuleKeys.Infinix, "Infinix", "Infinix", "vendors", "badge", true, true),

@@ -46,6 +46,12 @@ namespace B_VIP.LoaderTests
             LoaderProvisioner provisioner = new(new HttpClient(handler), _root);
             LoaderPackage package = LoaderCatalog.Mtk;
 
+            // Another run on this machine may have left an archive behind: only the files this run
+            // creates are the provisioner's responsibility.
+            HashSet<string> archivesBefore = Directory
+                .EnumerateFiles(Path.GetTempPath(), "bvip-mtk-*.zip")
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
             List<LoaderStatus> stages = new();
             List<int> percents = new();
             RecordingProgress<int> progress = new(percents);
@@ -65,7 +71,9 @@ namespace B_VIP.LoaderTests
             Assert.Equal(new byte[] { 1, 2, 3, 4 }, File.ReadAllBytes(extracted));
 
             // The archive is a delivery vehicle only: no *.zip survives in the temp folder for this run.
-            Assert.Empty(Directory.EnumerateFiles(Path.GetTempPath(), "bvip-mtk-*.zip"));
+            Assert.DoesNotContain(
+                Directory.EnumerateFiles(Path.GetTempPath(), "bvip-mtk-*.zip"),
+                path => !archivesBefore.Contains(path));
 
             Assert.Contains(100, percents);
             Assert.Equal(1, handler.Requests);

@@ -22,6 +22,7 @@ namespace B_VIP.Desktop.Localization
             ["nav.adb"] = "ADB",
             ["nav.fastboot"] = "Fastboot",
             ["nav.samsung"] = "Samsung",
+            ["nav.odin"] = "Samsung Odin",
             ["nav.xiaomi"] = "Xiaomi",
             ["nav.infinix"] = "Infinix",
             ["nav.teco"] = "Tecno",

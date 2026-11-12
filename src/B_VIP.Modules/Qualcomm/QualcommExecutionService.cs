@@ -451,6 +451,235 @@ namespace B_VIP.Modules.Qualcomm
                 checks, log, warnings, errors, succeeded);
         }
 
+        /// <summary>
+        /// Dumps one partition to a file. The partition is located in the handset's own GPT, read in
+        /// bounded chunks over the same Firehose link the erase routines use, and never includes a
+        /// calibration partition unless the operator names it explicitly.
+        /// </summary>
+        public async Task<OperationExecutionResult> ReadPartitionAsync(OperationExecutionRequest request, CancellationToken ct)
+        {
+            List<DiagnosticCheckDto> checks = new();
+            List<string> log = new();
+            List<string> warnings = new();
+            List<string> errors = new();
+
+            string partition = (request.GetParameter("partition") ?? string.Empty).Trim();
+            if (partition.Length == 0)
+            {
+                errors.Add("Name the partition to dump (for example 'boot' or 'modem').");
+                return Build(request, "No partition named.", checks, log, warnings, errors);
+            }
+
+            await using EdlSession? session = await ConnectAsync(request, checks, log, warnings, errors, ct);
+            if (session is null)
+            {
+                return Build(request, "The partition dump could not start.", checks, log, warnings, errors);
+            }
+
+            GptTable? table = await ReadGptAsync(session, request, checks, log, warnings, errors, ct);
+            if (table is null)
+            {
+                return Build(request, "The partition dump stopped: the partition table could not be read.",
+                    checks, log, warnings, errors);
+            }
+
+            GptPartition? target = table.Find(partition);
+            if (target is null)
+            {
+                errors.Add($"This partition table declares no '{partition}' partition.");
+                checks.Add(new DiagnosticCheckDto("partition", "fail", errors[0], null));
+                return Build(request, "The partition was not found.", checks, log, warnings, errors);
+            }
+
+            string folder = request.GetParameter("outputFolder") is { Length: > 0 } chosen
+                ? chosen
+                : Path.Combine(AppContext.BaseDirectory, "Backups", "Qualcomm");
+
+            checks.Add(new DiagnosticCheckDto("partition", "pass",
+                $"'{target.Name}' at LBA {target.FirstLba}..{target.LastLba} ({target.SizeText(table.SectorSize)}).", null));
+
+            byte[] image;
+            try
+            {
+                Directory.CreateDirectory(folder);
+                request.Process($"Reading '{target.Name}' ({target.SizeText(table.SectorSize)}).");
+
+                // The programmer's raw read is bounded per command, so the range is walked in slices.
+                const long SectorsPerRead = 2048;
+                StepProgress progress = new(request, $"Reading '{target.Name}'");
+                using MemoryStream buffer = new();
+                long remaining = target.SectorCount;
+                long start = target.FirstLba;
+                int slice = 0;
+                int slices = (int)Math.Ceiling(target.SectorCount / (double)SectorsPerRead);
+
+                while (remaining > 0)
+                {
+                    ct.ThrowIfCancellationRequested();
+
+                    int count = (int)Math.Min(SectorsPerRead, remaining);
+                    byte[] block = await session.Firehose.ReadSectorsAsync(0, start, count, table.SectorSize, ct);
+                    await buffer.WriteAsync(block, ct);
+
+                    remaining -= count;
+                    start += count;
+                    slice++;
+
+                    progress.Report(slice * 100.0 / Math.Max(1, slices));
+                }
+
+                image = buffer.ToArray();
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or TimeoutException or IOException
+                or UnauthorizedAccessException or ArgumentException)
+            {
+                errors.Add($"Reading '{target.Name}' failed: {ex.Message}");
+                checks.Add(new DiagnosticCheckDto("partition-read", "fail", ex.Message, null));
+                return Build(request, "The partition was not read.", checks, log, warnings, errors);
+            }
+
+            string file = Path.Combine(folder, $"{target.Name}.bin");
+            try
+            {
+                await File.WriteAllBytesAsync(file, image, ct);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                errors.Add($"The dump could not be written: {ex.Message}");
+                return Build(request, "The partition was read but not saved.", checks, log, warnings, errors);
+            }
+
+            checks.Add(new DiagnosticCheckDto("partition-read", "pass",
+                $"{image.LongLength:N0} bytes written to {file}", null));
+            request.Success($"'{target.Name}' dumped to {file}.");
+            warnings.Add("A dump that carries calibration data is handset-specific: never flash it into another phone.");
+
+            return Build(request, $"'{target.Name}' dumped ({image.LongLength:N0} bytes).",
+                checks, log, warnings, errors, true);
+        }
+
+        /// <summary>
+        /// Writes one image into its partition. The image must be a whole number of sectors and no
+        /// larger than the partition in the handset's GPT; anything else is refused before a byte is
+        /// sent. Calibration partitions are refused by name.
+        /// </summary>
+        public async Task<OperationExecutionResult> WritePartitionAsync(OperationExecutionRequest request, CancellationToken ct)
+        {
+            List<DiagnosticCheckDto> checks = new();
+            List<string> log = new();
+            List<string> warnings = new();
+            List<string> errors = new();
+
+            if (!IsConfirmed(request))
+            {
+                errors.Add("Writing a partition must be confirmed explicitly before it runs.");
+                return Build(request, "Confirmation required.", checks, log, warnings, errors);
+            }
+
+            string partition = (request.GetParameter("partition") ?? string.Empty).Trim();
+            string? imagePath = request.GetParameter("imagePath");
+
+            if (partition.Length == 0 || string.IsNullOrWhiteSpace(imagePath))
+            {
+                errors.Add("Name the target partition and choose the image to write.");
+                return Build(request, "Nothing to write.", checks, log, warnings, errors);
+            }
+
+            if (GptTable.IsProtected(partition))
+            {
+                errors.Add($"'{partition}' carries calibration or boot data and is never written by this module.");
+                return Build(request, "Write refused.", checks, log, warnings, errors);
+            }
+
+            if (!File.Exists(imagePath))
+            {
+                errors.Add($"The image '{imagePath}' does not exist.");
+                return Build(request, "The image is missing.", checks, log, warnings, errors);
+            }
+
+            byte[] image;
+            try
+            {
+                image = await File.ReadAllBytesAsync(imagePath, ct);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                errors.Add($"The image could not be read: {ex.Message}");
+                return Build(request, "The image could not be read.", checks, log, warnings, errors);
+            }
+
+            await using EdlSession? session = await ConnectAsync(request, checks, log, warnings, errors, ct);
+            if (session is null)
+            {
+                return Build(request, "The partition write could not start.", checks, log, warnings, errors);
+            }
+
+            GptTable? table = await ReadGptAsync(session, request, checks, log, warnings, errors, ct);
+            if (table is null)
+            {
+                return Build(request, "The partition write stopped: the partition table could not be read.",
+                    checks, log, warnings, errors);
+            }
+
+            GptPartition? target = table.Find(partition);
+            if (target is null)
+            {
+                errors.Add($"This partition table declares no '{partition}' partition.");
+                return Build(request, "The partition was not found.", checks, log, warnings, errors);
+            }
+
+            long capacity = target.SizeBytes(table.SectorSize);
+            if (image.LongLength > capacity)
+            {
+                errors.Add($"The image is {image.LongLength:N0} bytes but '{target.Name}' is only {capacity:N0} bytes.");
+                return Build(request, "The image does not fit the partition.", checks, log, warnings, errors);
+            }
+
+            // Round up to whole sectors: the programmer writes sectors, not bytes.
+            long sectors = (image.LongLength + table.SectorSize - 1) / table.SectorSize;
+            byte[] padded = image;
+            if (sectors * table.SectorSize != image.LongLength)
+            {
+                padded = new byte[sectors * table.SectorSize];
+                Buffer.BlockCopy(image, 0, padded, 0, image.Length);
+                warnings.Add($"The image was padded to {padded.LongLength:N0} bytes to fill whole sectors.");
+            }
+
+            checks.Add(new DiagnosticCheckDto("partition", "pass",
+                $"'{target.Name}' at LBA {target.FirstLba} ({capacity:N0} bytes available).", null));
+
+            try
+            {
+                request.Process($"Writing {padded.LongLength:N0} bytes to '{target.Name}'.");
+                FirehoseResponse write = await session.Firehose.ProgramSectorsAsync(
+                    0, target.FirstLba, sectors, table.SectorSize, padded, ct);
+
+                bool accepted = write.Acknowledged || write.Rejected;
+                checks.Add(new DiagnosticCheckDto("partition-write", accepted ? "pass" : "warn",
+                    write.Rejected
+                        ? write.Error ?? "The programmer rejected the write."
+                        : write.Acknowledged ? "The programmer acknowledged the write." : "No closing verdict was returned.",
+                    null));
+
+                if (write.Rejected)
+                {
+                    errors.Add(write.Error ?? $"The programmer refused to write '{target.Name}'.");
+                    return Build(request, "The partition was not written.", checks, log, warnings, errors);
+                }
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or TimeoutException or IOException or ArgumentException)
+            {
+                errors.Add($"Writing '{target.Name}' failed: {ex.Message}");
+                return Build(request, "The partition was not written.", checks, log, warnings, errors);
+            }
+
+            request.Success($"'{target.Name}' written.");
+            warnings.Add("Reboot the handset and verify the partition before closing the job.");
+
+            return Build(request, $"'{target.Name}' written ({padded.LongLength:N0} bytes).",
+                checks, log, warnings, errors, true);
+        }
+
         // ---------------------------------------------------------------- session
 
         /// <summary>One open EDL link: the transport, the running programmer and the Sahara greeting.</summary>
@@ -786,7 +1015,9 @@ namespace B_VIP.Modules.Qualcomm
             OperationTypes.QualcommGpt,
             OperationTypes.QualcommResetFrp,
             OperationTypes.QualcommFactoryReset,
-            OperationTypes.QualcommReboot
+            OperationTypes.QualcommReboot,
+            OperationTypes.QualcommReadPartition,
+            OperationTypes.QualcommWritePartition
         ];
 
         public Task<OperationExecutionResult> ExecuteAsync(OperationExecutionRequest request, CancellationToken ct = default)
@@ -796,6 +1027,8 @@ namespace B_VIP.Modules.Qualcomm
                 OperationTypes.QualcommSahara => _edl.SaharaAsync(request, ct),
                 OperationTypes.QualcommGpt => _edl.GptAsync(request, ct),
                 OperationTypes.QualcommResetFrp => _edl.ResetFrpAsync(request, ct),
+                OperationTypes.QualcommReadPartition => _edl.ReadPartitionAsync(request, ct),
+                OperationTypes.QualcommWritePartition => _edl.WritePartitionAsync(request, ct),
                 OperationTypes.QualcommFactoryReset => _edl.FactoryResetAsync(request, ct),
                 OperationTypes.QualcommReboot => _edl.RebootAsync(request, ct),
                 // The original diagnostic keeps reading the platform over adb and is unchanged.

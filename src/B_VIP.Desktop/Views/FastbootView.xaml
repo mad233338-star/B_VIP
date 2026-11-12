@@ -44,8 +44,21 @@
                         <TextBox Style="{StaticResource Input.Text}" Text="{Binding PartitionName, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0" />
                     </StackPanel>
                     <StackPanel Grid.Column="2">
-                        <TextBlock Text="Image file" Style="{StaticResource Text.Label}" />
-                        <TextBox Style="{StaticResource Input.Text}" Text="{Binding ImagePath, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0" />
+                        <TextBlock Text="Image file (.img / .bin)" Style="{StaticResource Text.Label}" />
+                        <DockPanel Margin="0,4,0,0">
+                            <Button DockPanel.Dock="Right" Content="Browse…" Style="{StaticResource Button.Outline}"
+                                    Command="{Binding BrowseImageCommand}" Margin="8,0,0,0" VerticalAlignment="Center"
+                                    ToolTip="Choose the image to write to the partition above." />
+                            <Button DockPanel.Dock="Right" Content="Clear" Style="{StaticResource Button.Outline}"
+                                    Command="{Binding ClearImageCommand}" Margin="8,0,0,0" VerticalAlignment="Center"
+                                    ToolTip="Forget the selected image." />
+                            <!-- Only the bare file name is shown; the full path stays in the tooltip
+                                 and is what fastboot receives. -->
+                            <TextBox Style="{StaticResource Input.Text}" VerticalAlignment="Center"
+                                     IsReadOnly="True"
+                                     Text="{Binding ImageText, Mode=OneWay}"
+                                     ToolTip="{Binding ImageTooltip}" />
+                        </DockPanel>
                     </StackPanel>
                 </Grid>
 
@@ -87,8 +100,6 @@
                     </WrapPanel>
                 </DockPanel>
 
-                <TextBlock Text="{Binding [fastboot.warning], Source={x:Static loc:Localizer.Instance}}"
-                           Foreground="{StaticResource Brush.Warning}" TextWrapping="Wrap" Margin="0,8,0,0" />
             </StackPanel>
         </Border>
 

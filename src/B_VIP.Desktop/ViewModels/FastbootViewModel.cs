@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Text.Json;
 using System.Windows;
 using B_VIP.Application.Services;
@@ -21,31 +22,40 @@ namespace B_VIP.Desktop.ViewModels
             VariableName = "version";
             PartitionName = "boot";
             ImagePath = string.Empty;
-            ListDevicesCommand = new AsyncRelayCommand(_ => RunOperationAsync(OperationTypes.FastbootDevices));
-            ReadInfoCommand = new AsyncRelayCommand(_ => RunOperationAsync(OperationTypes.FastbootReadInfo), DeviceReady);
+            // Every button is clickable with nothing attached: each routine waits for the bootloader
+            // (up to 45 seconds) and runs the moment it answers. Only a running routine disables
+            // the panel.
+            ListDevicesCommand = new AsyncRelayCommand(_ => RunOperationAsync(OperationTypes.FastbootDevices), _ => !IsBusy);
+            ReadInfoCommand = new AsyncRelayCommand(_ => RunOperationAsync(OperationTypes.FastbootReadInfo, prepare: FastbootListener), _ => !IsBusy);
             GetVarCommand = new AsyncRelayCommand(_ => RunOperationAsync(OperationTypes.FastbootGetVar,
-                new Dictionary<string, string> { ["variable"] = VariableName }), DeviceReady);
-            RebootSystemCommand = new AsyncRelayCommand(_ => RebootAsync("system"), DeviceReady);
-            RebootRecoveryCommand = new AsyncRelayCommand(_ => RebootAsync("recovery"), DeviceReady);
-            RebootBootloaderCommand = new AsyncRelayCommand(_ => RebootAsync("bootloader"), DeviceReady);
-            RebootEdlCommand = new AsyncRelayCommand(_ => RebootAsync("edl"), DeviceReady);
-            FlashCommand = new AsyncRelayCommand(_ => RunOperationAsync(OperationTypes.FastbootFlash,
-                new Dictionary<string, string> { ["partition"] = PartitionName, ["image"] = ImagePath }, confirmDataLoss: true), DeviceReady);
-            WipeCommand = new AsyncRelayCommand(_ => RunOperationAsync(OperationTypes.FastbootWipe,
-                new Dictionary<string, string> { ["partition"] = PartitionName }, confirmDataLoss: true), DeviceReady);
-            ResetFrpCommand = new AsyncRelayCommand(_ => RunOperationAsync(OperationTypes.FastbootResetFrp,
-                confirmDataLoss: true), DeviceReady);
-            EraseFrpCommand = new AsyncRelayCommand(_ => EraseAsync("frp"), DeviceReady);
-            EraseConfigCommand = new AsyncRelayCommand(_ => EraseAsync("config"), DeviceReady);
-            ErasePersistentCommand = new AsyncRelayCommand(_ => EraseAsync("persistent"), DeviceReady);
+                new Dictionary<string, string> { ["variable"] = VariableName }, prepare: FastbootListener), _ => !IsBusy);
+            RebootSystemCommand = new AsyncRelayCommand(_ => RebootAsync("system"), _ => !IsBusy);
+            RebootRecoveryCommand = new AsyncRelayCommand(_ => RebootAsync("recovery"), _ => !IsBusy);
+            RebootBootloaderCommand = new AsyncRelayCommand(_ => RebootAsync("bootloader"), _ => !IsBusy);
+            RebootEdlCommand = new AsyncRelayCommand(_ => RebootAsync("edl"), _ => !IsBusy);
+            FlashCommand = new AsyncRelayCommand(_ => FlashAsync(), _ => !IsBusy);
+            WipeCommand = new AsyncRelayCommand(_ => WipeAsync("Erase partition", PartitionName), _ => !IsBusy);
+            BrowseImageCommand = new AsyncRelayCommand(_ =>
+            {
+                BrowseImage();
+                return Task.CompletedTask;
+            });
+            ClearImageCommand = new RelayCommand(_ => ImagePath = string.Empty);
 
-            GateOnDevice(ReadInfoCommand, GetVarCommand, RebootSystemCommand, RebootRecoveryCommand,
-                RebootBootloaderCommand, RebootEdlCommand, FlashCommand, WipeCommand, ResetFrpCommand,
-                EraseFrpCommand, EraseConfigCommand, ErasePersistentCommand);
+            // FRP and the three erases stay clickable with nothing attached: each one listens for the
+            // bootloader, then asks for confirmation before it erases anything.
+            ResetFrpCommand = new AsyncRelayCommand(_ => ResetFrpAsync(), _ => !IsBusy);
+            EraseFrpCommand = new AsyncRelayCommand(_ => EraseAsync("frp"), _ => !IsBusy);
+            EraseConfigCommand = new AsyncRelayCommand(_ => EraseAsync("config"), _ => !IsBusy);
+            ErasePersistentCommand = new AsyncRelayCommand(_ => EraseAsync("persistent"), _ => !IsBusy);
+
+            GateOnBusy(ReadInfoCommand, GetVarCommand, RebootSystemCommand, RebootRecoveryCommand,
+                RebootBootloaderCommand, RebootEdlCommand, FlashCommand, WipeCommand,
+                ListDevicesCommand, ResetFrpCommand, EraseFrpCommand, EraseConfigCommand, ErasePersistentCommand);
         }
 
-        /// <summary>Availability for every button that needs a selected handset.</summary>
-        private bool DeviceReady(object? _) => !IsBusy && CanRunDeviceAction;
+        /// <summary>The prepare delegate every fastboot routine uses: press first, plug the cable in after.</summary>
+        private Func<CancellationToken, Task<bool>> FastbootListener => FrpListener(FrpWaitMode.Fastboot);
 
         private string _output = string.Empty;
 
@@ -73,11 +83,38 @@ namespace B_VIP.Desktop.ViewModels
 
         private string _imagePath = string.Empty;
 
+        /// <summary>
+        /// Image written by "Flash image". The engine receives this absolute path; the screen only
+        /// shows <see cref="ImageText"/>.
+        /// </summary>
         public string ImagePath
         {
             get => _imagePath;
-            set => SetProperty(ref _imagePath, value);
+            set
+            {
+                if (SetProperty(ref _imagePath, value))
+                {
+                    OnPropertyChanged(nameof(ImageName));
+                    OnPropertyChanged(nameof(ImageText));
+                    OnPropertyChanged(nameof(ImageTooltip));
+                }
+            }
         }
+
+        /// <summary>The image's bare file name, so no workshop folder appears on screen.</summary>
+        public string ImageName => string.IsNullOrEmpty(_imagePath) ? string.Empty : Path.GetFileName(_imagePath);
+
+        /// <summary>What the field shows: the bare name, or the guidance while it is empty.</summary>
+        public string ImageText => string.IsNullOrEmpty(_imagePath)
+            ? "No image selected — click Browse to choose a .img / .bin"
+            : Path.GetFileName(_imagePath);
+
+        /// <summary>The full path, offered only while the pointer rests on the field.</summary>
+        public string? ImageTooltip => string.IsNullOrWhiteSpace(_imagePath) ? null : _imagePath;
+
+        public AsyncRelayCommand BrowseImageCommand { get; }
+
+        public RelayCommand ClearImageCommand { get; }
 
         public AsyncRelayCommand ListDevicesCommand { get; }
 
@@ -124,26 +161,96 @@ namespace B_VIP.Desktop.ViewModels
         }
 
         private Task RebootAsync(string target)
-        {
-            if (SelectedDevice is null)
-            {
-                ErrorMessage = Localizer.Instance["devices.none"];
-                return Task.CompletedTask;
-            }
+            => RunOperationAsync(OperationTypes.FastbootReboot,
+                new Dictionary<string, string> { ["target"] = target },
+                prepare: FastbootListener, caption: $"Reboot to {target}");
 
-            return RunOperationAsync(OperationTypes.FastbootReboot, new Dictionary<string, string> { ["target"] = target });
+        private void BrowseImage()
+        {
+            Microsoft.Win32.OpenFileDialog dialog = new()
+            {
+                Title = "Select the image to flash",
+                Filter = "Images (*.img;*.bin;*.mbn)|*.img;*.bin;*.mbn|All files (*.*)|*.*",
+                CheckFileExists = true
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                ImagePath = dialog.FileName;
+            }
         }
 
-        private Task EraseAsync(string partition)
+        private async Task ResetFrpAsync()
         {
-            if (SelectedDevice is null)
+            if (!Confirm("Reset FRP through fastboot?",
+                    "frp, config and persistent are erased and the handset reboots. This is only accepted by an " +
+                    "unlocked bootloader and cannot be undone."))
             {
-                ErrorMessage = Localizer.Instance["devices.none"];
-                return Task.CompletedTask;
+                StatusMessage = "Routine cancelled.";
+                return;
             }
 
-            return RunOperationAsync(OperationTypes.FastbootWipe,
-                new Dictionary<string, string> { ["partition"] = partition }, confirmDataLoss: true);
+            await RunOperationAsync(OperationTypes.FastbootResetFrp, null, confirmDataLoss: true,
+                prepare: FrpListener(FrpWaitMode.Fastboot), caption: "Reset FRP (Fastboot)");
         }
+
+        private async Task EraseAsync(string partition)
+        {
+            if (!Confirm($"Erase '{partition}'?",
+                    $"The '{partition}' partition is erased on the connected handset. This cannot be undone."))
+            {
+                StatusMessage = "Routine cancelled.";
+                return;
+            }
+
+            await RunOperationAsync(OperationTypes.FastbootWipe,
+                new Dictionary<string, string> { ["partition"] = partition }, confirmDataLoss: true,
+                prepare: FrpListener(FrpWaitMode.Fastboot), caption: $"Erase {partition}");
+        }
+
+        private async Task FlashAsync()
+        {
+            if (string.IsNullOrWhiteSpace(PartitionName))
+            {
+                ErrorMessage = "Name the target partition (for example 'boot' or 'recovery').";
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(ImagePath))
+            {
+                ErrorMessage = "Choose the image to flash with Browse first.";
+                return;
+            }
+
+            if (!Confirm("Flash an image?",
+                    $"'{Path.GetFileName(ImagePath)}' is written to partition '{PartitionName}'. A wrong or corrupt " +
+                    "image can leave the handset unbootable."))
+            {
+                StatusMessage = "Routine cancelled.";
+                return;
+            }
+
+            await RunOperationAsync(OperationTypes.FastbootFlash,
+                new Dictionary<string, string> { ["partition"] = PartitionName, ["image"] = ImagePath },
+                confirmDataLoss: true, prepare: FastbootListener, caption: $"Flash {PartitionName}");
+        }
+
+        private async Task WipeAsync(string title, string partition)
+        {
+            if (!Confirm($"{title}?", $"Partition '{partition}' is erased. This cannot be undone."))
+            {
+                StatusMessage = "Routine cancelled.";
+                return;
+            }
+
+            await RunOperationAsync(OperationTypes.FastbootWipe,
+                new Dictionary<string, string> { ["partition"] = partition }, confirmDataLoss: true,
+                prepare: FastbootListener, caption: $"Erase {partition}");
+        }
+
+        /// <summary>The confirmation shared by every destructive fastboot action.</summary>
+        private static bool Confirm(string title, string detail)
+            => MessageBox.Show($"{title}\n\n{detail}\n\nContinue?", "B_VIP Tool",
+                MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No) == MessageBoxResult.Yes;
     }
 }

@@ -26,7 +26,8 @@ namespace B_VIP.Modules
             OperationTypes.AdbConnectionCheck,
             OperationTypes.AdbRestartServer,
             OperationTypes.AdbCollectLogcat,
-            OperationTypes.AdbReboot
+            OperationTypes.AdbReboot,
+            OperationTypes.AdbPackage
         ];
 
         public async Task<OperationExecutionResult> ExecuteAsync(OperationExecutionRequest request, CancellationToken ct = default)
@@ -34,6 +35,11 @@ namespace B_VIP.Modules
             if (request.OperationType is OperationTypes.AdbReadInfo)
             {
                 return await ReadInfoAsync(request, ct);
+            }
+
+            if (request.OperationType is OperationTypes.AdbPackage)
+            {
+                return await PackageAsync(request, ct);
             }
 
             List<string> log = new();
@@ -101,6 +107,77 @@ namespace B_VIP.Modules
             return new OperationExecutionResult(request.OperationType, succeeded,
                 succeeded ? OperationOutcome.Succeeded : OperationOutcome.Failed,
                 BuildSummary(request, succeeded, checks, errors),
+                checks, log, warnings, errors);
+        }
+
+        /// <summary>
+        /// Sends a package the technician chose: a <c>.zip</c> goes through <c>adb sideload</c> (which
+        /// the recovery applies from its own updater), an <c>.apk</c> goes through <c>adb install -r</c>
+        /// on a booted, authorized handset. The file itself is never modified or inspected beyond its
+        /// extension.
+        /// </summary>
+        private async Task<OperationExecutionResult> PackageAsync(OperationExecutionRequest request, CancellationToken ct)
+        {
+            List<string> log = new();
+            List<DiagnosticCheckDto> checks = new();
+            List<string> warnings = new();
+            List<string> errors = new();
+
+            string? path = request.GetParameter("path");
+            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            {
+                errors.Add("Choose a package first: the file is missing or no longer on disk.");
+                return new OperationExecutionResult(request.OperationType, false, OperationOutcome.Failed,
+                    errors[0], checks, log, warnings, errors);
+            }
+
+            // An .apk is installed on a booted handset; anything else (a .zip payload) is sideloaded.
+            string? requestedMode = request.GetParameter("mode");
+            bool sideload = string.IsNullOrWhiteSpace(requestedMode)
+                ? !path.EndsWith(".apk", StringComparison.OrdinalIgnoreCase)
+                : requestedMode.Trim().Equals("sideload", StringComparison.OrdinalIgnoreCase);
+
+            string[] args = sideload
+                ? ["sideload", path]
+                : request.Serial is { Length: > 0 } serial
+                    ? ["-s", serial, "install", "-r", path]
+                    : ["install", "-r", path];
+
+            request.Process(sideload
+                ? $"Sideloading {Path.GetFileName(path)}; the recovery applies it as it streams."
+                : $"Installing {Path.GetFileName(path)} on the handset.");
+
+            ProcessResult result = await _adb.AdbAsync(args, 1800, ct);
+            log.Add($"$ adb {string.Join(' ', args)}");
+            log.AddRange(AppendOutput(result));
+
+            if (!result.Succeeded)
+            {
+                errors.Add(result.FailureReason ?? (string.IsNullOrWhiteSpace(result.StandardError)
+                    ? "adb refused the package."
+                    : result.StandardError.Trim()));
+                checks.Add(new DiagnosticCheckDto(sideload ? "sideload" : "install", "fail", errors[^1], result.DurationMs));
+                return new OperationExecutionResult(request.OperationType, false, OperationOutcome.Failed,
+                    errors[0], checks, log, warnings, errors);
+            }
+
+            if (sideload)
+            {
+                checks.Add(new DiagnosticCheckDto("sideload", "pass",
+                    "The recovery accepted the package.", result.DurationMs));
+                warnings.Add("Do not unplug the cable: the recovery may reboot on its own while it applies the package.");
+            }
+            else
+            {
+                string output = result.StandardOutput.Trim();
+                checks.Add(new DiagnosticCheckDto("install", "pass",
+                    string.IsNullOrWhiteSpace(output) ? "adb installed the package." : output, result.DurationMs));
+            }
+
+            return new OperationExecutionResult(request.OperationType, true, OperationOutcome.Succeeded,
+                sideload
+                    ? $"{Path.GetFileName(path)} was handed to the recovery."
+                    : $"{Path.GetFileName(path)} was installed.",
                 checks, log, warnings, errors);
         }
 

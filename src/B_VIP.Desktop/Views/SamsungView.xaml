@@ -5,6 +5,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:B_VIP.Desktop.ViewModels"
              xmlns:loc="clr-namespace:B_VIP.Desktop.Localization"
+             xmlns:controls="clr-namespace:B_VIP.Desktop.Controls"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vm:SamsungViewModel}">
     <Grid>
@@ -24,6 +25,10 @@
 
         <Border Grid.Row="1" Style="{StaticResource Panel.Card}" Margin="0,0,0,12">
             <StackPanel>
+                <!-- Samsung model header: A04 / A05 / A06 and friends, with the SoC the preloader
+                     routine must expect. The pick also supplies the matching download agent. -->
+                <controls:DeviceCatalogSelector DataContext="{Binding Catalog}" />
+
                 <StackPanel Orientation="Horizontal">
                     <TextBlock Text="{Binding [devices.title], Source={x:Static loc:Localizer.Instance}}"
                                Style="{StaticResource Text.Label}" VerticalAlignment="Center" Margin="0,0,10,0" />
@@ -63,11 +68,27 @@
                              ToolTip="Only used by the Custom URL entry." />
                 </DockPanel>
 
+                <!-- Manual package / loader. Left empty the selected model's bundled download agent is
+                     used; only the bare file name is shown, the full path stays in the tooltip. -->
+                <DockPanel Margin="0,4,0,0">
+                    <Button DockPanel.Dock="Right" Content="Browse…" Style="{StaticResource Button.Outline}"
+                            Command="{Binding BrowseManualCommand}" Margin="8,0,0,0" VerticalAlignment="Center"
+                            ToolTip="Choose a package, download agent or firmware file to use instead of the bundled default." />
+                    <Button DockPanel.Dock="Right" Content="Clear" Style="{StaticResource Button.Outline}"
+                            Command="{Binding ClearManualCommand}" Margin="8,0,0,0" VerticalAlignment="Center"
+                            ToolTip="Go back to the bundled / automatic default." />
+                    <TextBlock DockPanel.Dock="Left" Text="Manual File / Package / Loader"
+                               Style="{StaticResource Text.Label}" VerticalAlignment="Center" Margin="0,0,10,0" />
+                    <TextBox Style="{StaticResource Input.Text}" VerticalAlignment="Center" IsReadOnly="True"
+                             Text="{Binding ManualText, Mode=OneWay}"
+                             ToolTip="{Binding ManualTooltip}" />
+                </DockPanel>
+
                 <DockPanel Margin="0,10,0,0">
                     <WrapPanel>
-                        <Button Content="Reset FRP (Preloader)" Style="{StaticResource Button.Danger}"
+                        <Button Content="Reset FRP (Preloader)" Style="{StaticResource Button.Primary}"
                                 Command="{Binding ResetFrpPreloaderCommand}" Margin="0,0,8,0" VerticalAlignment="Center"
-                                ToolTip="MediaTek Samsung handsets (A04/A05/A06): mtkclient erases 'frp' and 'persistent' through the preloader with Samsung's download agent. Works on a locked bootloader." />
+                                ToolTip="Samsung handsets (A04/A05/A06): erases 'frp' through the boot ROM with the engine of the selected model. Always clickable — it listens for the handset when none is attached." />
                         <Button Content="Reset FRP (*#0*# / ADB)" Style="{StaticResource Button.Outline}"
                                 Command="{Binding ResetFrpCommand}" VerticalAlignment="Center" />
                     </WrapPanel>

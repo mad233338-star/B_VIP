@@ -35,6 +35,9 @@
                     <Button Content="Reset FRP" Style="{StaticResource Button.Primary}"
                             Command="{Binding ResetFrpCommand}" Margin="0,0,8,8"
                             ToolTip="Writes user_setup_complete, sends android.intent.action.MASTER_CLEAR, brings the launcher forward and reboots. Needs an authorized ADB connection." />
+                    <Button Content="Install APK / Sideload" Style="{StaticResource Button.Primary}"
+                            Command="{Binding InstallPackageCommand}" Margin="0,0,8,8"
+                            ToolTip="A .apk is installed with adb install -r; a .zip is handed to the recovery with adb sideload. Press it before connecting the cable and it waits for the interface." />
                     <Button Content="Read info" Style="{StaticResource Button.Outline}"
                             Command="{Binding ReadInfoCommand}" Margin="0,0,8,8"
                             ToolTip="adb devices -l and getprop: model, build, Android version and security patch." />
@@ -52,6 +55,22 @@
                             Margin="0,0,8,8" />
 
                 </WrapPanel>
+
+                <!-- Package for the install / sideload action above. Only the file name is shown;
+                     the full path stays in the tooltip and is what the engine receives. -->
+                <DockPanel Margin="0,4,0,0">
+                    <Button DockPanel.Dock="Right" Content="Browse…" Style="{StaticResource Button.Outline}"
+                            Command="{Binding BrowsePackageCommand}" Margin="8,0,0,0" VerticalAlignment="Center"
+                            ToolTip="Choose the package to install (.apk) or sideload (.zip)." />
+                    <Button DockPanel.Dock="Right" Content="Clear" Style="{StaticResource Button.Outline}"
+                            Command="{Binding ClearPackageCommand}" Margin="8,0,0,0" VerticalAlignment="Center"
+                            ToolTip="Forget the selected package." />
+                    <TextBlock DockPanel.Dock="Left" Text="Package / File (ADB Sideload / APK)"
+                               Style="{StaticResource Text.Label}" VerticalAlignment="Center" Margin="0,0,10,0" />
+                    <TextBox Style="{StaticResource Input.Text}" VerticalAlignment="Center" IsReadOnly="True"
+                             Text="{Binding PackageText, Mode=OneWay}"
+                             ToolTip="{Binding PackageTooltip}" />
+                </DockPanel>
 
                 <DockPanel Margin="0,4,0,0">
                     <TextBlock DockPanel.Dock="Left" Text="Reboot to" Style="{StaticResource Text.Label}"

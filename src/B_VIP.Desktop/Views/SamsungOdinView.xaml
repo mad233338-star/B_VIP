@@ -1,0 +1,241 @@
+<UserControl x:Class="B_VIP.Desktop.Views.SamsungOdinView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:B_VIP.Desktop.ViewModels"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:SamsungOdinViewModel}">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Title bar: the chip-flash glyph plus the two live state pills. -->
+        <DockPanel Grid.Row="0" Margin="0,0,0,12">
+            <Border DockPanel.Dock="Right" Style="{StaticResource Badge.Accent}" VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="&#xE945;" FontFamily="Segoe MDL2 Assets" FontSize="11"
+                               Foreground="{StaticResource Brush.Accent}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                    <TextBlock Text="ODIN · BL / AP / CP / CSC" FontSize="10" FontWeight="SemiBold"
+                               Foreground="{StaticResource Brush.Accent}" />
+                </StackPanel>
+            </Border>
+            <Border DockPanel.Dock="Right" Style="{StaticResource Badge.Status}" VerticalAlignment="Center"
+                    Margin="0,0,8,0">
+                <TextBlock Text="{Binding EngineText}" FontSize="10" FontWeight="SemiBold"
+                           Foreground="{Binding EngineStatus, Converter={StaticResource StatusToBrush}}" />
+            </Border>
+            <TextBlock Text="Samsung Odin" Style="{StaticResource Text.PageTitle}" Margin="0" />
+        </DockPanel>
+
+        <!-- Device + engine header: live Download-mode detection, exactly as Odin announces it. -->
+        <Border Grid.Row="1" Style="{StaticResource Panel.Card}" Margin="0,0,0,12">
+            <StackPanel>
+                <DockPanel LastChildFill="False">
+                    <TextBlock DockPanel.Dock="Left" Text="Connected devices" Style="{StaticResource Text.Label}"
+                               VerticalAlignment="Center" Margin="0,0,10,0" />
+                    <Button DockPanel.Dock="Right" Content="Refresh" Style="{StaticResource Button.Outline}"
+                            Command="{Binding RefreshPortsCommand}" Margin="8,0,0,0" VerticalAlignment="Center"
+                            ToolTip="Re-enumerate every USB/COM interface on this computer." />
+                    <Border DockPanel.Dock="Right" Style="{StaticResource Badge.Status}" VerticalAlignment="Center"
+                            Margin="8,0,0,0"
+                            BorderBrush="{Binding DownloadModeStatus, Converter={StaticResource StatusToBrush}}">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse Width="7" Height="7" VerticalAlignment="Center" Margin="0,0,6,0"
+                                     Fill="{Binding DownloadModeStatus, Converter={StaticResource StatusToBrush}}" />
+                            <TextBlock Text="{Binding DownloadModeBadge}" FontSize="10" FontWeight="SemiBold"
+                                       Foreground="{Binding DownloadModeStatus, Converter={StaticResource StatusToBrush}}" />
+                        </StackPanel>
+                    </Border>
+                    <TextBlock Style="{StaticResource Text.Muted}" Text="{Binding DownloadModeText}"
+                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                               Foreground="{Binding DownloadModeStatus, Converter={StaticResource StatusToBrush}}" />
+                </DockPanel>
+
+                <Border Margin="0,10,0,0" Background="{StaticResource Brush.Surface}" CornerRadius="4"
+                        BorderBrush="{StaticResource Brush.Border}" BorderThickness="1" Height="76">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="8,6">
+                        <ItemsControl ItemsSource="{Binding Ports}" Focusable="False">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <DockPanel Margin="0,1">
+                                        <Border DockPanel.Dock="Right" Style="{StaticResource Badge.Status}"
+                                                VerticalAlignment="Center" Margin="8,0,0,0">
+                                            <TextBlock Text="{Binding Badge}" FontSize="10" FontWeight="SemiBold"
+                                                       Foreground="{Binding Status, Converter={StaticResource StatusToBrush}}" />
+                                        </Border>
+                                        <TextBlock Style="{StaticResource Text.Muted}" Text="{Binding Summary}"
+                                                   FontFamily="Consolas" ToolTip="{Binding Detail}"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Foreground="{Binding Status, Converter={StaticResource StatusToBrush}}" />
+                                    </DockPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Border>
+
+                <!-- Engine state: where it lives and, when it is missing, how to fix it. -->
+                <DockPanel Margin="0,10,0,0" LastChildFill="False">
+                    <TextBlock DockPanel.Dock="Left" Text="Flashing engine" Style="{StaticResource Text.Label}"
+                               VerticalAlignment="Center" Margin="0,0,10,0" />
+                    <Button DockPanel.Dock="Right" Content="Open engine folder" Style="{StaticResource Button.Outline}"
+                            Command="{Binding OpenEngineFolderCommand}" Margin="8,0,0,0" VerticalAlignment="Center"
+                            ToolTip="Opens Tools\Samsung beside the executable." />
+                    <Border DockPanel.Dock="Right" Style="{StaticResource Badge.Status}" VerticalAlignment="Center"
+                            Margin="8,0,0,0"
+                            BorderBrush="{Binding EngineStatus, Converter={StaticResource StatusToBrush}}">
+                        <TextBlock Text="{Binding EngineText}" FontSize="10" FontWeight="SemiBold"
+                                   Foreground="{Binding EngineStatus, Converter={StaticResource StatusToBrush}}" />
+                    </Border>
+                    <TextBlock Style="{StaticResource Text.Muted}" Text="{Binding EngineDetail}"
+                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                </DockPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- The four firmware pickers, the PIT, the Odin options and the controls. -->
+        <Border Grid.Row="2" Style="{StaticResource Panel.Card}" Margin="0,0,0,12">
+            <StackPanel>
+                <DockPanel LastChildFill="False">
+                    <TextBlock DockPanel.Dock="Left" Text="Firmware" Style="{StaticResource Text.Label}"
+                               VerticalAlignment="Center" Margin="0,0,10,0" />
+                    <TextBlock DockPanel.Dock="Right" Style="{StaticResource Text.Muted}"
+                               Text="{Binding SelectionSummary}" VerticalAlignment="Center" />
+                </DockPanel>
+
+                <ItemsControl ItemsSource="{Binding Slots}" Margin="0,8,0,0" Focusable="False">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <DockPanel Margin="0,0,0,8">
+                                <Border DockPanel.Dock="Left" Background="{StaticResource Brush.Surface}"
+                                        BorderBrush="{StaticResource Brush.Border}" BorderThickness="1"
+                                        CornerRadius="4" Width="92" Padding="8,4" Margin="0,0,10,0"
+                                        VerticalAlignment="Center">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Slot}" FontSize="11" FontWeight="Bold"
+                                                   Foreground="{StaticResource Brush.Accent}" />
+                                        <TextBlock Text="{Binding Title}" FontSize="10"
+                                                   Style="{StaticResource Text.Muted}" TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+                                </Border>
+                                <Button DockPanel.Dock="Right" Content="Clear" Style="{StaticResource Button.Outline}"
+                                        Command="{Binding ClearCommand}" Margin="8,0,0,0" VerticalAlignment="Center"
+                                        Padding="10,3" FontSize="11" />
+                                <Button DockPanel.Dock="Right" Content="Browse…" Style="{StaticResource Button.Outline}"
+                                        Command="{Binding BrowseCommand}" Margin="8,0,0,0" VerticalAlignment="Center" />
+                                <TextBox Style="{StaticResource Input.Text}" VerticalAlignment="Center"
+                                         IsReadOnly="True" Text="{Binding FileName, Mode=OneWay}"
+                                         ToolTip="{Binding Tooltip}" />
+                            </DockPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <!-- PIT: optional, and ticking the box opens the picker instead of silently enabling it. -->
+                <DockPanel Margin="0,2,0,0">
+                    <CheckBox DockPanel.Dock="Left" IsChecked="{Binding UsePit, Mode=TwoWay}"
+                              Content="PIT file" Foreground="{StaticResource Brush.Text}" FontSize="12"
+                              VerticalAlignment="Center" Margin="0,0,10,0" MinWidth="92"
+                              ToolTip="Optional partition information table. Ticking this opens the picker." />
+                    <Button DockPanel.Dock="Right" Content="Clear" Style="{StaticResource Button.Outline}"
+                            Command="{Binding ClearPitCommand}" Margin="8,0,0,0" VerticalAlignment="Center"
+                            Padding="10,3" FontSize="11" />
+                    <Button DockPanel.Dock="Right" Content="Browse…" Style="{StaticResource Button.Outline}"
+                            Command="{Binding BrowsePitCommand}" Margin="8,0,0,0" VerticalAlignment="Center" />
+                    <TextBox Style="{StaticResource Input.Text}" VerticalAlignment="Center" IsReadOnly="True"
+                             Text="{Binding PitFileName, Mode=OneWay}" ToolTip="{Binding PitTooltip}" />
+                </DockPanel>
+
+                <WrapPanel Margin="0,12,0,0">
+                    <CheckBox IsChecked="{Binding AutoReboot, Mode=TwoWay}" Content="Auto Reboot"
+                              Foreground="{StaticResource Brush.Text}" FontSize="12" VerticalAlignment="Center"
+                              Margin="0,0,24,8" />
+                    <CheckBox IsChecked="{Binding ResetTime, Mode=TwoWay}" Content="F. Reset Time"
+                              Foreground="{StaticResource Brush.Text}" FontSize="12" VerticalAlignment="Center"
+                              Margin="0,0,24,8" />
+                </WrapPanel>
+
+                <Border Height="1" Background="{StaticResource Brush.Border}" Margin="0,4,0,12" />
+
+                <WrapPanel>
+                    <Button Content="Start Flash" Style="{StaticResource Button.Primary}"
+                            Command="{Binding StartFlashCommand}" Margin="0,0,8,8" Padding="18,6"
+                            ToolTip="Flashes the selected packages through the bundled Odin engine." />
+                    <Button Content="Reset" Style="{StaticResource Button.Outline}"
+                            Command="{Binding ResetCommand}" Margin="0,0,8,8"
+                            ToolTip="Clears every picker and the log, and restores the default options." />
+                    <Button Content="Cancel" Style="{StaticResource Button.Danger}"
+                            Command="{Binding CancelCommand}" Margin="0,0,8,8"
+                            ToolTip="Terminates the running engine and its child process." />
+                    <Border Style="{StaticResource Badge.Status}" VerticalAlignment="Center" Margin="4,0,8,10"
+                            Visibility="{Binding HasVerdict, Converter={StaticResource BoolToVisibility}}"
+                            BorderBrush="{Binding VerdictStatus, Converter={StaticResource StatusToBrush}}">
+                        <TextBlock Text="{Binding VerdictText}" FontSize="11" FontWeight="Bold"
+                                   Foreground="{Binding VerdictStatus, Converter={StaticResource StatusToBrush}}" />
+                    </Border>
+                    <TextBlock Style="{StaticResource Text.Muted}" Text="{Binding ProgressText}"
+                               VerticalAlignment="Center" Margin="0,0,0,8" />
+                </WrapPanel>
+
+                <ProgressBar Height="6" Minimum="0" Maximum="100" Value="{Binding Progress, Mode=OneWay}"
+                             Background="{StaticResource Brush.Line}" Foreground="{StaticResource Brush.Accent}"
+                             IsIndeterminate="{Binding IsFlashing}" />
+            </StackPanel>
+        </Border>
+
+        <!-- Flash console: the engine's own output, with PASS in green and FAIL in red. -->
+        <Border Grid.Row="3" Background="{StaticResource Brush.Canvas}"
+                BorderBrush="{StaticResource Brush.Border}" BorderThickness="1" CornerRadius="6">
+            <DockPanel LastChildFill="True">
+                <Border DockPanel.Dock="Top" Background="{StaticResource Brush.Surface}"
+                        BorderBrush="{StaticResource Brush.Border}" BorderThickness="0,0,0,1" Padding="12,6">
+                    <DockPanel LastChildFill="False">
+                        <Border DockPanel.Dock="Right" Style="{StaticResource Badge.Status}" VerticalAlignment="Center">
+                            <TextBlock Text="odin log" FontSize="10" FontWeight="SemiBold"
+                                       Foreground="{StaticResource Brush.Accent}" />
+                        </Border>
+                        <TextBlock Text="FLASH LOG" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{StaticResource Brush.Accent}" VerticalAlignment="Center" />
+                    </DockPanel>
+                </Border>
+
+                <ListBox x:Name="OdinLogList" ItemsSource="{Binding Log}"
+                         Background="Transparent" BorderThickness="0" Padding="6,4"
+                         ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                         ScrollViewer.VerticalScrollBarVisibility="Auto"
+                         VirtualizingPanel.IsVirtualizing="True"
+                         VirtualizingPanel.VirtualizationMode="Recycling"
+                         VirtualizingPanel.ScrollUnit="Item">
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="Padding" Value="2,0" />
+                            <Setter Property="HorizontalContentAlignment" Value="Left" />
+                            <Setter Property="Focusable" Value="False" />
+                            <Setter Property="Background" Value="Transparent" />
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="{Binding TimestampText, StringFormat=[{0}]}"
+                                           FontFamily="Consolas" FontSize="12"
+                                           Foreground="{StaticResource Brush.Muted}" />
+                                <TextBlock Text="{Binding LevelText, StringFormat=[{0}]}"
+                                           FontFamily="Consolas" FontSize="12" FontWeight="SemiBold"
+                                           Margin="4,0,0,0"
+                                           Foreground="{Binding Level, Converter={StaticResource LogLevelToBrush}}" />
+                                <TextBlock Text="{Binding Message}" FontFamily="Consolas" FontSize="12"
+                                           Foreground="{StaticResource Brush.Text}" Margin="6,0,0,0" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </DockPanel>
+        </Border>
+    </Grid>
+</UserControl>

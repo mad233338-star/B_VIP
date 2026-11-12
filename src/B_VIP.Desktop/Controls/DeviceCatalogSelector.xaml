@@ -1,0 +1,72 @@
+<UserControl x:Class="B_VIP.Desktop.Controls.DeviceCatalogSelector"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:B_VIP.Desktop.ViewModels"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:DeviceCatalogSelectorViewModel}">
+    <!-- Brand / model header shared by the vendor tabs. The brand dropdown scopes the model list and
+         the picker filters as the technician types, so the right SoC and loader are chosen before a
+         single command runs. -->
+    <Border Background="{StaticResource Brush.Surface}" BorderBrush="{StaticResource Brush.Border}"
+            BorderThickness="1" CornerRadius="6" Padding="10,8" Margin="0,0,0,10">
+        <StackPanel>
+            <WrapPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,0,12,6" VerticalAlignment="Center">
+                    <TextBlock Text="Brand" Style="{StaticResource Text.Label}"
+                               VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <ComboBox Style="{StaticResource Input.Select}" Width="130" VerticalAlignment="Center"
+                              ItemsSource="{Binding Brands}" SelectedItem="{Binding SelectedBrand}" />
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" Margin="0,0,12,6" VerticalAlignment="Center">
+                    <TextBlock Text="Search" Style="{StaticResource Text.Label}"
+                               VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <TextBox Style="{StaticResource Input.Text}" Width="150" VerticalAlignment="Center"
+                             Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                             ToolTip="Type a model name, code or chipset (for example A065F) to filter the list." />
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" Margin="0,0,12,6" VerticalAlignment="Center">
+                    <TextBlock Text="Model" Style="{StaticResource Text.Label}"
+                               VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <ComboBox Style="{StaticResource Input.Select}" Width="300" VerticalAlignment="Center"
+                              ItemsSource="{Binding Matches}"
+                              SelectedItem="{Binding SelectedModel}"
+                              DisplayMemberPath="DisplayName"
+                              ToolTip="{Binding ModelSummary}" />
+                </StackPanel>
+
+                <Border Style="{StaticResource Badge.Accent}" VerticalAlignment="Center" Margin="0,0,8,6">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="SoC " FontSize="10" Foreground="{StaticResource Brush.Accent}" />
+                        <TextBlock Text="{Binding ChipsetText}" FontSize="10" FontWeight="SemiBold"
+                                   Foreground="{StaticResource Brush.Accent}" />
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource Badge.Status}" VerticalAlignment="Center" Margin="0,0,8,6">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Platform " FontSize="10" Style="{StaticResource Text.Muted}" />
+                        <TextBlock Text="{Binding PlatformText}" FontSize="10" FontWeight="SemiBold"
+                                   Foreground="{StaticResource Brush.Text}" />
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource Badge.Status}" VerticalAlignment="Center" Margin="0,0,8,6"
+                        ToolTip="{Binding LoaderPath}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Loader " FontSize="10" Style="{StaticResource Text.Muted}" />
+                        <TextBlock Text="{Binding LoaderText}" FontSize="10" FontWeight="SemiBold"
+                                   Foreground="{StaticResource Brush.Text}" />
+                    </StackPanel>
+                </Border>
+            </WrapPanel>
+
+            <TextBlock Text="{Binding CatalogWarning}" Foreground="{StaticResource Brush.Warning}"
+                       Style="{StaticResource Text.Muted}" TextWrapping="Wrap" Margin="0,2,0,0"
+                       Visibility="{Binding CatalogWarning, Converter={StaticResource NullToVisibility}}" />
+        </StackPanel>
+    </Border>
+</UserControl>

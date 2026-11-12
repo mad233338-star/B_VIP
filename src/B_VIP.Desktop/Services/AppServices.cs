@@ -191,6 +191,8 @@ namespace B_VIP.Desktop.Services
             Ports = new PortWatcherService();
             Monitor = new DeviceMonitorService(Ports, Detector, Log, dispatcher);
             Progress = new ViewModels.OperationProgressViewModel(Log);
+            // The multi-brand handset catalog: loaded once, on first use, from Data/devices.json.
+            Catalog = new Catalog.DeviceCatalogService();
             License = new LicenseMonitorService(api, session, log, dispatcher);
             Cloud = new CloudServiceMonitor(api, log, dispatcher);
 
@@ -223,6 +225,9 @@ namespace B_VIP.Desktop.Services
         /// work through it so the operator sees progress and can cancel from one place.
         /// </summary>
         public ViewModels.OperationProgressViewModel Progress { get; }
+
+        /// <summary>The Samsung / Xiaomi / Infinix / Tecno handset catalog behind the vendor pickers.</summary>
+        public Catalog.DeviceCatalogService Catalog { get; }
 
         public SessionService Session { get; }
 

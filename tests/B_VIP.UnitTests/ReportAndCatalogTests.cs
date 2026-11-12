@@ -122,7 +122,11 @@ namespace B_VIP.UnitTests
             // plus the shared vendor reboot, the Xiaomi Mi Account bypass and the batched fastboot erase.
             // The chipset FRP phase added the mtkclient, fh_loader, spd_dump and ADB setup-wizard routes,
             // the Samsung preloader routine, the automatic chipset router and the Mi Assistant guidance.
-            Assert.Equal(65, OperationTypes.All.Count);
+            // The servicing phase added the Mi Assistant sideload pair, the five MediaTek boot-ROM
+            // routines (unlock, relock, NVRAM backup/restore, safe format) and the three Qualcomm
+            // EDL routines (firmware flash, partition read, partition write).
+            // The always-on panel phase added the shared APK install / sideload package routine.
+            Assert.Equal(76, OperationTypes.All.Count);
             Assert.Equal(OperationTypes.All.Count, OperationTypes.All.Select(o => o.Key).Distinct(StringComparer.OrdinalIgnoreCase).Count());
         }
 
@@ -180,10 +184,17 @@ namespace B_VIP.UnitTests
         [Fact]
         public void The_catalog_lists_the_brand_and_platform_modules_with_unique_keys()
         {
-            // 21 modules through the Qualcomm phase, the Drivers & Prerequisites utility and the
-            // two legal pages (Terms & Conditions and Privacy Policy) in the System group.
-            Assert.Equal(24, ModuleCatalog.All.Count);
-            Assert.Equal(24, ModuleCatalog.All.Select(m => m.Key).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+            // 21 modules through the Qualcomm phase, the Drivers & Prerequisites utility, the two
+            // legal pages (Terms & Conditions and Privacy Policy) and the standalone Samsung Odin tab.
+            Assert.Equal(25, ModuleCatalog.All.Count);
+            Assert.Equal(25, ModuleCatalog.All.Select(m => m.Key).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+
+            // The Odin flashing workspace is its own vendor entry with a dedicated icon.
+            ModuleDefinition? odin = ModuleCatalog.Find(ModuleKeys.SamsungOdin);
+            Assert.NotNull(odin);
+            Assert.Equal("vendors", odin!.Group);
+            Assert.Equal("flash", odin.Icon);
+            Assert.Equal("Samsung Odin", odin.TitleEn);
 
             // Legal pages sit with the other System entries and need no device.
             foreach (string key in new[] { ModuleKeys.Terms, ModuleKeys.Privacy })
@@ -200,6 +211,21 @@ namespace B_VIP.UnitTests
             {
                 Assert.NotNull(ModuleCatalog.Find(key));
             }
+        }
+
+        [Fact]
+        public void Samsung_Odin_sits_directly_above_Samsung_in_the_vendors_group()
+        {
+            List<string> vendors = ModuleCatalog.All
+                .Where(m => m.Group == "vendors")
+                .Select(m => m.Key)
+                .ToList();
+
+            int odin = vendors.IndexOf(ModuleKeys.SamsungOdin);
+            int samsung = vendors.IndexOf(ModuleKeys.Samsung);
+
+            Assert.True(odin >= 0, "Samsung Odin is missing from the vendors group.");
+            Assert.Equal(samsung - 1, odin);
         }
 
         [Fact]

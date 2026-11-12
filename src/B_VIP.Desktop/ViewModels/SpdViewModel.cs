@@ -45,29 +45,31 @@ namespace B_VIP.Desktop.ViewModels
 
             RefreshPorts();
 
-            ReadInfoCommand = new AsyncRelayCommand(_ => RunOperationAsync(OperationTypes.SpdReadInfo));
-            HandshakeCommand = new AsyncRelayCommand(_ => RunOperationAsync(OperationTypes.SpdHandshake, BuildParameters()));
-            UploadFdlCommand = new AsyncRelayCommand(_ => UploadFdlAsync());
-            ResetFrpCommand = new AsyncRelayCommand(_ => ConfirmedAsync(
-                "Erase the FRP partitions on this Unisoc handset?\n\n" +
-                "'frp' and 'persistent' are erased through fastboot. Calibration partitions are never touched. " +
-                "This cannot be undone.",
-                () => RunOperationAsync(OperationTypes.SpdResetFrp, WithConfirmation(BuildParameters()), confirmDataLoss: true)));
-
-            // spd_dump route: FDL1 and FDL2 are uploaded to the boot ROM at their base addresses, then
-            // the FRP partition is erased and the handset reset. This works on a locked bootloader.
-            DumpFrpCommand = new AsyncRelayCommand(_ => DumpFrpAsync(), _ => !IsBusy);
+            // Every operation button is clickable with no handset attached: it listens for the SPD
+            // boot-ROM port and runs the moment one answers. Only a running routine disables the
+            // panel.
+            ReadInfoCommand = new AsyncRelayCommand(_ => RunOperationAsync(OperationTypes.SpdReadInfo,
+                prepare: SpdListener, caption: "Read info (Unisoc)"), _ => !IsBusy);
+            HandshakeCommand = new AsyncRelayCommand(_ => RunOperationAsync(OperationTypes.SpdHandshake, BuildParameters(),
+                prepare: SpdListener, caption: "BROM handshake"), _ => !IsBusy);
+            UploadFdlCommand = new AsyncRelayCommand(_ => UploadFdlAsync(), _ => !IsBusy);
+            // The single Reset FRP action: FDL1 and FDL2 are uploaded to the boot ROM at their base
+            // addresses, then the FRP partition is erased and the handset reset. This works on a
+            // locked bootloader, and it is always clickable: the routine listens for the SPD port.
+            ResetFrpCommand = new AsyncRelayCommand(_ => ResetFrpAsync(), _ => !IsBusy);
             FactoryResetCommand = new AsyncRelayCommand(_ => ConfirmedAsync(
                 "Format this Unisoc handset?\n\n" +
                 "Only userdata and cache are erased; persist, prodnv, nvram, nvdata and modem are protected. " +
                 "Every file on the phone is lost.",
-                () => RunOperationAsync(OperationTypes.SpdFactoryReset, WithConfirmation(BuildParameters()), confirmDataLoss: true)));
+                () => RunOperationAsync(OperationTypes.SpdFactoryReset, WithConfirmation(BuildParameters()),
+                    confirmDataLoss: true, prepare: SpdListener, caption: "Factory format (SPD)")), _ => !IsBusy);
             RebootCommand = new AsyncRelayCommand(_ =>
             {
                 Dictionary<string, string> parameters = BuildParameters();
                 parameters["target"] = SelectedRebootTarget;
-                return RunOperationAsync(OperationTypes.SpdReboot, parameters);
-            });
+                return RunOperationAsync(OperationTypes.SpdReboot, parameters,
+                    prepare: SpdListener, caption: $"Reboot to {SelectedRebootTarget}");
+            }, _ => !IsBusy);
             BrowseFdl1Command = new AsyncRelayCommand(_ =>
             {
                 Fdl1Path = Browse("Select the FDL1 loader") ?? Fdl1Path;
@@ -89,7 +91,13 @@ namespace B_VIP.Desktop.ViewModels
                 StatusMessage = $"{RefreshPorts()} Unisoc interface(s).";
                 return Task.CompletedTask;
             });
+
+            GateOnBusy(ReadInfoCommand, HandshakeCommand, UploadFdlCommand, ResetFrpCommand,
+                FactoryResetCommand, RebootCommand, ExtractPacCommand);
         }
+
+        /// <summary>The prepare delegate every boot-ROM routine uses: press first, plug the cable in after.</summary>
+        private Func<CancellationToken, Task<bool>> SpdListener => FrpListener(FrpWaitMode.SpreadtrumBrom);
 
         public ObservableCollection<DiagnosticRow> Rows { get; }
 
@@ -207,10 +215,8 @@ namespace B_VIP.Desktop.ViewModels
 
         public AsyncRelayCommand UploadFdlCommand { get; }
 
-        public AsyncRelayCommand ResetFrpCommand { get; }
-
         /// <summary>FRP through spd_dump with the FDL stages, for a handset with a locked bootloader.</summary>
-        public AsyncRelayCommand DumpFrpCommand { get; }
+        public AsyncRelayCommand ResetFrpCommand { get; }
 
         public AsyncRelayCommand FactoryResetCommand { get; }
 
@@ -416,18 +422,28 @@ namespace B_VIP.Desktop.ViewModels
             return parameters;
         }
 
-        private async Task DumpFrpAsync()
+        private async Task ResetFrpAsync()
         {
+            // A handset that is already plugged in must not make the operator wait: refresh the
+            // interface list and offer the bundled FDL stages before the listener starts.
+            RefreshPorts();
+
             if (string.IsNullOrWhiteSpace(Fdl1Path) || string.IsNullOrWhiteSpace(Fdl2Path))
             {
-                ErrorMessage = "Select (or extract from a .pac) both the FDL1 and FDL2 loader images first.";
+                PrefillFromBundle();
+            }
+
+            if (string.IsNullOrWhiteSpace(Fdl1Path))
+            {
+                ErrorMessage = "No FDL1 loader is available. Install the Unisoc bundle, extract a .pac firmware, or choose the FDL images.";
                 return;
             }
 
             MessageBoxResult answer = MessageBox.Show(
                 "Reset FRP through spd_dump?\n\n" +
                 "FDL1 is uploaded at 0x50000000 and FDL2 at 0x9efffe00, then the 'frp' partition is erased and the " +
-                "handset reset. This works on a locked bootloader and cannot be undone.\n\nContinue?",
+                "handset reset. The button waits up to 45 seconds for the SPD boot-ROM port. " +
+                "This works on a locked bootloader and cannot be undone.\n\nContinue?",
                 "B_VIP Tool",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Warning,
@@ -443,7 +459,9 @@ namespace B_VIP.Desktop.ViewModels
             parameters["partition"] = "frp";
 
             OnUiThread(() => Rows.Clear());
-            await RunOperationAsync(OperationTypes.SpdFrpDump, parameters, confirmDataLoss: true);
+            await RunOperationAsync(OperationTypes.SpdFrpDump, parameters, confirmDataLoss: true,
+                prepare: FrpListener(FrpWaitMode.SpreadtrumBrom),
+                caption: "Reset FRP (spd_dump)");
         }
 
         private Task UploadFdlAsync()
@@ -454,7 +472,8 @@ namespace B_VIP.Desktop.ViewModels
                 return Task.CompletedTask;
             }
 
-            return RunOperationAsync(OperationTypes.SpdFdl, BuildParameters());
+            return RunOperationAsync(OperationTypes.SpdFdl, BuildParameters(),
+                prepare: SpdListener, caption: "Upload FDL1 / FDL2");
         }
 
         private static string? Browse(string title)

@@ -29,6 +29,9 @@
             <DataTemplate DataType="{x:Type vm:SamsungViewModel}">
                 <views:SamsungView />
             </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:SamsungOdinViewModel}">
+                <views:SamsungOdinView />
+            </DataTemplate>
             <DataTemplate DataType="{x:Type vm:VendorViewModel}">
                 <views:VendorView />
             </DataTemplate>

@@ -67,15 +67,34 @@
                               SelectedItem="{Binding SelectedRebootTarget}" />
                     <Button Content="Reboot" Style="{StaticResource Button.Outline}"
                             Command="{Binding RebootCommand}" Margin="0,0,8,8" />
-                    <Button Content="Reset FRP" Style="{StaticResource Button.Outline}"
+                    <!-- One Reset FRP action: mtkclient through the boot ROM, which also works on a
+                         locked bootloader. Always clickable — it listens for the preloader. -->
+                    <Button Content="Reset FRP" Style="{StaticResource Button.Primary}"
                             Command="{Binding ResetFrpCommand}" Margin="0,0,8,8"
-                            ToolTip="Reboots into the bootloader and erases 'frp' and 'persistent'. Needs an unlocked bootloader." />
-                    <Button Content="Reset FRP (BROM)" Style="{StaticResource Button.Danger}"
-                            Command="{Binding ResetFrpClientCommand}" Margin="0,0,8,8"
                             ToolTip="mtkclient: erases 'frp' and 'persistent' through the boot ROM, then resets. Works on a locked bootloader. Hold Vol+ and Vol- while connecting the cable." />
                     <Button Content="Factory Reset" Style="{StaticResource Button.Outline}"
                             Command="{Binding FactoryResetCommand}" Margin="0,0,8,8"
                             ToolTip="fastboot -w plus userdata, cache and metadata. NVRAM and radio calibration are never touched." />
+                </WrapPanel>
+
+                <!-- Boot-ROM workbench: lock state, NVRAM and the safe userdata format. All of it
+                     goes through the same mtkclient bundle and listens for the preloader. -->
+                <WrapPanel Margin="0,0,0,0">
+                    <Button Content="Unlock bootloader" Style="{StaticResource Button.Outline}"
+                            Command="{Binding UnlockBootloaderCommand}" Margin="0,0,8,8"
+                            ToolTip="mtkclient erases 'seccfg' through the boot ROM. The handset wipes itself on the next boot." />
+                    <Button Content="Relock bootloader" Style="{StaticResource Button.Outline}"
+                            Command="{Binding RelockBootloaderCommand}" Margin="0,0,8,8"
+                            ToolTip="Writes a previously dumped seccfg.bin back, restoring the locked state." />
+                    <Button Content="Backup NVRAM" Style="{StaticResource Button.Primary}"
+                            Command="{Binding BackupNvramCommand}" Margin="0,0,8,8"
+                            ToolTip="Dumps nvram, nvdata, nvcfg, protect1 and protect2 into Backups\\NV with a timestamp." />
+                    <Button Content="Restore NVRAM" Style="{StaticResource Button.Outline}"
+                            Command="{Binding RestoreNvramCommand}" Margin="0,0,8,8"
+                            ToolTip="Writes an NVRAM backup back, partition by partition. Handset-specific: never use another phone's dump." />
+                    <Button Content="Safe format" Style="{StaticResource Button.Outline}"
+                            Command="{Binding SafeFormatCommand}" Margin="0,0,8,8"
+                            ToolTip="Erases userdata only. metadata and the persistent FRP flags survive, which breaks encryption loops without clearing the account." />
                 </WrapPanel>
 
                 <DockPanel Margin="0,4,0,0">

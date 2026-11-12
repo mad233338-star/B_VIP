@@ -16,4 +16,8 @@
   <ItemGroup>
     <ProjectReference Include="../../src/B_VIP.Desktop/B_VIP.Desktop.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- The shipped catalog is asserted too, so a broken seed file fails the build's tests. -->
+    <Content Include="../../Data/devices.json" Link="Data/devices.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

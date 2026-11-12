@@ -4,10 +4,12 @@ using System.Text.Json;
 using System.Windows;
 using B_VIP.Application.Services;
 using B_VIP.Contracts.Devices;
+using B_VIP.Core;
 using B_VIP.Core.Operations;
 using B_VIP.Desktop.Localization;
 using B_VIP.Desktop.Mvvm;
 using B_VIP.Desktop.Services;
+using B_VIP.Desktop.Services.Catalog;
 using B_VIP.Hardware;
 using B_VIP.Modules;
 
@@ -49,7 +51,7 @@ namespace B_VIP.Desktop.ViewModels
                 {
                     OnPropertyChanged(nameof(CanRunDeviceAction));
                     OnDeviceSelected(value);
-                    RefreshDeviceGates();
+                    RefreshGates();
                 }
             }
         }
@@ -66,14 +68,32 @@ namespace B_VIP.Desktop.ViewModels
         protected void GateOnDevice(params AsyncRelayCommand[] commands)
         {
             _deviceGated.AddRange(commands);
-            RefreshDeviceGates();
+            RefreshGates();
         }
 
-        protected override void OnBusyChanged() => RefreshDeviceGates();
+        private readonly List<AsyncRelayCommand> _busyGated = new();
 
-        private void RefreshDeviceGates()
+        /// <summary>
+        /// Registers the commands that work without a handset. They stay bright and clickable from
+        /// startup and stop only while a routine is running, so an operator can press Reset FRP
+        /// first and plug the cable in afterwards.
+        /// </summary>
+        protected void GateOnBusy(params AsyncRelayCommand[] commands)
+        {
+            _busyGated.AddRange(commands);
+            RefreshGates();
+        }
+
+        protected override void OnBusyChanged() => RefreshGates();
+
+        private void RefreshGates()
         {
             foreach (AsyncRelayCommand command in _deviceGated)
+            {
+                command.RaiseCanExecuteChanged();
+            }
+
+            foreach (AsyncRelayCommand command in _busyGated)
             {
                 command.RaiseCanExecuteChanged();
             }
@@ -235,7 +255,13 @@ namespace B_VIP.Desktop.ViewModels
         /// cancel button kills the running tool, and the verdict is written to the live console next
         /// to the streamed command output.
         /// </summary>
-        protected async Task RunOperationAsync(string operationType, IReadOnlyDictionary<string, string>? parameters = null, bool confirmDataLoss = false)
+        /// <summary>
+        /// Runs one operation type through the shell dispatcher. <paramref name="prepare"/> runs
+        /// inside the same cancellable task before the command, which is how an FRP button waits for
+        /// the handset to be plugged in; returning false ends the operation without running it.
+        /// </summary>
+        protected async Task RunOperationAsync(string operationType, IReadOnlyDictionary<string, string>? parameters = null,
+            bool confirmDataLoss = false, Func<CancellationToken, Task<bool>>? prepare = null, string? caption = null)
         {
             // A lapsed trial or subscription locks the hardware screens and sends the technician to
             // the renewal view instead of letting a command fail on the server.
@@ -255,9 +281,17 @@ namespace B_VIP.Desktop.ViewModels
             try
             {
                 bool entered = false;
-                bool completed = await Services.Progress.RunAsync(label, async (_, ct) =>
+                bool completed = await Services.Progress.RunAsync(caption ?? label, async (_, ct) =>
                 {
                     entered = true;
+
+                    // Waiting for the cable is part of the same cancellable task: the shell's cancel
+                    // button aborts the listener, not just the command that follows it.
+                    if (prepare is not null && !await prepare(ct))
+                    {
+                        return;
+                    }
+
                     OperationExecutionResult result = await Services.Devices.ExecuteAsync(
                         operationType,
                         SelectedDevice?.Serial,
@@ -298,6 +332,124 @@ namespace B_VIP.Desktop.ViewModels
 
         protected virtual void OnOperationCompleted(OperationExecutionResult result)
         {
+        }
+
+        /// <summary>How long a Reset FRP button waits for the handset before it gives up.</summary>
+        public static readonly TimeSpan FrpListenTimeout = TimeSpan.FromSeconds(45);
+
+        /// <summary>
+        /// The interface an FRP routine listens for. The command stays clickable with nothing
+        /// attached, so the technician can press it first and plug the handset in afterwards.
+        /// </summary>
+        public enum FrpWaitMode
+        {
+            Adb,
+            Fastboot,
+            MtkPreloader,
+            QualcommEdl,
+            SpreadtrumBrom,
+            SamsungDownload
+        }
+
+        /// <summary>The exact cable instructions streamed to the console while listening.</summary>
+        protected static string FrpInstructions(FrpWaitMode mode) => mode switch
+        {
+            FrpWaitMode.MtkPreloader => "Waiting for Preloader / BROM device... (Hold Vol+ & Vol- and connect USB cable)",
+            FrpWaitMode.QualcommEdl => "Waiting for Qualcomm 9008 port... (Short Test Point / EDL cable)",
+            FrpWaitMode.SpreadtrumBrom => "Waiting for SPD Boot-ROM / FDL port... (Hold Vol- / Boot key and connect USB)",
+            FrpWaitMode.Fastboot => "Waiting for Fastboot device... (Power + Vol-)",
+            FrpWaitMode.SamsungDownload => "Waiting for Samsung Download Mode... (Power + Vol- then Vol+ to confirm)",
+            _ => "Waiting for authorized ADB interface... (Ensure USB Debugging is ON)"
+        };
+
+        /// <summary>
+        /// Waits up to <see cref="FrpListenTimeout"/> for the hardware an FRP routine needs. Returns
+        /// true as soon as the interface answers, so the routine that follows runs immediately.
+        /// </summary>
+        protected async Task<bool> WaitForFrpConnectionAsync(FrpWaitMode mode, CancellationToken ct)
+        {
+            if (await IsFrpConnectionPresentAsync(mode, ct))
+            {
+                return true;
+            }
+
+            Services.Log.Info(FrpInstructions(mode));
+            StatusMessage = "Waiting for device... Connect USB cable now";
+
+            DateTime deadline = DateTime.UtcNow + FrpListenTimeout;
+            TimeSpan interval = mode is FrpWaitMode.Adb or FrpWaitMode.Fastboot
+                ? TimeSpan.FromMilliseconds(1500)
+                : TimeSpan.FromMilliseconds(1000);
+
+            while (DateTime.UtcNow < deadline)
+            {
+                TimeSpan remaining = deadline - DateTime.UtcNow;
+                StatusMessage = $"Waiting for device... Connect USB cable now ({Math.Max(0, (int)remaining.TotalSeconds)}s)";
+
+                await Task.Delay(interval, ct);
+
+                if (await IsFrpConnectionPresentAsync(mode, ct))
+                {
+                    return true;
+                }
+            }
+
+            string message = $"No handset answered within {FrpListenTimeout.TotalSeconds:0} seconds. " +
+                             "Reconnect the cable and press Reset FRP again.";
+            StatusMessage = message;
+            Services.Log.Warn(message);
+            return false;
+        }
+
+        /// <summary>The prepare delegate handed to <see cref="RunOperationAsync"/> for an FRP button.</summary>
+        protected Func<CancellationToken, Task<bool>> FrpListener(FrpWaitMode mode)
+            => ct => WaitForFrpConnectionAsync(mode, ct);
+
+        private async Task<bool> IsFrpConnectionPresentAsync(FrpWaitMode mode, CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            if (mode is FrpWaitMode.Adb or FrpWaitMode.Fastboot)
+            {
+                DeviceListResponse response = await Services.Devices.ScanAsync(ct);
+                DeviceInterfaceType wanted = mode == FrpWaitMode.Adb
+                    ? DeviceInterfaceType.Adb
+                    : DeviceInterfaceType.Fastboot;
+
+                DeviceInfoDto? device = response.Devices.FirstOrDefault(d =>
+                    d.InterfaceType == wanted ||
+                    (wanted == DeviceInterfaceType.Adb && d.InterfaceType == DeviceInterfaceType.Recovery));
+
+                if (device is null)
+                {
+                    return false;
+                }
+
+                // The command that follows needs the serial: select what the listener found.
+                OnUiThread(() => SelectedDevice = device);
+                Services.Log.Success($"Handset detected: {Describe(device)} ({wanted}).");
+                return true;
+            }
+
+            PortCategory[] wantedPorts = mode switch
+            {
+                FrpWaitMode.MtkPreloader => [PortCategory.MediaTekPreloader, PortCategory.MediaTekVcom],
+                FrpWaitMode.QualcommEdl => [PortCategory.QualcommEdl],
+                FrpWaitMode.SpreadtrumBrom => [PortCategory.SpreadtrumDiag],
+                _ => [PortCategory.SamsungDownload]
+            };
+
+            await Services.Monitor.ScanInterfacesAsync(ct);
+
+            // The watcher's snapshot is lock-protected, so it can be read from this worker safely.
+            DetectedPort? port = Services.Ports.Current.Ports.FirstOrDefault(p => wantedPorts.Contains(p.Category));
+            if (port is null)
+            {
+                return false;
+            }
+
+            Services.Log.Success($"Handset detected: {port.Summary}.");
+            return true;
         }
 
         protected static string? Describe(DeviceInfoDto? device)
@@ -530,6 +682,9 @@ namespace B_VIP.Desktop.ViewModels
                         new VendorAction("Reset FRP (automatic)", OperationTypes.FrpAutoReset, true,
                             AutoFrp("xiaomi", "frp,config")),
                         new VendorAction("Mi Assistant / sideload", OperationTypes.XiaomiMiAssistant, false),
+                        // Recovery 5.0 sideload: the payload is the signed package in Tools\Xiaomi.
+                        new VendorAction("Mi Assistant FRP reset", OperationTypes.XiaomiMiAssistantFrp, true),
+                        new VendorAction("Mi Assistant wipe data", OperationTypes.XiaomiMiAssistantWipe, true),
                         new VendorAction("Bypass Mi Account (ADB)", OperationTypes.XiaomiBypassMiAccount, false),
                         new VendorAction("Factory format (userdata + cache)", OperationTypes.FastbootEraseBatch, true,
                             Partitions("userdata", "cache")),
@@ -591,13 +746,26 @@ namespace B_VIP.Desktop.ViewModels
 
             Title = title;
             Actions = actions;
+
+            // The catalog header: picking a model binds its SoC, engine and loader to this screen.
+            Catalog = new DeviceCatalogSelectorViewModel(Services.Catalog);
+            Catalog.SelectionChanged += OnCatalogModelChanged;
+
+            // Always clickable: with nothing attached every button listens for the handset and runs
+            // the moment the right interface answers. Only a running routine disables the panel.
+            ResetFrpCommand = new AsyncRelayCommand(_ => ResetFrpAsync(), _ => !IsBusy);
             RunCommand = new AsyncRelayCommand(
                 _ => RunAsync(actions[0].OperationType, actions[0].ErasesData, actions[0].Parameters),
-                _ => !IsBusy && CanRunDeviceAction);
-            RunActionCommand = new AsyncRelayCommand(RunActionAsync, _ => !IsBusy && CanRunDeviceAction);
+                _ => !IsBusy);
+            RunActionCommand = new AsyncRelayCommand(RunActionAsync, _ => !IsBusy);
+            BrowseManualCommand = new AsyncRelayCommand(_ =>
+            {
+                BrowseManual();
+                return Task.CompletedTask;
+            });
+            ClearManualCommand = new RelayCommand(_ => ManualPath = string.Empty);
 
-            // Both commands need a handset: the buttons stay disabled until one is selected.
-            GateOnDevice(RunCommand, RunActionCommand);
+            GateOnBusy(RunCommand, RunActionCommand, ResetFrpCommand);
         }
 
         private static Dictionary<string, string> Target(string target) => new() { ["target"] = target };
@@ -617,6 +785,42 @@ namespace B_VIP.Desktop.ViewModels
         /// <summary>Every brand routine needs a handset, so the device picker is always shown.</summary>
         public bool RequiresDevice => true;
 
+        private string _manualPath = string.Empty;
+
+        /// <summary>
+        /// Manual package / loader chosen for this brand tab. It overrides the bundled default: a Mi
+        /// Assistant payload for Xiaomi, a download agent or firmware package elsewhere. The engine
+        /// receives the absolute path; the screen only shows <see cref="ManualText"/>.
+        /// </summary>
+        public string ManualPath
+        {
+            get => _manualPath;
+            set
+            {
+                if (SetProperty(ref _manualPath, value))
+                {
+                    OnPropertyChanged(nameof(ManualName));
+                    OnPropertyChanged(nameof(ManualText));
+                    OnPropertyChanged(nameof(ManualTooltip));
+                }
+            }
+        }
+
+        /// <summary>The chosen file's bare name.</summary>
+        public string ManualName => string.IsNullOrEmpty(_manualPath) ? string.Empty : Path.GetFileName(_manualPath);
+
+        /// <summary>What the field shows: the bare name, or the auto / bundled default guidance.</summary>
+        public string ManualText => string.IsNullOrEmpty(_manualPath)
+            ? "Auto / Bundled default (or click Browse to select manual file)..."
+            : Path.GetFileName(_manualPath);
+
+        /// <summary>The full path, offered only while the pointer rests on the field.</summary>
+        public string? ManualTooltip => string.IsNullOrWhiteSpace(_manualPath) ? null : _manualPath;
+
+        public AsyncRelayCommand BrowseManualCommand { get; }
+
+        public RelayCommand ClearManualCommand { get; }
+
         public string Title { get; }
 
         public IReadOnlyList<VendorAction> Actions { get; }
@@ -626,6 +830,121 @@ namespace B_VIP.Desktop.ViewModels
         public AsyncRelayCommand RunCommand { get; }
 
         public AsyncRelayCommand RunActionCommand { get; }
+
+        /// <summary>Brand / model header shared by the four vendor tabs.</summary>
+        public DeviceCatalogSelectorViewModel Catalog { get; }
+
+        /// <summary>
+        /// Reset FRP for the selected model: it waits for that platform's interface, then routes the
+        /// erase through the engine the chipset needs. Never disabled — presses with no cable wait.
+        /// </summary>
+        public AsyncRelayCommand ResetFrpCommand { get; }
+
+        /// <summary>Engine the selected catalog model uses, or "Automatic".</summary>
+        public string SelectedPlatform => _catalogDevice?.Platform ?? "Automatic";
+
+        /// <summary>SoC the selected catalog model reports, or a dash.</summary>
+        public string CatalogChipset => string.IsNullOrWhiteSpace(_catalogDevice?.Chipset) ? "—" : _catalogDevice.Chipset;
+
+        private CatalogDevice? _catalogDevice;
+
+        public override async Task OnNavigatedToAsync()
+        {
+            await base.OnNavigatedToAsync();
+            await Catalog.LoadAsync();
+        }
+
+        private void OnCatalogModelChanged(CatalogDevice? device)
+        {
+            _catalogDevice = device;
+            OnPropertyChanged(nameof(SelectedPlatform));
+            OnPropertyChanged(nameof(CatalogChipset));
+
+            if (device is not null)
+            {
+                Services.Log.Info($"Target model: {device.Summary}; loader: {Catalog.LoaderText}.");
+            }
+        }
+
+        private string BrandKey => Kind switch
+        {
+            VendorKind.Xiaomi => "xiaomi",
+            VendorKind.Infinix => "infinix",
+            VendorKind.Tecno => "tecno",
+            VendorKind.Samsung => "samsung",
+            _ => "vendor"
+        };
+
+        private string FastbootPartitions => Kind switch
+        {
+            VendorKind.Xiaomi => "frp,config",
+            VendorKind.Infinix => "frp,persist",
+            VendorKind.Tecno => "frp,frp_p",
+            _ => "frp,config,persistent"
+        };
+
+        /// <summary>Maps a catalog platform onto the routing vocabulary and the interface to wait for.</summary>
+        private static (string Mode, FrpWaitMode Wait) RouteForPlatform(string? platform) => platform switch
+        {
+            "MediaTek" => ("mtk", FrpWaitMode.MtkPreloader),
+            "Qualcomm" => ("qualcomm", FrpWaitMode.QualcommEdl),
+            "Spreadtrum" => ("spd", FrpWaitMode.SpreadtrumBrom),
+            // Exynos has no engine of its own: it takes the same bootloader erase as an unknown unit.
+            _ => ("fastboot", FrpWaitMode.Fastboot)
+        };
+
+        private async Task ResetFrpAsync()
+        {
+            (string mode, FrpWaitMode wait) = _catalogDevice is null
+                ? ("fastboot", FrpWaitMode.Fastboot)
+                : RouteForPlatform(_catalogDevice.Platform);
+
+            string model = _catalogDevice?.DisplayName ?? "the connected handset";
+            MessageBoxResult answer = MessageBox.Show(
+                $"Reset FRP on {model}?\n\n" +
+                $"The routine waits up to {FrpListenTimeout.TotalSeconds:0} seconds for the {wait} interface, then erases the " +
+                "protected partitions and reboots the handset. This cannot be undone.\n\nContinue?",
+                "B_VIP Tool",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning,
+                MessageBoxResult.No);
+
+            if (answer != MessageBoxResult.Yes)
+            {
+                StatusMessage = "Routine cancelled.";
+                return;
+            }
+
+            Dictionary<string, string> parameters = new()
+            {
+                ["brand"] = BrandKey,
+                ["partitions"] = FastbootPartitions,
+                ["mode"] = mode,
+                ["confirm"] = "yes"
+            };
+
+            if (_catalogDevice is not null)
+            {
+                parameters["chipset"] = _catalogDevice.Chipset;
+            }
+
+            // A catalog loader (Samsung DA, Firehose programmer, FDL) is handed to the engine that uses it.
+            if (Catalog.LoaderPath is { } loader && mode == "mtk")
+            {
+                parameters["daFile"] = loader;
+            }
+
+            // A file the technician chose by hand wins over the catalog default.
+            if (!string.IsNullOrWhiteSpace(ManualPath))
+            {
+                parameters[OverrideKeyFor(mode)] = ManualPath.Trim();
+                Services.Log.Info($"Manual override: {Path.GetFileName(ManualPath)}.");
+            }
+
+            OnUiThread(() => Rows.Clear());
+            await RunOperationAsync(OperationTypes.FrpAutoReset, parameters, confirmDataLoss: true,
+                prepare: FrpListener(wait), caption: $"Reset FRP ({wait})");
+        }
 
         protected override void OnOperationCompleted(OperationExecutionResult result) => Fill(result);
 
@@ -671,20 +990,105 @@ namespace B_VIP.Desktop.ViewModels
         /// <summary>
         /// Runs the routine through the shared dispatcher so the status bar, the cancel button and
         /// the live console all see it: DeviceWorkspace logs the start line and the verdict, and the
-        /// module streams its own steps while the operation is still running.
+        /// module streams its own steps while the operation is still running. Every routine listens
+        /// for its interface first, so a button pressed before the cable is plugged in simply waits.
         /// </summary>
         private async Task RunAsync(string operationType, bool confirmDataLoss,
             IReadOnlyDictionary<string, string>? parameters)
         {
-            if (SelectedDevice is null)
-            {
-                ErrorMessage = Localizer.Instance["devices.none"];
-                return;
-            }
-
             // The previous routine's rows must not stay on screen while this one runs.
             OnUiThread(() => Rows.Clear());
-            await RunOperationAsync(operationType, parameters, confirmDataLoss);
+
+            await RunOperationAsync(operationType, ApplyManualOverride(parameters, operationType), confirmDataLoss,
+                prepare: FrpListener(WaitForOperation(operationType)));
+        }
+
+        /// <summary>The interface a brand routine listens for before it runs.</summary>
+        private FrpWaitMode WaitForOperation(string operationType)
+        {
+            if (operationType.StartsWith("fastboot.", StringComparison.OrdinalIgnoreCase))
+            {
+                return FrpWaitMode.Fastboot;
+            }
+
+            if (operationType is OperationTypes.FrpAutoReset)
+            {
+                return _catalogDevice is null ? FrpWaitMode.Fastboot : RouteForPlatform(_catalogDevice.Platform).Wait;
+            }
+
+            return operationType switch
+            {
+                OperationTypes.MtkFrpClient => FrpWaitMode.MtkPreloader,
+                OperationTypes.QualcommFrpLoader => FrpWaitMode.QualcommEdl,
+                OperationTypes.SpdFrpDump => FrpWaitMode.SpreadtrumBrom,
+                _ => FrpWaitMode.Adb
+            };
+        }
+
+        /// <summary>
+        /// Adds the operator's own package / loader to the parameters under the key the target engine
+        /// reads. Without a selection the parameters are unchanged, so the bundled default is used.
+        /// </summary>
+        private Dictionary<string, string>? ApplyManualOverride(IReadOnlyDictionary<string, string>? parameters,
+            string operationType)
+        {
+            if (string.IsNullOrWhiteSpace(ManualPath))
+            {
+                return parameters is null ? null : new Dictionary<string, string>(parameters);
+            }
+
+            Dictionary<string, string> copy = parameters is null
+                ? new Dictionary<string, string>()
+                : new Dictionary<string, string>(parameters);
+
+            switch (operationType)
+            {
+                case OperationTypes.XiaomiMiAssistant:
+                case OperationTypes.XiaomiMiAssistantFrp:
+                case OperationTypes.XiaomiMiAssistantWipe:
+                    // The Mi Assistant routines sideload exactly the package the operator chose.
+                    copy["payloadPath"] = ManualPath.Trim();
+                    break;
+
+                case OperationTypes.FrpAutoReset:
+                    string mode = copy.TryGetValue("mode", out string? requested)
+                        ? requested.Trim().ToLowerInvariant()
+                        : "auto";
+                    copy[OverrideKeyFor(mode)] = ManualPath.Trim();
+                    break;
+
+                default:
+                    copy["manualFile"] = ManualPath.Trim();
+                    break;
+            }
+
+            Services.Log.Info($"Manual file: {Path.GetFileName(ManualPath)}.");
+            return copy;
+        }
+
+        /// <summary>The parameter name each routing engine reads its loader / payload from.</summary>
+        private static string OverrideKeyFor(string mode) => mode switch
+        {
+            "mtk" => "daFile",
+            "qualcomm" => "firehosePath",
+            "spd" => "fdl1Path",
+            "assistant" => "payloadPath",
+            _ => "manualFile"
+        };
+
+        private void BrowseManual()
+        {
+            Microsoft.Win32.OpenFileDialog dialog = new()
+            {
+                Title = $"Select the package / loader for {Title}",
+                Filter = "Packages and loaders (*.zip;*.tar;*.md5;*.bin;*.elf;*.mbn;*.pac)|*.zip;*.tar;*.md5;*.bin;*.elf;*.mbn;*.pac|All files (*.*)|*.*",
+                CheckFileExists = true
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                ManualPath = dialog.FileName;
+            }
         }
 
         private void Fill(OperationExecutionResult result) => ApplyRows(Rows, BuildVendorRows(result));

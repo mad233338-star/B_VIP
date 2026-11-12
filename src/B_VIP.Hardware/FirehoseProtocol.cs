@@ -227,6 +227,51 @@ namespace B_VIP.Hardware
             return data;
         }
 
+        /// <summary>
+        /// Writes a sector range: the host sends the program command, waits for the raw-mode ACK,
+        /// streams the payload and then collects the final verdict. The chunk size is bounded so a
+        /// partition write cannot exhaust memory on a large image.
+        /// </summary>
+        public async Task<FirehoseResponse> ProgramSectorsAsync(int physicalPartition, long startSector,
+            long sectorCount, int sectorSize, byte[] data, CancellationToken ct)
+        {
+            ArgumentNullException.ThrowIfNull(data);
+
+            long expected = sectorCount * sectorSize;
+            if (expected <= 0 || data.LongLength != expected)
+            {
+                throw new ArgumentOutOfRangeException(nameof(data),
+                    $"The image is {data.LongLength:N0} bytes but the sector range needs {expected:N0}.");
+            }
+
+            // The filename is informational for the programmer; the payload itself is sent raw.
+            FirehoseResponse ack = await SendAsync(
+                FirehoseCommands.Program(physicalPartition, startSector, sectorCount, sectorSize, "raw.bin"), ct);
+
+            if (ack.Rejected)
+            {
+                throw new InvalidOperationException($"The programmer refused the write: {ack.Error}");
+            }
+
+            _log?.Invoke($"Firehose >> {data.LongLength:N0} byte(s) of raw data");
+
+            const int ChunkSize = 1024 * 1024;
+            for (int offset = 0; offset < data.Length; offset += ChunkSize)
+            {
+                ct.ThrowIfCancellationRequested();
+                int length = Math.Min(ChunkSize, data.Length - offset);
+                await _transport.WriteAsync(data.AsMemory(offset, length), ct);
+            }
+
+            // The closing verdict arrives after the data; a silent programmer in raw mode is not a failure.
+            string closing = await ReadResponseAsync(ct, tolerateSilence: true);
+            FirehoseResponse verdict = FirehoseResponse.Parse(closing);
+            _log?.Invoke(verdict.Rejected
+                ? $"Firehose << NAK {(verdict.Error is null ? string.Empty : verdict.Error)}"
+                : verdict.Acknowledged ? "Firehose << ACK" : "Firehose << (no verdict)");
+            return verdict;
+        }
+
         /// <summary>Collects bytes until the closing <c>&lt;/response&gt;</c>, <c>&lt;/data&gt;</c> or self-closing tag.</summary>
         private async Task<string> ReadResponseAsync(CancellationToken ct, bool tolerateSilence = false)
         {

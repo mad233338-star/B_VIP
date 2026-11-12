@@ -5,6 +5,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:B_VIP.Desktop.ViewModels"
              xmlns:loc="clr-namespace:B_VIP.Desktop.Localization"
+             xmlns:controls="clr-namespace:B_VIP.Desktop.Controls"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vm:VendorViewModel}">
     <Grid>
@@ -24,6 +25,9 @@
 
         <Border Grid.Row="1" Style="{StaticResource Panel.Card}" Margin="0,0,0,12">
             <StackPanel>
+                <!-- Brand / model header: the pick binds the SoC, engine and loader for this tab. -->
+                <controls:DeviceCatalogSelector DataContext="{Binding Catalog}" />
+
                 <StackPanel Orientation="Horizontal" Visibility="{Binding RequiresDevice, Converter={StaticResource BoolToVisibility}}">
                     <TextBlock Text="{Binding [devices.title], Source={x:Static loc:Localizer.Instance}}"
                                Style="{StaticResource Text.Label}" VerticalAlignment="Center" Margin="0,0,10,0" />
@@ -34,7 +38,30 @@
                             Style="{StaticResource Button.Outline}" Command="{Binding ScanCommand}" VerticalAlignment="Center" />
                 </StackPanel>
 
-                <ItemsControl ItemsSource="{Binding Actions}" Margin="0,14,0,0">
+                <WrapPanel Margin="0,4,0,0">
+                    <!-- Always clickable: with no cable it listens for the chosen platform's interface. -->
+                    <Button Content="Reset FRP" Style="{StaticResource Button.Primary}"
+                            Command="{Binding ResetFrpCommand}" Margin="0,0,8,8"
+                            ToolTip="Waits for the handset when nothing is attached, then erases the FRP partitions through the engine of the selected model." />
+                </WrapPanel>
+
+                <!-- Manual package / loader for the routines below. Left empty the bundled default
+                     is used; only the bare file name is shown, the full path stays in the tooltip. -->
+                <DockPanel Margin="0,4,0,0">
+                    <Button DockPanel.Dock="Right" Content="Browse…" Style="{StaticResource Button.Outline}"
+                            Command="{Binding BrowseManualCommand}" Margin="8,0,0,0" VerticalAlignment="Center"
+                            ToolTip="Choose a package, download agent, FDL or payload to use instead of the bundled default." />
+                    <Button DockPanel.Dock="Right" Content="Clear" Style="{StaticResource Button.Outline}"
+                            Command="{Binding ClearManualCommand}" Margin="8,0,0,0" VerticalAlignment="Center"
+                            ToolTip="Go back to the bundled / automatic default." />
+                    <TextBlock DockPanel.Dock="Left" Text="Manual File / Package / Loader"
+                               Style="{StaticResource Text.Label}" VerticalAlignment="Center" Margin="0,0,10,0" />
+                    <TextBox Style="{StaticResource Input.Text}" VerticalAlignment="Center" IsReadOnly="True"
+                             Text="{Binding ManualText, Mode=OneWay}"
+                             ToolTip="{Binding ManualTooltip}" />
+                </DockPanel>
+
+                <ItemsControl ItemsSource="{Binding Actions}" Margin="0,6,0,0">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
                             <WrapPanel />

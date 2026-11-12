@@ -309,5 +309,8 @@ namespace B_VIP.Core
         public const string Adb = "adb";
         public const string Fastboot = "fastboot";
         public const string PlatformTools = "platform-tools";
+
+        /// <summary>The standalone Odin flashing workspace (BL / AP / CP / CSC).</summary>
+        public const string SamsungOdin = "samsung-odin";
     }
 }

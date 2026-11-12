@@ -76,6 +76,30 @@
                               ToolTip="Normally the same COM port; some SoCs re-enumerate as 900E once the programmer runs." />
                 </DockPanel>
 
+                <!-- Firmware package: the two XML files a Firehose flash needs. The images are read
+                     from the same folder, so fh_loader can find them by name. -->
+                <DockPanel Margin="0,8,0,0">
+                    <Button DockPanel.Dock="Right" Content="Browse…" Style="{StaticResource Button.Outline}"
+                            Command="{Binding BrowseRawProgramCommand}" Margin="8,0,0,0" VerticalAlignment="Center"
+                            ToolTip="rawprogram0.xml from the firmware package." />
+                    <TextBlock DockPanel.Dock="Left" Text="Raw program" Style="{StaticResource Text.Label}"
+                               VerticalAlignment="Center" Margin="0,0,10,0" />
+                    <TextBox Style="{StaticResource Input.Text}" VerticalAlignment="Center" IsReadOnly="True"
+                             Text="{Binding RawProgramName, Mode=OneWay}"
+                             ToolTip="{Binding RawProgramTooltip}" />
+                </DockPanel>
+
+                <DockPanel Margin="0,8,0,0">
+                    <Button DockPanel.Dock="Right" Content="Browse…" Style="{StaticResource Button.Outline}"
+                            Command="{Binding BrowsePatchCommand}" Margin="8,0,0,0" VerticalAlignment="Center"
+                            ToolTip="patch0.xml from the same package. Optional, but most packages need it." />
+                    <TextBlock DockPanel.Dock="Left" Text="Patch" Style="{StaticResource Text.Label}"
+                               VerticalAlignment="Center" Margin="0,0,10,0" />
+                    <TextBox Style="{StaticResource Input.Text}" VerticalAlignment="Center" IsReadOnly="True"
+                             Text="{Binding PatchName, Mode=OneWay}"
+                             ToolTip="{Binding PatchTooltip}" />
+                </DockPanel>
+
                 <WrapPanel Margin="0,12,0,0">
                     <Button Content="Sahara handshake" Style="{StaticResource Button.Outline}"
                             Command="{Binding SaharaCommand}" Margin="0,0,8,8"
@@ -83,11 +107,10 @@
                     <Button Content="Read GPT" Style="{StaticResource Button.Outline}"
                             Command="{Binding GptCommand}" Margin="0,0,8,8"
                             ToolTip="Sends the Firehose read command for LBA 0 and parses the partition table." />
-                    <Button Content="Reset FRP" Style="{StaticResource Button.Outline}"
+                    <!-- One Reset FRP action: fh_loader on the 9008 port with the selected programmer.
+                         Always clickable — it listens for the handset when nothing is attached. -->
+                    <Button Content="Reset FRP" Style="{StaticResource Button.Primary}"
                             Command="{Binding ResetFrpCommand}" Margin="0,0,8,8"
-                            ToolTip="Reads the GPT, then erases exactly the 'frp' (or 'config') partition range." />
-                    <Button Content="Reset FRP (fh_loader)" Style="{StaticResource Button.Danger}"
-                            Command="{Binding LoaderFrpCommand}" Margin="0,0,8,8"
                             ToolTip="fh_loader on the 9008 port: starts the Firehose programmer and erases 'frp' and 'config' directly. Works on a locked bootloader." />
                     <Button Content="Factory format" Style="{StaticResource Button.Outline}"
                             Command="{Binding FactoryResetCommand}" Margin="0,0,8,8"
@@ -98,6 +121,31 @@
                               ToolTip="reset = reboot to system, off = power down, edl = stay in emergency download mode." />
                     <Button Content="Power command" Style="{StaticResource Button.Outline}"
                             Command="{Binding RebootCommand}" Margin="0,0,8,8" />
+                    <Button Content="Flash firmware" Style="{StaticResource Button.Primary}"
+                            Command="{Binding FlashFirmwareCommand}" Margin="0,0,8,8"
+                            ToolTip="fh_loader writes every image rawprogram0.xml names, applies patch0.xml, then resets. Runs silently with live output." />
+                </WrapPanel>
+
+                <!-- Partition manager: read and write a single partition over the same EDL link. -->
+                <WrapPanel Margin="0,4,0,0">
+                    <TextBlock Text="Partition" Style="{StaticResource Text.Label}" VerticalAlignment="Center"
+                               Margin="0,0,10,8" />
+                    <TextBox Style="{StaticResource Input.Text}" Width="160" Margin="0,0,8,8"
+                             VerticalAlignment="Center"
+                             Text="{Binding PartitionName, UpdateSourceTrigger=PropertyChanged}"
+                             ToolTip="The partition name as the handset's GPT spells it, e.g. boot, modem, super." />
+                    <Button Content="Read partition" Style="{StaticResource Button.Outline}"
+                            Command="{Binding ReadPartitionCommand}" Margin="0,0,8,8"
+                            ToolTip="Dumps the partition into Backups\\Qualcomm over the open Firehose link." />
+                    <Button Content="Write partition" Style="{StaticResource Button.Outline}"
+                            Command="{Binding WritePartitionCommand}" Margin="0,0,8,8"
+                            ToolTip="Writes a chosen image into that partition. Calibration partitions are refused." />
+                    <Button Content="Choose image…" Style="{StaticResource Button.Outline}"
+                            Command="{Binding BrowseImageCommand}" Margin="0,0,8,8" />
+                    <TextBox Style="{StaticResource Input.Text}" Width="200" Margin="0,0,8,8"
+                             VerticalAlignment="Center" IsReadOnly="True"
+                             Text="{Binding ImageName, Mode=OneWay}"
+                             ToolTip="{Binding ImageTooltip}" />
                 </WrapPanel>
 
                 <TextBlock Style="{StaticResource Text.Muted}" TextWrapping="Wrap" Margin="0,8,0,0"

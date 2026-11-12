@@ -78,7 +78,11 @@ namespace B_VIP.Modules
                 // FRP through the chipset tools themselves: mtkclient, fh_loader and spd_dump, plus
                 // the ADB setup-wizard bypass and the router that picks the right one per chipset.
                 new MtkClientFrpExecutor(process, VendorToolchain),
+                // The rest of the boot-ROM workbench: lock state, NVRAM dumps and the safe userdata
+                // format, all through the same mtkclient bundle.
+                new MtkUniversalExecutor(process, VendorToolchain),
                 new FhLoaderFrpExecutor(process, VendorToolchain),
+                new QualcommFirmwareExecutor(process, VendorToolchain),
                 new SpdDumpFrpExecutor(process, VendorToolchain),
                 new SetupWizardBypassExecutor(client),
                 new FrpRouterExecutor(client, process, VendorToolchain),

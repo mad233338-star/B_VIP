@@ -41,6 +41,8 @@ namespace B_VIP.Core.Operations
         public const string SamsungFrpTestMode = "samsung.frp-testmode";
         public const string SamsungFrpPreloader = "samsung.frp-preloader";
         public const string XiaomiMiAssistant = "xiaomi.mi-assistant";
+        public const string XiaomiMiAssistantFrp = "xiaomi.mi-assistant-frp";
+        public const string XiaomiMiAssistantWipe = "xiaomi.mi-assistant-wipe";
         public const string XiaomiReadInfo = "vendor.xiaomi-read-info";
         public const string XiaomiResetFrp = "vendor.xiaomi-reset-frp";
         public const string XiaomiBypassMiAccount = "vendor.xiaomi-bypass-mi-account";
@@ -58,7 +60,13 @@ namespace B_VIP.Core.Operations
         public const string MtkScatter = "mtk.scatter";
         public const string MtkReboot = "mtk.reboot";
         public const string MtkFrpClient = "mtk.frp-client";
+        public const string MtkUnlockBootloader = "mtk.unlock-bootloader";
+        public const string MtkRelockBootloader = "mtk.relock-bootloader";
+        public const string MtkBackupNvram = "mtk.backup-nvram";
+        public const string MtkRestoreNvram = "mtk.restore-nvram";
+        public const string MtkSafeFormat = "mtk.safe-format";
         public const string AdbSetupWizardBypass = "adb.setup-wizard-bypass";
+        public const string AdbPackage = "adb.package";
         public const string FrpAutoReset = "frp.auto-reset";
         public const string QualcommDiagnostic = "vendor.qualcomm-diagnostic";
         public const string QualcommReadInfo = "qualcomm.read-info";
@@ -68,6 +76,9 @@ namespace B_VIP.Core.Operations
         public const string QualcommFactoryReset = "qualcomm.factory-reset";
         public const string QualcommReboot = "qualcomm.reboot";
         public const string QualcommFrpLoader = "qualcomm.frp-loader";
+        public const string QualcommFlashFirmware = "qualcomm.flash-firmware";
+        public const string QualcommReadPartition = "qualcomm.read-partition";
+        public const string QualcommWritePartition = "qualcomm.write-partition";
         public const string SpreadtrumReadInfo = "vendor.spreadtrum-read-info";
         public const string SpreadtrumResetFrp = "vendor.spreadtrum-reset-frp";
         public const string SpdReadInfo = "spd.read-info";
@@ -125,6 +136,11 @@ namespace B_VIP.Core.Operations
             new(MtkScatter, "Parse scatter table and flash", "Parse scatter table and flash", ModuleKeys.MediaTek, false, true, true, "verified", 900),
             new(MtkReboot, "Reboot MediaTek device", "Reboot MediaTek device", ModuleKeys.MediaTek, true, true, false, "exit-code-zero", 90),
             new(MtkFrpClient, "Reset FRP through the MediaTek boot ROM (mtkclient)", "Reset FRP through the MediaTek boot ROM", ModuleKeys.MediaTek, false, true, true, "exit-code-zero", 900),
+            new(MtkUnlockBootloader, "Unlock the bootloader through the boot ROM", "Unlock the bootloader through the boot ROM", ModuleKeys.MediaTek, false, true, true, "exit-code-zero", 900),
+            new(MtkRelockBootloader, "Relock the bootloader through the boot ROM", "Relock the bootloader through the boot ROM", ModuleKeys.MediaTek, false, true, true, "exit-code-zero", 900),
+            new(MtkBackupNvram, "Back up NVRAM / NVDATA / protect partitions", "Back up NVRAM / NVDATA / protect partitions", ModuleKeys.MediaTek, false, true, false, "verified", 1800),
+            new(MtkRestoreNvram, "Restore NVRAM / NVDATA from a backup", "Restore NVRAM / NVDATA from a backup", ModuleKeys.MediaTek, false, true, true, "verified", 1800),
+            new(MtkSafeFormat, "Safe format of userdata (keeps FRP and metadata)", "Safe format of userdata", ModuleKeys.MediaTek, false, true, true, "exit-code-zero", 900),
             new(QualcommDiagnostic, "Qualcomm interface diagnostics", "Qualcomm interface diagnostics", ModuleKeys.Qualcomm, true, true, false, "verified", 120),
             new(QualcommReadInfo, "Read Qualcomm EDL interfaces and platform", "Read Qualcomm EDL interfaces and platform", ModuleKeys.Qualcomm, false, true, false, "verified", 120),
             new(QualcommSahara, "Sahara handshake and programmer upload", "Sahara handshake and programmer upload", ModuleKeys.Qualcomm, false, true, false, "verified", 240),
@@ -133,6 +149,9 @@ namespace B_VIP.Core.Operations
             new(QualcommFactoryReset, "Factory format through EDL (userdata, cache)", "Factory format through EDL (userdata, cache)", ModuleKeys.Qualcomm, false, true, true, "exit-code-zero", 1800),
             new(QualcommReboot, "Power command through EDL", "Power command through EDL", ModuleKeys.Qualcomm, false, true, false, "verified", 180),
             new(QualcommFrpLoader, "Reset FRP through fh_loader (EDL)", "Reset FRP through fh_loader", ModuleKeys.Qualcomm, false, true, true, "exit-code-zero", 900),
+            new(QualcommFlashFirmware, "Flash firmware through EDL (rawprogram / patch)", "Flash firmware through EDL", ModuleKeys.Qualcomm, false, true, true, "exit-code-zero", 3600),
+            new(QualcommReadPartition, "Dump a partition through EDL", "Dump a partition through EDL", ModuleKeys.Qualcomm, false, true, false, "verified", 1200),
+            new(QualcommWritePartition, "Write a partition image through EDL", "Write a partition image through EDL", ModuleKeys.Qualcomm, false, true, true, "verified", 1800),
             new(SpreadtrumReadInfo, "SPREADTRUM read device information", "SPREADTRUM read device information", ModuleKeys.Spreadtrum, true, true, false, "verified", 120),
             new(SpreadtrumResetFrp, "SPREADTRUM reset FRP", "SPREADTRUM reset FRP", ModuleKeys.Spreadtrum, true, true, true, "exit-code-zero", 180),
             new(SpdReadInfo, "SPD read device information", "SPD read device information", ModuleKeys.Spreadtrum, false, true, false, "verified", 120),
@@ -143,8 +162,11 @@ namespace B_VIP.Core.Operations
             new(SpdReboot, "SPD reboot device", "SPD reboot device", ModuleKeys.Spreadtrum, true, true, false, "exit-code-zero", 120),
             new(SpdFrpDump, "SPD reset FRP through spd_dump", "SPD reset FRP through spd_dump", ModuleKeys.Spreadtrum, false, true, true, "exit-code-zero", 900),
             new(AdbSetupWizardBypass, "Reset FRP over ADB (setup flags + MASTER_CLEAR)", "Reset FRP over ADB", ModuleKeys.Adb, true, true, true, "exit-code-zero", 180),
+            new(AdbPackage, "Install an APK or sideload a package over ADB", "Install APK / sideload package", ModuleKeys.Adb, false, true, false, "exit-code-zero", 1800),
             new(FrpAutoReset, "Reset FRP with automatic chipset routing", "Reset FRP with automatic chipset routing", ModuleKeys.ServiceOperations, false, true, true, "exit-code-zero", 1200),
             new(XiaomiMiAssistant, "Xiaomi Mi Assistant / sideload recovery guidance", "Xiaomi Mi Assistant / sideload recovery guidance", ModuleKeys.Xiaomi, false, true, false, "verified", 300),
+            new(XiaomiMiAssistantFrp, "Xiaomi Mi Assistant FRP reset (sideload payload)", "Xiaomi Mi Assistant FRP reset", ModuleKeys.Xiaomi, false, true, true, "exit-code-zero", 1800),
+            new(XiaomiMiAssistantWipe, "Xiaomi Mi Assistant wipe data (sideload payload)", "Xiaomi Mi Assistant wipe data", ModuleKeys.Xiaomi, false, true, true, "exit-code-zero", 1800),
             new(GoogleRecoveryGuidance, "Google account recovery guidance", "Google account recovery guidance", ModuleKeys.GoogleRecovery, false, false, false, "verified", 30),
             new(GoogleLockStatus, "Read FRP and lock status", "Read FRP and lock status", ModuleKeys.GoogleRecovery, true, true, false, "verified", 90),
             new(GoogleOpenDeviceUrl, "Open a web page on the device", "Open a web page on the device", ModuleKeys.GoogleRecovery, true, true, false, "exit-code-zero", 60),

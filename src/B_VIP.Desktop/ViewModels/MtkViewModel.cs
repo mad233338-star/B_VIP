@@ -35,35 +35,26 @@ namespace B_VIP.Desktop.ViewModels
 
             RefreshPorts();
 
-            ReadInfoCommand = new AsyncRelayCommand(_ => RunOperationAsync(OperationTypes.MtkReadInfo));
-            HandshakeCommand = new AsyncRelayCommand(_ => RunOperationAsync(OperationTypes.MtkHandshake));
+            // Every operation button is clickable with no handset attached: it listens for the
+            // preloader / BROM interface and runs the moment one answers.
+            ReadInfoCommand = new AsyncRelayCommand(_ => RunOperationAsync(OperationTypes.MtkReadInfo,
+                prepare: MtkListener, caption: "Read info (MediaTek)"), _ => !IsBusy);
+            HandshakeCommand = new AsyncRelayCommand(_ => RunOperationAsync(OperationTypes.MtkHandshake,
+                prepare: MtkListener, caption: "BROM handshake"), _ => !IsBusy);
             RebootCommand = new AsyncRelayCommand(_ => RunOperationAsync(OperationTypes.MtkReboot,
-                new Dictionary<string, string> { ["target"] = SelectedRebootTarget }));
-            ResetFrpCommand = new AsyncRelayCommand(_ => ConfirmedAsync(
-                "Erase the FRP partition through fastboot?\n\nThe handset is rebooted into the bootloader and 'frp' plus 'persistent' are erased. " +
-                "This needs an unlocked bootloader and cannot be undone.",
-                () => RunOperationAsync(OperationTypes.MtkResetFrp,
-                    new Dictionary<string, string> { ["confirm"] = "yes" }, confirmDataLoss: true)));
-
-            // The boot-ROM route: works on a locked bootloader because the erase happens before
-            // Android starts. mtkclient is driven from the loader bundle (Loaders\MTK).
-            ResetFrpClientCommand = new AsyncRelayCommand(_ => ConfirmedAsync(
-                "Reset FRP through the MediaTek boot ROM?\n\n" +
-                "1. Power the handset off.\n" +
-                "2. Hold Vol+ (and Vol-) while you connect the USB cable.\n\n" +
-                "mtkclient erases 'frp' and 'persistent' and resets the phone. " +
-                "This works on a locked bootloader and cannot be undone.",
-                () => RunOperationAsync(OperationTypes.MtkFrpClient, new Dictionary<string, string>
-                {
-                    ["confirm"] = "yes",
-                    ["partitions"] = "frp,persistent"
-                }, confirmDataLoss: true)));
+                new Dictionary<string, string> { ["target"] = SelectedRebootTarget },
+                prepare: MtkListener, caption: $"Reboot to {SelectedRebootTarget}"), _ => !IsBusy);
+            // The single Reset FRP action: the boot ROM is the only route that works on a locked
+            // bootloader, so mtkclient is driven from the loader bundle (Loaders\MTK). The command is
+            // always clickable; it listens for the preloader and runs the moment the handset answers.
+            ResetFrpCommand = new AsyncRelayCommand(_ => ResetFrpAsync(), _ => !IsBusy);
             FactoryResetCommand = new AsyncRelayCommand(_ => ConfirmedAsync(
                 "Format the handset?\n\nuserdata, cache and metadata are erased; nvram, nvdata, protect1/2 and modem are left untouched. " +
                 "Every file on the phone is lost.",
                 () => RunOperationAsync(OperationTypes.MtkFactoryReset,
-                    new Dictionary<string, string> { ["confirm"] = "yes" }, confirmDataLoss: true)));
-            ScatterCommand = new AsyncRelayCommand(_ => RunScatterAsync());
+                    new Dictionary<string, string> { ["confirm"] = "yes" }, confirmDataLoss: true,
+                    prepare: MtkListener, caption: "Factory format (BROM)")), _ => !IsBusy);
+            ScatterCommand = new AsyncRelayCommand(_ => RunScatterAsync(), _ => !IsBusy);
             BrowseScatterCommand = new AsyncRelayCommand(_ =>
             {
                 BrowseScatter();
@@ -74,7 +65,35 @@ namespace B_VIP.Desktop.ViewModels
                 StatusMessage = $"{RefreshPorts()} MediaTek interface(s).";
                 return Task.CompletedTask;
             });
+
+            // The rest of the boot-ROM workbench. Every one of these listens for the preloader first,
+            // so the operator can press the button before plugging the handset in.
+            UnlockBootloaderCommand = new AsyncRelayCommand(_ => ConfirmedAsync(
+                "Unlock the bootloader through the boot ROM?\n\n" +
+                "mtkclient erases 'seccfg', the partition that stores the lock state. The handset wipes itself on the " +
+                "first boot afterwards, so this is never done on a customer's phone without a backup. Continue?",
+                () => RunOperationAsync(OperationTypes.MtkUnlockBootloader,
+                    new Dictionary<string, string> { ["confirm"] = "yes" }, confirmDataLoss: true,
+                    prepare: MtkListener, caption: "Unlock bootloader")), _ => !IsBusy);
+            RelockBootloaderCommand = new AsyncRelayCommand(_ => RelockBootloaderAsync(), _ => !IsBusy);
+            BackupNvramCommand = new AsyncRelayCommand(_ => RunOperationAsync(OperationTypes.MtkBackupNvram,
+                prepare: MtkListener, caption: "Backup NVRAM"), _ => !IsBusy);
+            RestoreNvramCommand = new AsyncRelayCommand(_ => RestoreNvramAsync(), _ => !IsBusy);
+            SafeFormatCommand = new AsyncRelayCommand(_ => ConfirmedAsync(
+                "Safe format of userdata?\n\n" +
+                "Only 'userdata' is erased. metadata, persistent flags and the FRP state stay in place, which is what " +
+                "breaks the encryption loop without clearing the account lock. Every file on the phone is lost.",
+                () => RunOperationAsync(OperationTypes.MtkSafeFormat,
+                    new Dictionary<string, string> { ["confirm"] = "yes" }, confirmDataLoss: true,
+                    prepare: MtkListener, caption: "Safe format")), _ => !IsBusy);
+
+            GateOnBusy(ReadInfoCommand, HandshakeCommand, RebootCommand, ResetFrpCommand, FactoryResetCommand,
+                ScatterCommand, UnlockBootloaderCommand, RelockBootloaderCommand, BackupNvramCommand,
+                RestoreNvramCommand, SafeFormatCommand);
         }
+
+        /// <summary>The prepare delegate every boot-ROM routine uses: press first, plug the cable in after.</summary>
+        private Func<CancellationToken, Task<bool>> MtkListener => FrpListener(FrpWaitMode.MtkPreloader);
 
         public ObservableCollection<DiagnosticRow> Rows { get; }
 
@@ -125,10 +144,8 @@ namespace B_VIP.Desktop.ViewModels
 
         public AsyncRelayCommand RebootCommand { get; }
 
-        public AsyncRelayCommand ResetFrpCommand { get; }
-
         /// <summary>FRP through mtkclient and the boot ROM, for a handset with a locked bootloader.</summary>
-        public AsyncRelayCommand ResetFrpClientCommand { get; }
+        public AsyncRelayCommand ResetFrpCommand { get; }
 
         public AsyncRelayCommand FactoryResetCommand { get; }
 
@@ -137,6 +154,21 @@ namespace B_VIP.Desktop.ViewModels
         public AsyncRelayCommand BrowseScatterCommand { get; }
 
         public AsyncRelayCommand RefreshPortsCommand { get; }
+
+        /// <summary>Erases 'seccfg' through the boot ROM: the one-click unlock.</summary>
+        public AsyncRelayCommand UnlockBootloaderCommand { get; }
+
+        /// <summary>Writes a previously dumped 'seccfg' back, restoring the locked state.</summary>
+        public AsyncRelayCommand RelockBootloaderCommand { get; }
+
+        /// <summary>Dumps nvram, nvdata, nvcfg, protect1 and protect2 into Backups\NV.</summary>
+        public AsyncRelayCommand BackupNvramCommand { get; }
+
+        /// <summary>Restores those dumps from a folder chosen by the operator.</summary>
+        public AsyncRelayCommand RestoreNvramCommand { get; }
+
+        /// <summary>Formats userdata only, leaving metadata and the FRP flags intact.</summary>
+        public AsyncRelayCommand SafeFormatCommand { get; }
 
         /// <summary>
         /// Opening the screen also makes sure the loader bundle is on disk. An existing copy is reused
@@ -207,7 +239,101 @@ namespace B_VIP.Desktop.ViewModels
             }
 
             return RunOperationAsync(OperationTypes.MtkScatter,
-                new Dictionary<string, string> { ["scatterPath"] = ScatterPath.Trim() });
+                new Dictionary<string, string> { ["scatterPath"] = ScatterPath.Trim() },
+                prepare: MtkListener, caption: "Scatter flash");
+        }
+
+        private async Task ResetFrpAsync()
+        {
+            MessageBoxResult answer = MessageBox.Show(
+                "Reset FRP through the MediaTek boot ROM?\n\n" +
+                "1. Power the handset off.\n" +
+                "2. Hold Vol+ (and Vol-) while you connect the USB cable.\n\n" +
+                "mtkclient erases 'frp' and 'persistent' and resets the phone. " +
+                "This works on a locked bootloader and cannot be undone.",
+                "B_VIP Tool",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning,
+                MessageBoxResult.No);
+
+            if (answer != MessageBoxResult.Yes)
+            {
+                StatusMessage = "Routine cancelled.";
+                return;
+            }
+
+            OnUiThread(() => Rows.Clear());
+            await RunOperationAsync(OperationTypes.MtkFrpClient, new Dictionary<string, string>
+            {
+                ["confirm"] = "yes",
+                ["partitions"] = "frp,persistent"
+            }, confirmDataLoss: true,
+                prepare: FrpListener(FrpWaitMode.MtkPreloader),
+                caption: "Reset FRP (BROM)");
+        }
+
+        private async Task RelockBootloaderAsync()
+        {
+            Microsoft.Win32.OpenFileDialog dialog = new()
+            {
+                Title = "Select the seccfg backup for this handset",
+                Filter = "seccfg image (*.bin)|*.bin|All files (*.*)|*.*",
+                CheckFileExists = true
+            };
+
+            if (dialog.ShowDialog() != true)
+            {
+                StatusMessage = "Relock cancelled: a valid seccfg backup is required.";
+                return;
+            }
+
+            Dictionary<string, string> parameters = new()
+            {
+                ["confirm"] = "yes",
+                ["seccfgPath"] = dialog.FileName
+            };
+
+            await RunOperationAsync(OperationTypes.MtkRelockBootloader, parameters, confirmDataLoss: true,
+                prepare: FrpListener(FrpWaitMode.MtkPreloader), caption: "Relock bootloader");
+        }
+
+        private async Task RestoreNvramAsync()
+        {
+            Microsoft.Win32.OpenFolderDialog dialog = new()
+            {
+                Title = "Select the NVRAM backup folder (nvram.bin, nvdata.bin, ...)",
+                Multiselect = false
+            };
+
+            if (dialog.ShowDialog() != true)
+            {
+                StatusMessage = "Restore cancelled: no backup folder was chosen.";
+                return;
+            }
+
+            MessageBoxResult answer = MessageBox.Show(
+                "Restore NVRAM / NVDATA from this backup?\n\n" +
+                "The dumps carry this handset's radio calibration and IMEI. Writing them into another phone corrupts its " +
+                "identity; writing the wrong set into this one can break the modem. Continue?",
+                "B_VIP Tool",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning,
+                MessageBoxResult.No);
+
+            if (answer != MessageBoxResult.Yes)
+            {
+                StatusMessage = "Restore cancelled.";
+                return;
+            }
+
+            Dictionary<string, string> parameters = new()
+            {
+                ["confirm"] = "yes",
+                ["backupPath"] = dialog.FolderName
+            };
+
+            await RunOperationAsync(OperationTypes.MtkRestoreNvram, parameters, confirmDataLoss: true,
+                prepare: FrpListener(FrpWaitMode.MtkPreloader), caption: "Restore NVRAM");
         }
 
         private async Task ConfirmedAsync(string question, Func<Task> action)

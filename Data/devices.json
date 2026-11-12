@@ -1,0 +1,3130 @@
+[
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy S8",
+    "ModelCode": "SM-G950F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 8895",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy S8+",
+    "ModelCode": "SM-G955F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 8895",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy S9",
+    "ModelCode": "SM-G960F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 9810",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy S9+",
+    "ModelCode": "SM-G965F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 9810",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy S10e",
+    "ModelCode": "SM-G970F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 9820",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy S10",
+    "ModelCode": "SM-G973F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 9820",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy S10+",
+    "ModelCode": "SM-G975F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 9820",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy S10 Lite",
+    "ModelCode": "SM-G770F",
+    "Platform": "Qualcomm",
+    "Chipset": "SM8150",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm8150.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy S20",
+    "ModelCode": "SM-G980F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 990",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy S20+",
+    "ModelCode": "SM-G985F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 990",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy S20 Ultra",
+    "ModelCode": "SM-G988B",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 990",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy S20 Ultra (Snapdragon)",
+    "ModelCode": "SM-G988U",
+    "Platform": "Qualcomm",
+    "Chipset": "SM8250",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm8250.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy S20 FE",
+    "ModelCode": "SM-G780F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 990",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy S21",
+    "ModelCode": "SM-G991B",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 2100",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy S21+",
+    "ModelCode": "SM-G996B",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 2100",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy S21 Ultra",
+    "ModelCode": "SM-G998B",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 2100",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy S21 Ultra (Snapdragon)",
+    "ModelCode": "SM-G998U",
+    "Platform": "Qualcomm",
+    "Chipset": "SM8350",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm8350.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy S21 FE",
+    "ModelCode": "SM-G990B",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 2100",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy S22",
+    "ModelCode": "SM-S901B",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 2200",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy S22 (Snapdragon)",
+    "ModelCode": "SM-S901U",
+    "Platform": "Qualcomm",
+    "Chipset": "SM8450",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm8450.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy S22+",
+    "ModelCode": "SM-S906B",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 2200",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy S22 Ultra",
+    "ModelCode": "SM-S908B",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 2200",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy S22 Ultra (Snapdragon)",
+    "ModelCode": "SM-S908U",
+    "Platform": "Qualcomm",
+    "Chipset": "SM8450",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm8450.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy S23",
+    "ModelCode": "SM-S911B",
+    "Platform": "Qualcomm",
+    "Chipset": "SM8550",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm8550.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy S23+",
+    "ModelCode": "SM-S916B",
+    "Platform": "Qualcomm",
+    "Chipset": "SM8550",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm8550.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy S23 Ultra",
+    "ModelCode": "SM-S918B",
+    "Platform": "Qualcomm",
+    "Chipset": "SM8550",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm8550.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy S23 Ultra (Snapdragon)",
+    "ModelCode": "SM-S918U",
+    "Platform": "Qualcomm",
+    "Chipset": "SM8550",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm8550.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy S23 FE",
+    "ModelCode": "SM-S711B",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 2200",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy S24",
+    "ModelCode": "SM-S921B",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 2400",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy S24+",
+    "ModelCode": "SM-S926B",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 2400",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy S24 Ultra",
+    "ModelCode": "SM-S928B",
+    "Platform": "Qualcomm",
+    "Chipset": "SM8650",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm8650.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy S24 Ultra (Snapdragon)",
+    "ModelCode": "SM-S928U",
+    "Platform": "Qualcomm",
+    "Chipset": "SM8650",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm8650.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy S24 FE",
+    "ModelCode": "SM-S721B",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 2400",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy Note 8",
+    "ModelCode": "SM-N950F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 8895",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy Note 9",
+    "ModelCode": "SM-N960F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 9810",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy Note 10",
+    "ModelCode": "SM-N970F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 9825",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy Note 10+",
+    "ModelCode": "SM-N975F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 9825",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy Note 10 Lite",
+    "ModelCode": "SM-N770F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 9810",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy Note 20",
+    "ModelCode": "SM-N980F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 990",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy Note 20 Ultra",
+    "ModelCode": "SM-N985F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 990",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy Note 20 Ultra (Snapdragon)",
+    "ModelCode": "SM-N986U",
+    "Platform": "Qualcomm",
+    "Chipset": "SM8250",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm8250.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A01",
+    "ModelCode": "SM-A015F",
+    "Platform": "Qualcomm",
+    "Chipset": "SDM439",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sdm439.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A01 Core",
+    "ModelCode": "SM-A013G",
+    "Platform": "MediaTek",
+    "Chipset": "MT6739",
+    "CustomLoaderPath": "Loaders/MediaTek/samsung_da.bin"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A02",
+    "ModelCode": "SM-A022F",
+    "Platform": "Qualcomm",
+    "Chipset": "SDM450",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sdm450.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A02s",
+    "ModelCode": "SM-A025F",
+    "Platform": "Qualcomm",
+    "Chipset": "SDM450",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sdm450.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A03",
+    "ModelCode": "SM-A035F",
+    "Platform": "Spreadtrum",
+    "Chipset": "SC9863A",
+    "CustomLoaderPath": "Loaders/SPD/fdl1-dl.bin"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A03s",
+    "ModelCode": "SM-A037F",
+    "Platform": "MediaTek",
+    "Chipset": "MT6765",
+    "CustomLoaderPath": "Loaders/MediaTek/samsung_da.bin"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A03 Core",
+    "ModelCode": "SM-A032F",
+    "Platform": "MediaTek",
+    "Chipset": "MT6765",
+    "CustomLoaderPath": "Loaders/MediaTek/samsung_da.bin"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A04",
+    "ModelCode": "SM-A045F",
+    "Platform": "MediaTek",
+    "Chipset": "MT6765",
+    "CustomLoaderPath": "Loaders/MediaTek/samsung_da.bin"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A04e",
+    "ModelCode": "SM-A042F",
+    "Platform": "MediaTek",
+    "Chipset": "MT6765",
+    "CustomLoaderPath": "Loaders/MediaTek/samsung_da.bin"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A04s",
+    "ModelCode": "SM-A047F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 850",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A05",
+    "ModelCode": "SM-A055F",
+    "Platform": "MediaTek",
+    "Chipset": "MT6769",
+    "CustomLoaderPath": "Loaders/MediaTek/samsung_da.bin"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A05s",
+    "ModelCode": "SM-A057F",
+    "Platform": "Qualcomm",
+    "Chipset": "SM6225",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm6225.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A06",
+    "ModelCode": "SM-A065F",
+    "Platform": "MediaTek",
+    "Chipset": "MT6769",
+    "CustomLoaderPath": "Loaders/MediaTek/samsung_da.bin"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A10",
+    "ModelCode": "SM-A105F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 7884",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A10s",
+    "ModelCode": "SM-A107F",
+    "Platform": "MediaTek",
+    "Chipset": "MT6762",
+    "CustomLoaderPath": "Loaders/MediaTek/samsung_da.bin"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A11",
+    "ModelCode": "SM-A115F",
+    "Platform": "Qualcomm",
+    "Chipset": "SDM450",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sdm450.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A12",
+    "ModelCode": "SM-A125F",
+    "Platform": "MediaTek",
+    "Chipset": "MT6765",
+    "CustomLoaderPath": "Loaders/MediaTek/samsung_da.bin"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A13",
+    "ModelCode": "SM-A135F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 850",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A14",
+    "ModelCode": "SM-A145F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 850",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A14 5G",
+    "ModelCode": "SM-A146B",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 1330",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A15",
+    "ModelCode": "SM-A155F",
+    "Platform": "MediaTek",
+    "Chipset": "MT6789",
+    "CustomLoaderPath": "Loaders/MediaTek/samsung_da.bin"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A15 5G",
+    "ModelCode": "SM-A156B",
+    "Platform": "MediaTek",
+    "Chipset": "MT6835",
+    "CustomLoaderPath": "Loaders/MediaTek/samsung_da.bin"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A20",
+    "ModelCode": "SM-A205F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 7884",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A20s",
+    "ModelCode": "SM-A207F",
+    "Platform": "Qualcomm",
+    "Chipset": "SDM450",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sdm450.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A21",
+    "ModelCode": "SM-A215F",
+    "Platform": "MediaTek",
+    "Chipset": "MT6765",
+    "CustomLoaderPath": "Loaders/MediaTek/samsung_da.bin"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A21s",
+    "ModelCode": "SM-A217F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 850",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A22",
+    "ModelCode": "SM-A225F",
+    "Platform": "MediaTek",
+    "Chipset": "MT6769",
+    "CustomLoaderPath": "Loaders/MediaTek/samsung_da.bin"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A22 5G",
+    "ModelCode": "SM-A226B",
+    "Platform": "MediaTek",
+    "Chipset": "MT6833",
+    "CustomLoaderPath": "Loaders/MediaTek/samsung_da.bin"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A23",
+    "ModelCode": "SM-A235F",
+    "Platform": "Qualcomm",
+    "Chipset": "SM6225",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm6225.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A23 5G",
+    "ModelCode": "SM-A236B",
+    "Platform": "Qualcomm",
+    "Chipset": "SM6375",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm6375.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A24",
+    "ModelCode": "SM-A245F",
+    "Platform": "MediaTek",
+    "Chipset": "MT6789",
+    "CustomLoaderPath": "Loaders/MediaTek/samsung_da.bin"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A25 5G",
+    "ModelCode": "SM-A255F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 1280",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A30",
+    "ModelCode": "SM-A305F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 7904",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A30s",
+    "ModelCode": "SM-A307F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 7904",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A31",
+    "ModelCode": "SM-A315F",
+    "Platform": "MediaTek",
+    "Chipset": "MT6765",
+    "CustomLoaderPath": "Loaders/MediaTek/samsung_da.bin"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A32",
+    "ModelCode": "SM-A325F",
+    "Platform": "MediaTek",
+    "Chipset": "MT6769",
+    "CustomLoaderPath": "Loaders/MediaTek/samsung_da.bin"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A32 5G",
+    "ModelCode": "SM-A326B",
+    "Platform": "MediaTek",
+    "Chipset": "MT6853",
+    "CustomLoaderPath": "Loaders/MediaTek/samsung_da.bin"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A33 5G",
+    "ModelCode": "SM-A336B",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 1280",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A34 5G",
+    "ModelCode": "SM-A346B",
+    "Platform": "MediaTek",
+    "Chipset": "MT6877",
+    "CustomLoaderPath": "Loaders/MediaTek/samsung_da.bin"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A35 5G",
+    "ModelCode": "SM-A356E",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 1380",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A40",
+    "ModelCode": "SM-A405F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 7904",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A41",
+    "ModelCode": "SM-A415F",
+    "Platform": "MediaTek",
+    "Chipset": "MT6765",
+    "CustomLoaderPath": "Loaders/MediaTek/samsung_da.bin"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A42 5G",
+    "ModelCode": "SM-A426B",
+    "Platform": "Qualcomm",
+    "Chipset": "SM7225",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm7225.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A50",
+    "ModelCode": "SM-A505F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 9610",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A50s",
+    "ModelCode": "SM-A507F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 9611",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A51",
+    "ModelCode": "SM-A515F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 9611",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A52",
+    "ModelCode": "SM-A525F",
+    "Platform": "Qualcomm",
+    "Chipset": "SM7125",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm7125.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A52 5G",
+    "ModelCode": "SM-A526B",
+    "Platform": "Qualcomm",
+    "Chipset": "SM7225",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm7225.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A52s 5G",
+    "ModelCode": "SM-A528B",
+    "Platform": "Qualcomm",
+    "Chipset": "SM7325",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm7325.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A53 5G",
+    "ModelCode": "SM-A536B",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 1280",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A54 5G",
+    "ModelCode": "SM-A546B",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 1380",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A55 5G",
+    "ModelCode": "SM-A556E",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 1480",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A60",
+    "ModelCode": "SM-A606F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 9611",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A70",
+    "ModelCode": "SM-A705F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 9610",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A70s",
+    "ModelCode": "SM-A707F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 9611",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A71",
+    "ModelCode": "SM-A715F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 9611",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A72",
+    "ModelCode": "SM-A725F",
+    "Platform": "Qualcomm",
+    "Chipset": "SM7125",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm7125.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy A73 5G",
+    "ModelCode": "SM-A736B",
+    "Platform": "Qualcomm",
+    "Chipset": "SM6375",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm6375.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy M01",
+    "ModelCode": "SM-M015F",
+    "Platform": "Qualcomm",
+    "Chipset": "SDM439",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sdm439.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy M01s",
+    "ModelCode": "SM-M017F",
+    "Platform": "MediaTek",
+    "Chipset": "MT6765",
+    "CustomLoaderPath": "Loaders/MediaTek/samsung_da.bin"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy M02",
+    "ModelCode": "SM-M022F",
+    "Platform": "Qualcomm",
+    "Chipset": "SDM450",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sdm450.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy M02s",
+    "ModelCode": "SM-M025F",
+    "Platform": "Qualcomm",
+    "Chipset": "SDM450",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sdm450.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy M10",
+    "ModelCode": "SM-M105F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 7904",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy M10s",
+    "ModelCode": "SM-M107F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 7904",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy M11",
+    "ModelCode": "SM-M115F",
+    "Platform": "Qualcomm",
+    "Chipset": "SDM450",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sdm450.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy M12",
+    "ModelCode": "SM-M127F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 850",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy M13",
+    "ModelCode": "SM-M135F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 850",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy M13 5G",
+    "ModelCode": "SM-M136B",
+    "Platform": "MediaTek",
+    "Chipset": "MT6833",
+    "CustomLoaderPath": "Loaders/MediaTek/samsung_da.bin"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy M14 5G",
+    "ModelCode": "SM-M146B",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 1330",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy M15 5G",
+    "ModelCode": "SM-M156B",
+    "Platform": "MediaTek",
+    "Chipset": "MT6835",
+    "CustomLoaderPath": "Loaders/MediaTek/samsung_da.bin"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy M20",
+    "ModelCode": "SM-M205F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 7904",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy M21",
+    "ModelCode": "SM-M215F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 9611",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy M22",
+    "ModelCode": "SM-M225F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 850",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy M23 5G",
+    "ModelCode": "SM-M236B",
+    "Platform": "Qualcomm",
+    "Chipset": "SM6225",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm6225.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy M30",
+    "ModelCode": "SM-M305F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 7904",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy M30s",
+    "ModelCode": "SM-M307F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 9611",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy M31",
+    "ModelCode": "SM-M315F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 9611",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy M31s",
+    "ModelCode": "SM-M317F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 9611",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy M32",
+    "ModelCode": "SM-M325F",
+    "Platform": "MediaTek",
+    "Chipset": "MT6769",
+    "CustomLoaderPath": "Loaders/MediaTek/samsung_da.bin"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy M32 5G",
+    "ModelCode": "SM-M326B",
+    "Platform": "MediaTek",
+    "Chipset": "MT6853",
+    "CustomLoaderPath": "Loaders/MediaTek/samsung_da.bin"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy M33 5G",
+    "ModelCode": "SM-M336B",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 1280",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy M34 5G",
+    "ModelCode": "SM-M346B",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 1280",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy M40",
+    "ModelCode": "SM-M405F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 9611",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy M42 5G",
+    "ModelCode": "SM-M426B",
+    "Platform": "Qualcomm",
+    "Chipset": "SM7225",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm7225.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy M51",
+    "ModelCode": "SM-M515F",
+    "Platform": "Qualcomm",
+    "Chipset": "SM7125",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm7125.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy M52 5G",
+    "ModelCode": "SM-M526B",
+    "Platform": "Qualcomm",
+    "Chipset": "SM7325",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm7325.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy M53 5G",
+    "ModelCode": "SM-M536B",
+    "Platform": "MediaTek",
+    "Chipset": "MT6877",
+    "CustomLoaderPath": "Loaders/MediaTek/samsung_da.bin"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy M54 5G",
+    "ModelCode": "SM-M546B",
+    "Platform": "Qualcomm",
+    "Chipset": "SM6375",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm6375.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy F02s",
+    "ModelCode": "SM-F022F",
+    "Platform": "Qualcomm",
+    "Chipset": "SDM450",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sdm450.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy F04",
+    "ModelCode": "SM-F042F",
+    "Platform": "MediaTek",
+    "Chipset": "MT6765",
+    "CustomLoaderPath": "Loaders/MediaTek/samsung_da.bin"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy F12",
+    "ModelCode": "SM-F127F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 850",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy F13",
+    "ModelCode": "SM-F135F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 850",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy F14 5G",
+    "ModelCode": "SM-F146B",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 1330",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy F15 5G",
+    "ModelCode": "SM-F156B",
+    "Platform": "MediaTek",
+    "Chipset": "MT6835",
+    "CustomLoaderPath": "Loaders/MediaTek/samsung_da.bin"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy F22",
+    "ModelCode": "SM-F225F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 850",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy F23 5G",
+    "ModelCode": "SM-F236B",
+    "Platform": "Qualcomm",
+    "Chipset": "SM6225",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm6225.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy F34 5G",
+    "ModelCode": "SM-F346B",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 1280",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy F41",
+    "ModelCode": "SM-F415F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 9611",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy F42 5G",
+    "ModelCode": "SM-F426B",
+    "Platform": "Qualcomm",
+    "Chipset": "SM7225",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm7225.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy F54 5G",
+    "ModelCode": "SM-F546B",
+    "Platform": "Qualcomm",
+    "Chipset": "SM6375",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm6375.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy F62",
+    "ModelCode": "SM-F625F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 9825",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy Z Fold",
+    "ModelCode": "SM-F900F",
+    "Platform": "Qualcomm",
+    "Chipset": "SM8150",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm8150.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy Z Fold2 5G",
+    "ModelCode": "SM-F916B",
+    "Platform": "Qualcomm",
+    "Chipset": "SM8250",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm8250.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy Z Fold3 5G",
+    "ModelCode": "SM-F926B",
+    "Platform": "Qualcomm",
+    "Chipset": "SM8350",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm8350.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy Z Fold4",
+    "ModelCode": "SM-F936B",
+    "Platform": "Qualcomm",
+    "Chipset": "SM8475",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm8475.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy Z Fold5",
+    "ModelCode": "SM-F946B",
+    "Platform": "Qualcomm",
+    "Chipset": "SM8550",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm8550.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy Z Fold6",
+    "ModelCode": "SM-F956B",
+    "Platform": "Qualcomm",
+    "Chipset": "SM8550",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm8550.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy Z Flip",
+    "ModelCode": "SM-F700F",
+    "Platform": "Qualcomm",
+    "Chipset": "SM8150",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm8150.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy Z Flip 5G",
+    "ModelCode": "SM-F707B",
+    "Platform": "Qualcomm",
+    "Chipset": "SM8250",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm8250.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy Z Flip3 5G",
+    "ModelCode": "SM-F711B",
+    "Platform": "Qualcomm",
+    "Chipset": "SM8350",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm8350.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy Z Flip4",
+    "ModelCode": "SM-F721B",
+    "Platform": "Qualcomm",
+    "Chipset": "SM8475",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm8475.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy Z Flip5",
+    "ModelCode": "SM-F731B",
+    "Platform": "Qualcomm",
+    "Chipset": "SM8550",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm8550.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy Z Flip6",
+    "ModelCode": "SM-F741B",
+    "Platform": "Qualcomm",
+    "Chipset": "SM8550",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm8550.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy J2",
+    "ModelCode": "SM-J210F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 7570",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy J4",
+    "ModelCode": "SM-J400F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 7570",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy J4+",
+    "ModelCode": "SM-J415F",
+    "Platform": "Qualcomm",
+    "Chipset": "SDM425",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sdm425.elf"
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy J6",
+    "ModelCode": "SM-J600F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 7870",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy J6+",
+    "ModelCode": "SM-J610F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 7870",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy J7",
+    "ModelCode": "SM-J700F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 7580",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy J7 Pro",
+    "ModelCode": "SM-J730F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 7870",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Samsung",
+    "MarketingName": "Galaxy J8",
+    "ModelCode": "SM-J810F",
+    "Platform": "Exynos",
+    "Chipset": "Exynos 7885",
+    "CustomLoaderPath": ""
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Redmi 6",
+    "ModelCode": "M1804C3CG",
+    "Platform": "MediaTek",
+    "Chipset": "MT6762",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Redmi 6A",
+    "ModelCode": "M1804C3DG",
+    "Platform": "MediaTek",
+    "Chipset": "MT6761",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Redmi 7",
+    "ModelCode": "M1810F6LG",
+    "Platform": "Qualcomm",
+    "Chipset": "SDM632",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sdm632.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Redmi 7A",
+    "ModelCode": "M1903C3EG",
+    "Platform": "Qualcomm",
+    "Chipset": "SDM439",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sdm439.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Redmi 8",
+    "ModelCode": "M1908C3IG",
+    "Platform": "Qualcomm",
+    "Chipset": "SDM439",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sdm439.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Redmi 8A",
+    "ModelCode": "M1908C3KG",
+    "Platform": "Qualcomm",
+    "Chipset": "SDM439",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sdm439.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Redmi 9",
+    "ModelCode": "M2004J19G",
+    "Platform": "MediaTek",
+    "Chipset": "MT6769",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Redmi 9A",
+    "ModelCode": "M2006C3LG",
+    "Platform": "MediaTek",
+    "Chipset": "MT6762",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Redmi 9C",
+    "ModelCode": "M2006C3MG",
+    "Platform": "MediaTek",
+    "Chipset": "MT6765",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Redmi 9T",
+    "ModelCode": "M2010J19SY",
+    "Platform": "Qualcomm",
+    "Chipset": "SDM662",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sdm662.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Redmi 10",
+    "ModelCode": "21061119DG",
+    "Platform": "MediaTek",
+    "Chipset": "MT6769",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Redmi 10A",
+    "ModelCode": "220233L2G",
+    "Platform": "MediaTek",
+    "Chipset": "MT6765",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Redmi 10C",
+    "ModelCode": "220333QAG",
+    "Platform": "Qualcomm",
+    "Chipset": "SM6225",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm6225.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Redmi 12",
+    "ModelCode": "23053RN02A",
+    "Platform": "MediaTek",
+    "Chipset": "MT6769",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Redmi 12C",
+    "ModelCode": "22120RN86G",
+    "Platform": "MediaTek",
+    "Chipset": "MT6769",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Redmi 13",
+    "ModelCode": "24049RN28L",
+    "Platform": "MediaTek",
+    "Chipset": "MT6769",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Redmi 13C",
+    "ModelCode": "23100RN82L",
+    "Platform": "MediaTek",
+    "Chipset": "MT6769",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Redmi 14C",
+    "ModelCode": "2409BRN2CY",
+    "Platform": "MediaTek",
+    "Chipset": "MT6769",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Redmi Note 7",
+    "ModelCode": "M1901F7G",
+    "Platform": "Qualcomm",
+    "Chipset": "SDM660",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sdm660.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Redmi Note 7 Pro",
+    "ModelCode": "M1901F7S",
+    "Platform": "Qualcomm",
+    "Chipset": "SDM675",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sdm675.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Redmi Note 8",
+    "ModelCode": "M1908C3JG",
+    "Platform": "Qualcomm",
+    "Chipset": "SDM665",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sdm665.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Redmi Note 8 Pro",
+    "ModelCode": "M1906G7G",
+    "Platform": "MediaTek",
+    "Chipset": "MT6785",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Redmi Note 9",
+    "ModelCode": "M2003J15SG",
+    "Platform": "MediaTek",
+    "Chipset": "MT6769",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Redmi Note 9 Pro",
+    "ModelCode": "M2003J6B2G",
+    "Platform": "Qualcomm",
+    "Chipset": "SDM720G",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sdm720g.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Redmi Note 9S",
+    "ModelCode": "M2003J6A1G",
+    "Platform": "Qualcomm",
+    "Chipset": "SDM720G",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sdm720g.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Redmi Note 10",
+    "ModelCode": "M2101K7AG",
+    "Platform": "Qualcomm",
+    "Chipset": "SDM678",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sdm678.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Redmi Note 10 Pro",
+    "ModelCode": "M2101K6G",
+    "Platform": "Qualcomm",
+    "Chipset": "SDM732G",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sdm732g.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Redmi Note 10S",
+    "ModelCode": "M2101K7BG",
+    "Platform": "MediaTek",
+    "Chipset": "MT6785",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Redmi Note 11",
+    "ModelCode": "2201117TG",
+    "Platform": "Qualcomm",
+    "Chipset": "SM6225",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm6225.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Redmi Note 11 Pro",
+    "ModelCode": "2201116TG",
+    "Platform": "MediaTek",
+    "Chipset": "MT6789",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Redmi Note 11S",
+    "ModelCode": "2201117SY",
+    "Platform": "MediaTek",
+    "Chipset": "MT6789",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Redmi Note 12",
+    "ModelCode": "22111317G",
+    "Platform": "Qualcomm",
+    "Chipset": "SM6225",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm6225.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Redmi Note 12 Pro",
+    "ModelCode": "22101316G",
+    "Platform": "MediaTek",
+    "Chipset": "MT6789",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Redmi Note 12 Pro+ 5G",
+    "ModelCode": "22101316UG",
+    "Platform": "MediaTek",
+    "Chipset": "MT6877",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Redmi Note 13",
+    "ModelCode": "23124RA7EO",
+    "Platform": "MediaTek",
+    "Chipset": "MT6833",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Redmi Note 13 5G",
+    "ModelCode": "23124RA7EI",
+    "Platform": "MediaTek",
+    "Chipset": "MT6835",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Redmi Note 13 Pro",
+    "ModelCode": "2312DRA50G",
+    "Platform": "Qualcomm",
+    "Chipset": "SM7435",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm7435.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Redmi Note 13 Pro+ 5G",
+    "ModelCode": "23090RA98G",
+    "Platform": "MediaTek",
+    "Chipset": "MT6886",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Redmi Note 14 4G",
+    "ModelCode": "24094RAD4G",
+    "Platform": "MediaTek",
+    "Chipset": "MT6789",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Redmi Note 14 5G",
+    "ModelCode": "24094RAD4I",
+    "Platform": "MediaTek",
+    "Chipset": "MT6835",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Redmi Note 14 Pro 4G",
+    "ModelCode": "24090RA29G",
+    "Platform": "MediaTek",
+    "Chipset": "MT6789",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Redmi Note 14 Pro+ 5G",
+    "ModelCode": "24090RA29I",
+    "Platform": "Qualcomm",
+    "Chipset": "SM7635",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm7635.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Mi 9",
+    "ModelCode": "M1902F1G",
+    "Platform": "Qualcomm",
+    "Chipset": "SM8150",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm8150.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Mi 9 SE",
+    "ModelCode": "M1903F2G",
+    "Platform": "Qualcomm",
+    "Chipset": "SM7125",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm7125.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Mi 9T",
+    "ModelCode": "M1903F10G",
+    "Platform": "Qualcomm",
+    "Chipset": "SM7150",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm7150.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Mi 10",
+    "ModelCode": "M2001J2G",
+    "Platform": "Qualcomm",
+    "Chipset": "SM8250",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm8250.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Mi 10T",
+    "ModelCode": "M2007J3SG",
+    "Platform": "Qualcomm",
+    "Chipset": "SM8250",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm8250.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Mi 10T Pro",
+    "ModelCode": "M2007J3SY",
+    "Platform": "Qualcomm",
+    "Chipset": "SM8250",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm8250.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Mi 11",
+    "ModelCode": "M2011K2G",
+    "Platform": "Qualcomm",
+    "Chipset": "SM8350",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm8350.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Mi 11 Lite",
+    "ModelCode": "M2101K9AG",
+    "Platform": "Qualcomm",
+    "Chipset": "SM7125",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm7125.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Mi 11 Ultra",
+    "ModelCode": "M2102K1G",
+    "Platform": "Qualcomm",
+    "Chipset": "SM8350",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm8350.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Xiaomi 12",
+    "ModelCode": "2201123G",
+    "Platform": "Qualcomm",
+    "Chipset": "SM8450",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm8450.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Xiaomi 12 Pro",
+    "ModelCode": "2201122G",
+    "Platform": "Qualcomm",
+    "Chipset": "SM8450",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm8450.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Xiaomi 12 Lite",
+    "ModelCode": "2203129G",
+    "Platform": "Qualcomm",
+    "Chipset": "SM7325",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm7325.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Xiaomi 12T",
+    "ModelCode": "22071212AG",
+    "Platform": "MediaTek",
+    "Chipset": "MT6895",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Xiaomi 12T Pro",
+    "ModelCode": "22081212UG",
+    "Platform": "Qualcomm",
+    "Chipset": "SM8475",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm8475.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Xiaomi 13",
+    "ModelCode": "2211133G",
+    "Platform": "Qualcomm",
+    "Chipset": "SM8550",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm8550.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Xiaomi 13 Pro",
+    "ModelCode": "2210132G",
+    "Platform": "Qualcomm",
+    "Chipset": "SM8550",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm8550.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Xiaomi 13 Lite",
+    "ModelCode": "2210129SG",
+    "Platform": "Qualcomm",
+    "Chipset": "SM7450",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm7450.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Xiaomi 13T",
+    "ModelCode": "2306EPN60G",
+    "Platform": "MediaTek",
+    "Chipset": "MT6895",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Xiaomi 13T Pro",
+    "ModelCode": "23078PND5G",
+    "Platform": "MediaTek",
+    "Chipset": "MT6899",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Xiaomi 14",
+    "ModelCode": "23127PN0CG",
+    "Platform": "Qualcomm",
+    "Chipset": "SM8650",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm8650.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Xiaomi 14 Ultra",
+    "ModelCode": "24030PN60G",
+    "Platform": "Qualcomm",
+    "Chipset": "SM8650",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm8650.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Xiaomi 14T",
+    "ModelCode": "2406APNFAG",
+    "Platform": "MediaTek",
+    "Chipset": "MT6897",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Xiaomi 14T Pro",
+    "ModelCode": "2407FPN8EG",
+    "Platform": "MediaTek",
+    "Chipset": "MT6989",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Xiaomi 15",
+    "ModelCode": "24129PN74G",
+    "Platform": "Qualcomm",
+    "Chipset": "SM8750",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm8750.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Xiaomi 15 Pro",
+    "ModelCode": "24101PNB7G",
+    "Platform": "Qualcomm",
+    "Chipset": "SM8750",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm8750.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "Xiaomi 15 Ultra",
+    "ModelCode": "25010PN30G",
+    "Platform": "Qualcomm",
+    "Chipset": "SM8750",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm8750.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "POCO C3",
+    "ModelCode": "M2006C3MI",
+    "Platform": "MediaTek",
+    "Chipset": "MT6765",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "POCO C40",
+    "ModelCode": "220333QPG",
+    "Platform": "Spreadtrum",
+    "Chipset": "JR510",
+    "CustomLoaderPath": "Loaders/SPD/fdl1-dl.bin"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "POCO C50",
+    "ModelCode": "220733SFG",
+    "Platform": "MediaTek",
+    "Chipset": "MT6765",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "POCO C55",
+    "ModelCode": "23028RN4AG",
+    "Platform": "MediaTek",
+    "Chipset": "MT6769",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "POCO C61",
+    "ModelCode": "2409BPN72MG",
+    "Platform": "MediaTek",
+    "Chipset": "MT6769",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "POCO C65",
+    "ModelCode": "2310FPCA4G",
+    "Platform": "MediaTek",
+    "Chipset": "MT6769",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "POCO M3",
+    "ModelCode": "M2103K19PG",
+    "Platform": "Qualcomm",
+    "Chipset": "SM6115",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm6115.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "POCO M3 Pro 5G",
+    "ModelCode": "M2103K19PY",
+    "Platform": "MediaTek",
+    "Chipset": "MT6833",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "POCO M4 5G",
+    "ModelCode": "22041219PG",
+    "Platform": "MediaTek",
+    "Chipset": "MT6833",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "POCO M4 Pro 4G",
+    "ModelCode": "2201117PG",
+    "Platform": "MediaTek",
+    "Chipset": "MT6785",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "POCO M5",
+    "ModelCode": "22071219CG",
+    "Platform": "MediaTek",
+    "Chipset": "MT8781",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "POCO M5s",
+    "ModelCode": "23021RAAEG",
+    "Platform": "MediaTek",
+    "Chipset": "MT6785",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "POCO M6 5G",
+    "ModelCode": "23128PC33I",
+    "Platform": "MediaTek",
+    "Chipset": "MT6835",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "POCO M6 Pro 4G",
+    "ModelCode": "2312FPCA6G",
+    "Platform": "MediaTek",
+    "Chipset": "MT6789",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "POCO X3",
+    "ModelCode": "M2007J20CG",
+    "Platform": "Qualcomm",
+    "Chipset": "SM7150",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm7150.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "POCO X3 Pro",
+    "ModelCode": "M2102J20SG",
+    "Platform": "Qualcomm",
+    "Chipset": "SM8150",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm8150.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "POCO X3 GT",
+    "ModelCode": "21061110AG",
+    "Platform": "MediaTek",
+    "Chipset": "MT6891",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "POCO X4 Pro 5G",
+    "ModelCode": "2201116PG",
+    "Platform": "Qualcomm",
+    "Chipset": "SM6375",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm6375.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "POCO X4 GT",
+    "ModelCode": "22041216G",
+    "Platform": "MediaTek",
+    "Chipset": "MT6895",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "POCO X5 5G",
+    "ModelCode": "22111317PG",
+    "Platform": "Qualcomm",
+    "Chipset": "SM6375",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm6375.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "POCO X5 Pro 5G",
+    "ModelCode": "22101320G",
+    "Platform": "Qualcomm",
+    "Chipset": "SM7325",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm7325.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "POCO X6 5G",
+    "ModelCode": "23122PCD1G",
+    "Platform": "Qualcomm",
+    "Chipset": "SM7435",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm7435.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "POCO X6 Pro 5G",
+    "ModelCode": "2311DRK48G",
+    "Platform": "MediaTek",
+    "Chipset": "MT6897",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "POCO F3",
+    "ModelCode": "M2012K11AG",
+    "Platform": "Qualcomm",
+    "Chipset": "SM8250",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm8250.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "POCO F3 GT",
+    "ModelCode": "M2104K10I",
+    "Platform": "MediaTek",
+    "Chipset": "MT6893",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "POCO F4",
+    "ModelCode": "22021211RG",
+    "Platform": "Qualcomm",
+    "Chipset": "SM8250",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm8250.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "POCO F4 GT",
+    "ModelCode": "22021211RI",
+    "Platform": "Qualcomm",
+    "Chipset": "SM8450",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm8450.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "POCO F5",
+    "ModelCode": "23049PCD8G",
+    "Platform": "Qualcomm",
+    "Chipset": "SM7475",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm7475.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "POCO F5 Pro",
+    "ModelCode": "23013PC75G",
+    "Platform": "Qualcomm",
+    "Chipset": "SM8475",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm8475.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "POCO F6",
+    "ModelCode": "24069PC21G",
+    "Platform": "Qualcomm",
+    "Chipset": "SM8635",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm8635.elf"
+  },
+  {
+    "Brand": "Xiaomi",
+    "MarketingName": "POCO F6 Pro",
+    "ModelCode": "23113RKC6G",
+    "Platform": "Qualcomm",
+    "Chipset": "SM8550",
+    "CustomLoaderPath": "Loaders/Qualcomm/prog_firehose_sm8550.elf"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Hot 7",
+    "ModelCode": "X624",
+    "Platform": "MediaTek",
+    "Chipset": "MT6762",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Hot 7 Pro",
+    "ModelCode": "X625",
+    "Platform": "MediaTek",
+    "Chipset": "MT6762",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Hot 8",
+    "ModelCode": "X650",
+    "Platform": "MediaTek",
+    "Chipset": "MT6762",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Hot 9",
+    "ModelCode": "X655",
+    "Platform": "MediaTek",
+    "Chipset": "MT6765",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Hot 9 Play",
+    "ModelCode": "X680",
+    "Platform": "MediaTek",
+    "Chipset": "MT6762",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Hot 10",
+    "ModelCode": "X682",
+    "Platform": "MediaTek",
+    "Chipset": "MT6769",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Hot 10 Play",
+    "ModelCode": "X688",
+    "Platform": "MediaTek",
+    "Chipset": "MT6762",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Hot 10S",
+    "ModelCode": "X689",
+    "Platform": "MediaTek",
+    "Chipset": "MT6765",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Hot 11",
+    "ModelCode": "X662",
+    "Platform": "MediaTek",
+    "Chipset": "MT6769",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Hot 11S",
+    "ModelCode": "X6812",
+    "Platform": "MediaTek",
+    "Chipset": "MT6769",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Hot 11 Play",
+    "ModelCode": "X688B",
+    "Platform": "MediaTek",
+    "Chipset": "MT6762",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Hot 12",
+    "ModelCode": "X6817",
+    "Platform": "MediaTek",
+    "Chipset": "MT6765",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Hot 12 Play",
+    "ModelCode": "X6816",
+    "Platform": "MediaTek",
+    "Chipset": "MT6762",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Hot 12 Pro",
+    "ModelCode": "X6819",
+    "Platform": "MediaTek",
+    "Chipset": "MT6769",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Hot 12i",
+    "ModelCode": "X665",
+    "Platform": "MediaTek",
+    "Chipset": "MT6765",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Hot 20",
+    "ModelCode": "X6826",
+    "Platform": "MediaTek",
+    "Chipset": "MT6769",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Hot 20 Play",
+    "ModelCode": "X6825",
+    "Platform": "MediaTek",
+    "Chipset": "MT6762",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Hot 20i",
+    "ModelCode": "X665B",
+    "Platform": "MediaTek",
+    "Chipset": "MT6765",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Hot 30",
+    "ModelCode": "X6831",
+    "Platform": "MediaTek",
+    "Chipset": "MT6769",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Hot 30 Play",
+    "ModelCode": "X6835",
+    "Platform": "MediaTek",
+    "Chipset": "MT6765",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Hot 30i",
+    "ModelCode": "X669",
+    "Platform": "MediaTek",
+    "Chipset": "MT6765",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Hot 40",
+    "ModelCode": "X6836",
+    "Platform": "MediaTek",
+    "Chipset": "MT6769",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Hot 40 Pro",
+    "ModelCode": "X6837",
+    "Platform": "MediaTek",
+    "Chipset": "MT6789",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Hot 40i",
+    "ModelCode": "X6528",
+    "Platform": "MediaTek",
+    "Chipset": "MT6765",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Hot 40 5G",
+    "ModelCode": "X6838",
+    "Platform": "MediaTek",
+    "Chipset": "MT6835",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Note 7",
+    "ModelCode": "X656",
+    "Platform": "MediaTek",
+    "Chipset": "MT6765",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Note 8",
+    "ModelCode": "X690",
+    "Platform": "MediaTek",
+    "Chipset": "MT6765",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Note 10",
+    "ModelCode": "X692",
+    "Platform": "MediaTek",
+    "Chipset": "MT6785",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Note 10 Pro",
+    "ModelCode": "X695",
+    "Platform": "MediaTek",
+    "Chipset": "MT6785",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Note 11",
+    "ModelCode": "X663",
+    "Platform": "MediaTek",
+    "Chipset": "MT6781",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Note 11S",
+    "ModelCode": "X698",
+    "Platform": "MediaTek",
+    "Chipset": "MT6781",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Note 11 VIP",
+    "ModelCode": "X663B",
+    "Platform": "MediaTek",
+    "Chipset": "MT6781",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Note 12",
+    "ModelCode": "X663C",
+    "Platform": "MediaTek",
+    "Chipset": "MT6781",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Note 12 Pro",
+    "ModelCode": "X676D",
+    "Platform": "MediaTek",
+    "Chipset": "MT6785",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Note 12 VIP",
+    "ModelCode": "X672",
+    "Platform": "MediaTek",
+    "Chipset": "MT6785",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Note 12 5G",
+    "ModelCode": "X668",
+    "Platform": "MediaTek",
+    "Chipset": "MT6833",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Note 30",
+    "ModelCode": "X6833B",
+    "Platform": "MediaTek",
+    "Chipset": "MT6789",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Note 30 Pro",
+    "ModelCode": "X678B",
+    "Platform": "MediaTek",
+    "Chipset": "MT6789",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Note 30 VIP",
+    "ModelCode": "X6832",
+    "Platform": "MediaTek",
+    "Chipset": "MT6789",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Note 30 5G",
+    "ModelCode": "X6833C",
+    "Platform": "MediaTek",
+    "Chipset": "MT6835",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Note 40",
+    "ModelCode": "X6853",
+    "Platform": "MediaTek",
+    "Chipset": "MT6855",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Note 40 Pro",
+    "ModelCode": "X6850",
+    "Platform": "MediaTek",
+    "Chipset": "MT6789",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Note 40 Pro+ 5G",
+    "ModelCode": "X6851",
+    "Platform": "MediaTek",
+    "Chipset": "MT6886",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Note 40 5G",
+    "ModelCode": "X6852",
+    "Platform": "MediaTek",
+    "Chipset": "MT6835",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Smart 4",
+    "ModelCode": "X626",
+    "Platform": "MediaTek",
+    "Chipset": "MT6762",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Smart 5",
+    "ModelCode": "X657",
+    "Platform": "MediaTek",
+    "Chipset": "MT6762",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Smart 5 Pro",
+    "ModelCode": "X657B",
+    "Platform": "MediaTek",
+    "Chipset": "MT6762",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Smart 6",
+    "ModelCode": "X6511",
+    "Platform": "MediaTek",
+    "Chipset": "MT6765",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Smart 6 HD",
+    "ModelCode": "X6511B",
+    "Platform": "MediaTek",
+    "Chipset": "MT6761",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Smart 7",
+    "ModelCode": "X6515",
+    "Platform": "Spreadtrum",
+    "Chipset": "SC9863A",
+    "CustomLoaderPath": "Loaders/SPD/fdl1-dl.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Smart 7 HD",
+    "ModelCode": "X6516",
+    "Platform": "Spreadtrum",
+    "Chipset": "SC9863A",
+    "CustomLoaderPath": "Loaders/SPD/fdl1-dl.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Smart 8",
+    "ModelCode": "X6525",
+    "Platform": "Spreadtrum",
+    "Chipset": "UMS9230",
+    "CustomLoaderPath": "Loaders/SPD/fdl1-dl.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Smart 8 HD",
+    "ModelCode": "X6526",
+    "Platform": "Spreadtrum",
+    "Chipset": "UMS9230",
+    "CustomLoaderPath": "Loaders/SPD/fdl1-dl.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Smart 8 Plus",
+    "ModelCode": "X6527",
+    "Platform": "Spreadtrum",
+    "Chipset": "UMS9230",
+    "CustomLoaderPath": "Loaders/SPD/fdl1-dl.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Zero 8",
+    "ModelCode": "X687",
+    "Platform": "MediaTek",
+    "Chipset": "MT6769",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Zero 8i",
+    "ModelCode": "X687B",
+    "Platform": "MediaTek",
+    "Chipset": "MT6765",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Zero X",
+    "ModelCode": "X696",
+    "Platform": "MediaTek",
+    "Chipset": "MT6785",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Zero X Pro",
+    "ModelCode": "X696B",
+    "Platform": "MediaTek",
+    "Chipset": "MT6785",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Zero 20",
+    "ModelCode": "X6820",
+    "Platform": "MediaTek",
+    "Chipset": "MT6789",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Zero 30",
+    "ModelCode": "X6731B",
+    "Platform": "MediaTek",
+    "Chipset": "MT6789",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Zero 30 5G",
+    "ModelCode": "X6731",
+    "Platform": "MediaTek",
+    "Chipset": "MT6833",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "Zero Ultra",
+    "ModelCode": "X6822",
+    "Platform": "MediaTek",
+    "Chipset": "MT6789",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "GT 10 Pro",
+    "ModelCode": "X6739",
+    "Platform": "MediaTek",
+    "Chipset": "MT6789",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Infinix",
+    "MarketingName": "GT 20 Pro",
+    "ModelCode": "X6875",
+    "Platform": "MediaTek",
+    "Chipset": "MT6896",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Spark 4",
+    "ModelCode": "KC8",
+    "Platform": "MediaTek",
+    "Chipset": "MT6761",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Spark 5",
+    "ModelCode": "KD7",
+    "Platform": "MediaTek",
+    "Chipset": "MT6761",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Spark 5 Pro",
+    "ModelCode": "KD8",
+    "Platform": "MediaTek",
+    "Chipset": "MT6765",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Spark 5 Air",
+    "ModelCode": "KC8B",
+    "Platform": "MediaTek",
+    "Chipset": "MT6761",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Spark 6",
+    "ModelCode": "KE7",
+    "Platform": "MediaTek",
+    "Chipset": "MT6765",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Spark 6 Go",
+    "ModelCode": "KE5",
+    "Platform": "MediaTek",
+    "Chipset": "MT6762",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Spark 7",
+    "ModelCode": "KF6",
+    "Platform": "MediaTek",
+    "Chipset": "MT6765",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Spark 7P",
+    "ModelCode": "KF7",
+    "Platform": "MediaTek",
+    "Chipset": "MT6765",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Spark 7T",
+    "ModelCode": "KF8",
+    "Platform": "MediaTek",
+    "Chipset": "MT6765",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Spark 8",
+    "ModelCode": "KG6",
+    "Platform": "MediaTek",
+    "Chipset": "MT6765",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Spark 8C",
+    "ModelCode": "KG5",
+    "Platform": "MediaTek",
+    "Chipset": "MT6762",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Spark 8 Pro",
+    "ModelCode": "KG8",
+    "Platform": "MediaTek",
+    "Chipset": "MT6765",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Spark 8T",
+    "ModelCode": "KG6B",
+    "Platform": "MediaTek",
+    "Chipset": "MT6765",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Spark 9",
+    "ModelCode": "KG7",
+    "Platform": "MediaTek",
+    "Chipset": "MT6765",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Spark 9 Pro",
+    "ModelCode": "KH7",
+    "Platform": "MediaTek",
+    "Chipset": "MT6765",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Spark 9T",
+    "ModelCode": "KH8",
+    "Platform": "MediaTek",
+    "Chipset": "MT6765",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Spark 10",
+    "ModelCode": "KI5",
+    "Platform": "MediaTek",
+    "Chipset": "MT6765",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Spark 10 Pro",
+    "ModelCode": "KI8",
+    "Platform": "MediaTek",
+    "Chipset": "MT6789",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Spark 10C",
+    "ModelCode": "KI7",
+    "Platform": "MediaTek",
+    "Chipset": "MT6765",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Spark 20",
+    "ModelCode": "KJ5",
+    "Platform": "MediaTek",
+    "Chipset": "MT6769",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Spark 20 Pro",
+    "ModelCode": "KJ6",
+    "Platform": "MediaTek",
+    "Chipset": "MT6789",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Spark 20 Pro+",
+    "ModelCode": "KJ7",
+    "Platform": "MediaTek",
+    "Chipset": "MT6789",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Spark 20C",
+    "ModelCode": "KL7",
+    "Platform": "MediaTek",
+    "Chipset": "MT6769",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Camon 15",
+    "ModelCode": "CD7",
+    "Platform": "MediaTek",
+    "Chipset": "MT6765",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Camon 15 Air",
+    "ModelCode": "CD6",
+    "Platform": "MediaTek",
+    "Chipset": "MT6762",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Camon 16",
+    "ModelCode": "CE7",
+    "Platform": "MediaTek",
+    "Chipset": "MT6765",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Camon 16 Premier",
+    "ModelCode": "CE8",
+    "Platform": "MediaTek",
+    "Chipset": "MT6785",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Camon 17",
+    "ModelCode": "CH7",
+    "Platform": "MediaTek",
+    "Chipset": "MT6769",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Camon 17P",
+    "ModelCode": "CH7n",
+    "Platform": "MediaTek",
+    "Chipset": "MT6769",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Camon 17 Pro",
+    "ModelCode": "CH9",
+    "Platform": "MediaTek",
+    "Chipset": "MT6789",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Camon 18",
+    "ModelCode": "CI6",
+    "Platform": "MediaTek",
+    "Chipset": "MT6769",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Camon 18P",
+    "ModelCode": "CI8",
+    "Platform": "MediaTek",
+    "Chipset": "MT6789",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Camon 19",
+    "ModelCode": "CI6n",
+    "Platform": "MediaTek",
+    "Chipset": "MT6789",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Camon 19 Pro",
+    "ModelCode": "CI8n",
+    "Platform": "MediaTek",
+    "Chipset": "MT6789",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Camon 19 Premier",
+    "ModelCode": "CI9",
+    "Platform": "MediaTek",
+    "Chipset": "MT6789",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Camon 20",
+    "ModelCode": "CK6",
+    "Platform": "MediaTek",
+    "Chipset": "MT6769",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Camon 20 Pro",
+    "ModelCode": "CK7n",
+    "Platform": "MediaTek",
+    "Chipset": "MT6789",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Camon 20 Premier 5G",
+    "ModelCode": "CK9n",
+    "Platform": "MediaTek",
+    "Chipset": "MT6833",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Camon 30",
+    "ModelCode": "CL6",
+    "Platform": "MediaTek",
+    "Chipset": "MT6789",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Camon 30 Pro 5G",
+    "ModelCode": "CL7",
+    "Platform": "MediaTek",
+    "Chipset": "MT6833",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Camon 30 Premier 5G",
+    "ModelCode": "CL9",
+    "Platform": "MediaTek",
+    "Chipset": "MT6895",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Pova",
+    "ModelCode": "LC6",
+    "Platform": "MediaTek",
+    "Chipset": "MT6769",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Pova 2",
+    "ModelCode": "LE7",
+    "Platform": "MediaTek",
+    "Chipset": "MT6769",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Pova 2 Pro",
+    "ModelCode": "LE8",
+    "Platform": "MediaTek",
+    "Chipset": "MT6769",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Pova 3",
+    "ModelCode": "LF7",
+    "Platform": "MediaTek",
+    "Chipset": "MT6769",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Pova 4",
+    "ModelCode": "LG7",
+    "Platform": "MediaTek",
+    "Chipset": "MT6789",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Pova 4 Pro",
+    "ModelCode": "LG8",
+    "Platform": "MediaTek",
+    "Chipset": "MT6789",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Pova 5",
+    "ModelCode": "LH7",
+    "Platform": "MediaTek",
+    "Chipset": "MT6789",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Pova 5 Pro 5G",
+    "ModelCode": "LH8",
+    "Platform": "MediaTek",
+    "Chipset": "MT6833",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Pova 5 Neo",
+    "ModelCode": "LH6",
+    "Platform": "MediaTek",
+    "Chipset": "MT6769",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Pova 6",
+    "ModelCode": "LI7",
+    "Platform": "MediaTek",
+    "Chipset": "MT6789",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Pova 6 Pro 5G",
+    "ModelCode": "LI9",
+    "Platform": "MediaTek",
+    "Chipset": "MT6835",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Pova 6 Neo",
+    "ModelCode": "LI6",
+    "Platform": "MediaTek",
+    "Chipset": "MT6769",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Pop 4",
+    "ModelCode": "BC2",
+    "Platform": "MediaTek",
+    "Chipset": "MT6580",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Pop 5",
+    "ModelCode": "BD2",
+    "Platform": "MediaTek",
+    "Chipset": "MT6739",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Pop 5 Pro",
+    "ModelCode": "BD4",
+    "Platform": "MediaTek",
+    "Chipset": "MT6761",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Pop 6",
+    "ModelCode": "BE7",
+    "Platform": "MediaTek",
+    "Chipset": "MT6761",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Pop 6 Pro",
+    "ModelCode": "BE8",
+    "Platform": "MediaTek",
+    "Chipset": "MT6761",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Pop 7",
+    "ModelCode": "BF7",
+    "Platform": "MediaTek",
+    "Chipset": "MT6761",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Pop 7 Pro",
+    "ModelCode": "BF7B",
+    "Platform": "MediaTek",
+    "Chipset": "MT6762",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Pop 8",
+    "ModelCode": "BG6",
+    "Platform": "MediaTek",
+    "Chipset": "MT6761",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Phantom X",
+    "ModelCode": "AC8",
+    "Platform": "MediaTek",
+    "Chipset": "MT6785",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Phantom X2",
+    "ModelCode": "AD9",
+    "Platform": "MediaTek",
+    "Chipset": "MT6983",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Phantom X2 Pro",
+    "ModelCode": "AD7",
+    "Platform": "MediaTek",
+    "Chipset": "MT6983",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Phantom V Fold",
+    "ModelCode": "AE10",
+    "Platform": "MediaTek",
+    "Chipset": "MT6985",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  },
+  {
+    "Brand": "Tecno",
+    "MarketingName": "Phantom V Flip",
+    "ModelCode": "AE11",
+    "Platform": "MediaTek",
+    "Chipset": "MT6895",
+    "CustomLoaderPath": "Loaders/MediaTek/mtk_da.bin"
+  }
+]

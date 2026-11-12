@@ -25,8 +25,18 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets/**/*" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Every bundled backend utility ships with the release, so a workshop machine with no internet
+         still has its engines: Tools\Samsung (heimdall.exe / odin4.exe + DLLs) and Tools\Xiaomi (Mi
+         Assistant sideload payloads). Anything dropped into these folders is deployed next to the
+         executable and packed into the installer. -->
+    <None Remove="Tools\**\*.*" />
+    <Content Include="Tools\**\*.*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <!-- Default client settings (server address, language) copied next to the executable. -->
     <None Remove="appsettings.json" />
     <Content Include="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Multi-brand handset catalog (Samsung / Xiaomi / Infinix / Tecno) read by the vendor tabs. -->
+    <Content Include="..\..\Data\devices.json" Link="Data\devices.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
